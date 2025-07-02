@@ -1,0 +1,50 @@
+_target_: src.model.MoLiNER
+
+lr: 1e-4
+
+# --- --- --- xxx --- --- ---
+
+# wait_for_debug_seconds:
+# focal_loss_alpha:
+# focal_loss_gamma:
+# visualize_on_start:
+# visualize_on_end:
+# visualization_batch_index:
+# num_visualization_samples:
+# visualization_score_threshold:
+# visualization_fps:
+
+# --- --- --- xxx --- --- ---
+
+defaults:
+  - tokenizer: deberta
+
+  - pair_scorer: dot_product
+
+  - motion_frames_encoder: tmr
+  - prompts_tokens_encoder: transformer
+
+  - spans_generator: static
+
+  - prompt_tokens_aggregator: special_token
+  - span_frames_aggregator: concat
+
+  - prompt_representation_layer: mlp
+  - span_representation_layer: mlp
+
+  - decoder: generic
+
+pair_scorer: ???
+
+motion_frames_encoder: ???
+prompts_tokens_encoder: ???
+
+spans_generator: ???
+
+prompt_tokens_aggregator: ???
+span_frames_aggregator: ???
+
+prompt_representation_layer: ???
+span_representation_layer: ???
+
+decoder: ???

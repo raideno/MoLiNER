@@ -1,0 +1,2 @@
+_target_: src.model.decoders.generic.GenericDecoder
+strategy: FLAT

@@ -1,0 +1,23 @@
+ckpt: best
+resume_dir: null
+
+run_dir: out/${now:%Y-%m-%d_%H-%M-%S}
+
+test:
+  pdb: true
+  data: true
+  preload: false
+  threshold: 0.5
+
+dataloader:
+  _target_: torch.utils.data.DataLoader
+  batch_size: 32
+  num_workers: 8
+
+defaults:
+  - data: babel
+  - model: moliner
+  - trainer
+  - defaults
+  - _self_
+  - override hydra/launcher: basic

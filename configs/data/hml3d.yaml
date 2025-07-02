@@ -1,0 +1,4 @@
+_target_: src.data.hml3d.HML3DDataset
+max_texts: 8
+fps: 20
+padding_value: 0.0

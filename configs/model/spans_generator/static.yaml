@@ -1,0 +1,2 @@
+_target_: src.model.spans_generators.static.StaticSpansGenerator
+K: 32

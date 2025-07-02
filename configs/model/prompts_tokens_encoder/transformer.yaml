@@ -1,0 +1,3 @@
+_target_: src.model.prompts_tokens_encoders.transformer.TransformerPromptsTokensEncoder
+model_name: microsoft/deberta-v3-base
+finetune: true

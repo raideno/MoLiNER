@@ -1,0 +1,2 @@
+_target_: src.model.tokenizers.deberta.DebertaTokenizer
+model_name: microsoft/deberta-v3-base
