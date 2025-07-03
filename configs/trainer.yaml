@@ -18,7 +18,7 @@ trainer:
       filename: best-{epoch}
       monitor: val/loss
       mode: min
-      save_top_k: 16
+      save_top_k: 4
       save_last: true
     # NOTE: save every one epoch
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
@@ -33,9 +33,18 @@ trainer:
       mode: min
       min_delta: 0.001
       verbose: true
-    - _target_: src.callback.progress.ProgressLogger
+    - _target_: src.callbacks.progress.ProgressLogger
       precision: 3
-    - _target_: src.callback.tqdmbar.TQDMProgressBar
+    - _target_: src.callbacks.tqdmbar.TQDMProgressBar
+    # NOTE: custom callback for visualization every epoch
+    - _target_: src.callbacks.visualization.VisualizationCallback
+      batch_index: 0
+      num_samples: 2
+      score_threshold: 0.5
+      fps: 20
+      visualize_on_start: true
+      visualize_on_end: true
+      dirpath: ${run_dir}/visualizations
 
   logger:
     _target_: src.logger.csv.CSVLogger

@@ -27,8 +27,10 @@ login_to_huggingface()
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_THRESHOLD = 0.5
-DEFAULT_FPS = 20
+from src.constants import (
+    DEFAULT_FPS,
+    DEFAULT_THRESHOLD,
+)
 
 @hydra.main(config_path="configs", config_name="test", version_base="1.3")
 def test(cfg: DictConfig):

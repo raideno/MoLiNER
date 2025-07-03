@@ -1,0 +1,20 @@
+ckpt: best
+resume_dir: null
+
+# TODO: might be useful in case we need to save some validation plots
+# run_dir: out/${now:%Y-%m-%d_%H-%M-%S}
+
+share: False
+
+dataloader:
+  _target_: torch.utils.data.DataLoader
+  batch_size: 32
+  num_workers: 8
+
+defaults:
+  - data: babel
+  - model: moliner
+  - trainer
+  - defaults
+  - _self_
+  - override hydra/launcher: basic

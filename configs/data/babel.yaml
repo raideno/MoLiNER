@@ -5,8 +5,8 @@ fps: 20
 padding_value: 0.0
 
 load_from_cache_file: DEFAULT_LOAD_FROM_CACHE_FILE
-use_filtering: True
 
+use_filtering: True
 filter_config:
   # NOTE: will use predefined default values instead
   # seed: DEFAULT_SEED

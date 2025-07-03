@@ -1,9 +1,16 @@
+.gradio
+.gradio/
+
 ignore/
+*.ignore.sh
 *.ignore
 *.ignore.txt
 *.txt.ignore
 
 out/
+out
+out/*
+out/*
 
 tmp/
 tmp.txt
@@ -31,6 +38,7 @@ __pycache__/
 *.so
 *.venv*
 logs/
+.motion-linner.venv
 
 
 # Distribution / packaging

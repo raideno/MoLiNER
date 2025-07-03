@@ -100,3 +100,11 @@ Evaluate the model for segmentation tasks. Available for Babel frame-level datas
 ```bash
 HYDRA_FULL_ERROR=1 python evaluate-segmentation.py
 ```
+
+## Gradio Web Interface
+
+Launch an interactive web interface for real-time model evaluation and visualization:
+
+```bash
+HYDRA_FULL_ERROR=1 python interface.py
+```

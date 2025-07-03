@@ -6,8 +6,8 @@ import datasets
 from hydra.utils import instantiate
 from src.data.filtering import create_babel_filter_fn, FilterConfig
 
-from src.data.typing import ProcessedBatch, RawBatch
 from src.data.batching import PromptGenerationMode
+from src.data.typing import ProcessedBatch, RawBatch
 from src.data.batching import BabelCollateFn, babel_create_raw_batch_collate_fn, babel_augment_and_split_batch
 
 from src.constants import (
@@ -84,10 +84,8 @@ class BabelDataset:
             if filter_config is None:
                 raise ValueError("`filter_config` must be provided when `use_filtering` is True.")
             
-            # If filter_config is already a FilterConfig instance, use it directly
             if isinstance(filter_config, FilterConfig):
                 config = filter_config
-                # Override fps if needed
                 if config.fps != self.fps:
                     config = FilterConfig(
                         seed=config.seed,
@@ -103,10 +101,8 @@ class BabelDataset:
                         debug=config.debug
                     )
             else:
-                # Handle dict-based config for backward compatibility
                 filter_config_copy = dict(filter_config)
                 
-                # Handle the prompt_text_filter_fn separately if it's a config
                 prompt_filter_conf = filter_config_copy.pop("prompt_text_filter_fn", None)
                 
                 if prompt_filter_conf:
@@ -114,7 +110,6 @@ class BabelDataset:
                 else:
                     prompt_text_filter_fn = None
                 
-                # Create FilterConfig instance
                 config = FilterConfig(
                     **filter_config_copy,
                     prompt_text_filter_fn=prompt_text_filter_fn,

@@ -521,80 +521,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
             score_threshold=score_threshold,
         )
         
-    def _run_and_log_visualizations(self, when: str):
-        """
-        Helper function to run evaluation on the stored validation batch and save plots.
-        
-        Args:
-            when (str): A string identifier, e.g., "start" or "end", for the filename.
-        """
-        if self.visualization_batch is None or self.trainer.logger is None:
-            logger.warning("No visualization batch available or logger is not set. Skipping visualizations.")
-            return
-
-        logger.info(f"Generating visualizations for epoch {self.current_epoch} ({when})...")
-        
-        self.eval()
-        with torch.no_grad():
-            raw_batch = self.visualization_batch
-            
-            num_to_visualize = min(self.num_visualization_samples, len(raw_batch.sid))
-
-            for i in range(num_to_visualize):
-                motion_length = int(raw_batch.motion_mask[i].sum())
-                motion_tensor = raw_batch.transformed_motion[i, :motion_length, :]
-                prompt_texts = [prompt[0] for prompt in raw_batch.prompts[i]]
-
-                if not prompt_texts:
-                    logger.warning(f"Sample {i} in visualization batch has no prompts. Skipping.")
-                    continue
-                
-                # NOTE: generate prediction visualization
-                evaluation_result = self.evaluate(
-                    motion=motion_tensor.to(self.device),
-                    prompts=prompt_texts,
-                    score_threshold=self.visualization_score_threshold,
-                )
-                
-                viz_dir = os.path.join(str(self.trainer.log_dir), "epoch_visualizations")
-                os.makedirs(viz_dir, exist_ok=True)
-                
-                figure = plot_evaluation_results(
-                    evaluation_result,
-                    title=f"Epoch {self.current_epoch} ({when}) - Sample {i}",
-                    fps=self.visualization_fps
-                )
-
-                if figure:
-                    filename = f"epoch_{self.current_epoch}_{when}_sample_{i}.html"
-                    output_path = os.path.join(viz_dir, filename)
-                    figure.write_html(output_path)
-                    logger.info(f"Saved visualization to {os.path.abspath(output_path)}")
-                
-                # NOTE: generate groundtruth visualization
-                groundtruth_spans = [
-                    (prompt[0], span[0], span[1], 1.0) for prompt in raw_batch.prompts[i] for span in prompt[1]
-                ]
-
-                groundtruth_result = EvaluationResult(
-                    motion_length=motion_length,
-                    predictions=groundtruth_spans
-                )
-
-                groundtruth_figure = plot_evaluation_results(
-                    groundtruth_result,
-                    title=f"Epoch {self.current_epoch} ({when}) - Sample {i} (Ground Truth)",
-                    fps=self.visualization_fps
-                )
-
-                if groundtruth_figure:
-                    gt_filename = f"epoch_{self.current_epoch}_{when}_sample_{i}_ground_truth.html"
-                    gt_output_path = os.path.join(viz_dir, gt_filename)
-                    groundtruth_figure.write_html(gt_output_path)
-                    logger.info(f"Saved ground truth visualization to {os.path.abspath(gt_output_path)}")
-        
-        self.train()
-    
     def evaluate(
         self,
         motion: torch.Tensor,
@@ -650,9 +576,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         if self.trainer.sanity_checking:
             return
             
-        if self.visualize_on_start:
-            self._run_and_log_visualizations(when="start")
-            
         if self.debug_mode in [DebugMode.START, DebugMode.ALL]:
             wait_for_debug(self.wait_for_debug_seconds)
     
@@ -660,9 +583,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # NOTE: we don't during the sanity check runs
         if self.trainer.sanity_checking:
             return
-
-        if self.visualize_on_end:
-            self._run_and_log_visualizations(when="end")
 
         if self.debug_mode in [DebugMode.END, DebugMode.ALL]:
             wait_for_debug(self.wait_for_debug_seconds)
