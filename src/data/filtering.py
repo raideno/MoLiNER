@@ -23,6 +23,7 @@ class FilterConfig:
     max_motion_frames: int = 10000
     min_prompts_per_sample: int = 0
     max_prompts_per_sample: int = 100
+    split_max_prompts_per_sample: bool = False
     prompt_text_filter_fn: typing.Optional[typing.Callable[[str], bool]] = None
     min_span_frames: int = 1
     max_span_frames: int = 10000
@@ -119,11 +120,55 @@ def create_babel_filter_fn(config: FilterConfig):
                 continue
 
             if num_unique_prompts > config.max_prompts_per_sample:
-                prompts_dropped_this_sample += num_unique_prompts - config.max_prompts_per_sample
-                if config.debug:
-                    print(f"[Filter] SID {sample_sid}: Sampling {config.max_prompts_per_sample} from {num_unique_prompts} unique prompts.")
-                keys_to_keep = random.sample(list(sampled_prompts.keys()), config.max_prompts_per_sample)
-                sampled_prompts = {k: sampled_prompts[k] for k in keys_to_keep}
+                if config.split_max_prompts_per_sample:
+                    # Split the sample: create multiple samples instead of discarding prompts
+                    all_prompt_keys = list(sampled_prompts.keys())
+                    random.shuffle(all_prompt_keys)  # Randomize the order
+                    
+                    # Split prompts into chunks of max_prompts_per_sample
+                    prompt_chunks = []
+                    for chunk_start in range(0, len(all_prompt_keys), config.max_prompts_per_sample):
+                        chunk_end = min(chunk_start + config.max_prompts_per_sample, len(all_prompt_keys))
+                        chunk_keys = all_prompt_keys[chunk_start:chunk_end]
+                        prompt_chunks.append({k: sampled_prompts[k] for k in chunk_keys})
+                    
+                    if config.debug:
+                        print(f"[Filter] SID {sample_sid}: Splitting sample into {len(prompt_chunks)} samples with {[len(chunk) for chunk in prompt_chunks]} prompts each.")
+                    
+                    # Create a sample for each chunk
+                    for chunk_idx, chunk_prompts in enumerate(prompt_chunks):
+                        chunk_spans_list = [span for spans in chunk_prompts.values() for span in spans]
+                        
+                        # Reconstruct annotations for this chunk
+                        chunk_seq_labels = {key: [] for key in seq_ann.get("labels", {})}
+                        chunk_frame_labels = {key: [] for key in frame_ann.get("labels", {})}
+                        
+                        for span in chunk_spans_list:
+                            target_labels = chunk_seq_labels if span['source'] == 'sequence' else chunk_frame_labels
+                            for key in target_labels:
+                                target_labels[key].append(span.get(key))
+                        
+                        # Add this chunk as a new sample
+                        for key in batch.keys():
+                            if key == "sequence_annotations":
+                                new_batch[key].append({"labels": chunk_seq_labels})
+                            elif key == "frame_annotations":
+                                new_batch[key].append({"labels": chunk_frame_labels})
+                            else:
+                                new_batch[key].append(batch[key][i])
+                        
+                        samples_kept += 1
+                    
+                    total_spans_filtered += spans_dropped_this_sample
+                    total_prompts_filtered += prompts_dropped_this_sample
+                    continue  # Skip the normal single sample processing
+                else:
+                    # Original behavior: randomly sample and discard excess prompts
+                    prompts_dropped_this_sample += num_unique_prompts - config.max_prompts_per_sample
+                    if config.debug:
+                        print(f"[Filter] SID {sample_sid}: Sampling {config.max_prompts_per_sample} from {num_unique_prompts} unique prompts.")
+                    keys_to_keep = random.sample(list(sampled_prompts.keys()), config.max_prompts_per_sample)
+                    sampled_prompts = {k: sampled_prompts[k] for k in keys_to_keep}
             
             final_spans_list = [span for spans in sampled_prompts.values() for span in spans]
             

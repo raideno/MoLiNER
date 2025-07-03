@@ -1,0 +1,4 @@
+_target_: src.model.motion_frames_encoders.pretrained_tmr.PretrainedTMRMotionFramesEncoder
+model_path: models/tmr_humanml3d_guoh3dfeats/last_weights/epoch=99-step=47700.ckpt
+finetune: true
+latent_dim: null  # Use the latent_dim from the pretrained model

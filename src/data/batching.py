@@ -93,6 +93,7 @@ def babel_create_raw_batch_collate_fn(
     fps: int = 20,
     mode: PromptGenerationMode = PromptGenerationMode.SEQUENCE_ANNOTATIONS,
     padding_value: float = 0.0,
+    source: str = "proc_label",
 ):
     """
     Factory to create a collate function for the Babel dataset that produces RawBatch objects.
@@ -101,6 +102,7 @@ def babel_create_raw_batch_collate_fn(
         fps (int): Frames per second to convert time annotations to frame indices.
         mode (PromptGenerationMode): Specifies which annotations to use for prompts.
         padding_value (float): The value to use for padding motion tensors.
+        source (str): The field to use for extracting prompt text from labels. Can be 'proc_label', 'act_cat', or 'raw_label'.
 
     Returns:
         A collate function that takes a batch and returns a RawBatch object.
@@ -147,24 +149,31 @@ def babel_create_raw_batch_collate_fn(
             for label in normalized_labels:
                 start_frame = int(label.get("start_t", 0) * fps)
                 end_frame = min(int(label.get("end_t", 0) * fps), max_frame)
-                prompt_text = label.get("proc_label")
+                prompt_text = label.get(source)
                 
+                # Handle both string and array values
                 if prompt_text:
-                    prompts.append((prompt_text, start_frame, end_frame, True, sequence_prompt))
+                    if isinstance(prompt_text, list):
+                        # If it's an array, create a prompt for each string
+                        for text in prompt_text:
+                            if text:
+                                prompts.append((text, start_frame, end_frame, sequence_prompt))
+                    else:
+                        # If it's a string, proceed as before
+                        prompts.append((prompt_text, start_frame, end_frame, sequence_prompt))
                     
             return prompts
         
-        def group_prompts_by_text(prompts_list: typing.List[typing.Tuple[str, int, int, bool, bool]]) -> typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool, bool]]:
+        def group_prompts_by_text(prompts_list: typing.List[typing.Tuple[str, int, int, bool]]) -> typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]:
             """
             Groups prompts with the same text together, combining their spans.
             """
             text_to_prompt = {}
             
-            for text, start_frame, end_frame, is_positive, is_sequence_prompt in prompts_list:
+            for text, start_frame, end_frame, is_sequence_prompt in prompts_list:
                 if text not in text_to_prompt:
                     text_to_prompt[text] = {
                         'spans': [],
-                        'is_positive': is_positive,
                         'is_sequence_prompt': is_sequence_prompt
                     }
                 text_to_prompt[text]['spans'].append((start_frame, end_frame))
@@ -172,7 +181,7 @@ def babel_create_raw_batch_collate_fn(
             # Convert to the new format
             grouped_prompts = []
             for text, info in text_to_prompt.items():
-                grouped_prompts.append((text, info['spans'], info['is_positive'], info['is_sequence_prompt']))
+                grouped_prompts.append((text, info['spans'], info['is_sequence_prompt']))
             
             return grouped_prompts
 
@@ -278,7 +287,7 @@ def hml3d_create_raw_batch_collate_fn(
             for text in selected_texts:
                 if text:
                     # Each text gets its own prompt with one span
-                    prompt = (text, [(start_frame, end_frame)], True, True)
+                    prompt = (text, [(start_frame, end_frame)], True)
                     sample_prompts.append(prompt)
                     
             all_prompts.append(sample_prompts)
@@ -301,39 +310,48 @@ class BabelCollateFn:
         fps: int = 20,
         mode: PromptGenerationMode = PromptGenerationMode.SEQUENCE_ANNOTATIONS,
         padding_value: float = 0.0,
+        source: str = "proc_label",
     ):
         self.fps = fps
         self.mode = mode
         self.padding_value = padding_value
+        self.source = source
         
         if isinstance(self.mode, str):
             self.mode = PromptGenerationMode(self.mode)
 
-    def _get_prompts_from_annotations(self, annotations: typing.Dict[str, typing.Any], max_frame: int, sequence_prompt: bool = True) -> typing.List[typing.Tuple[str, int, int, bool, bool]]:
+    def _get_prompts_from_annotations(self, annotations: typing.Dict[str, typing.Any], max_frame: int, sequence_prompt: bool = True) -> typing.List[typing.Tuple[str, int, int, bool]]:
         """Helper to extract and format prompts from a given annotation dict."""
         prompts = []
         normalized_labels = _normalize_annotations(annotations)
         for label in normalized_labels:
             start_frame = int(label.get("start_t", 0) * self.fps)
             end_frame = min(int(label.get("end_t", 0) * self.fps), max_frame)
-            prompt_text = label.get("proc_label")
+            prompt_text = label.get(self.source)
             
+            # Handle both string and array values
             if prompt_text:
-                prompts.append((prompt_text, start_frame, end_frame, True, sequence_prompt))
+                if isinstance(prompt_text, list):
+                    # If it's an array, create a prompt for each string
+                    for text in prompt_text:
+                        if text:
+                            prompts.append((text, start_frame, end_frame, sequence_prompt))
+                else:
+                    # If it's a string, proceed as before
+                    prompts.append((prompt_text, start_frame, end_frame, sequence_prompt))
                 
         return prompts
     
-    def _group_prompts_by_text(self, prompts_list: typing.List[typing.Tuple[str, int, int, bool, bool]]) -> typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool, bool]]:
+    def _group_prompts_by_text(self, prompts_list: typing.List[typing.Tuple[str, int, int, bool]]) -> typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]:
         """
         Groups prompts with the same text together, combining their spans.
         """
         text_to_prompt = {}
         
-        for text, start_frame, end_frame, is_positive, is_sequence_prompt in prompts_list:
+        for text, start_frame, end_frame, is_sequence_prompt in prompts_list:
             if text not in text_to_prompt:
                 text_to_prompt[text] = {
                     'spans': [],
-                    'is_positive': is_positive,
                     'is_sequence_prompt': is_sequence_prompt
                 }
             text_to_prompt[text]['spans'].append((start_frame, end_frame))
@@ -341,7 +359,7 @@ class BabelCollateFn:
         # Convert to the new format
         grouped_prompts = []
         for text, info in text_to_prompt.items():
-            grouped_prompts.append((text, info['spans'], info['is_positive'], info['is_sequence_prompt']))
+            grouped_prompts.append((text, info['spans'], info['is_sequence_prompt']))
         
         return grouped_prompts
 
@@ -451,7 +469,7 @@ class HML3DCollateFn:
             for text in selected_texts:
                 if text:
                     # Each text gets its own prompt with one span
-                    prompt = (text, [(start_frame, end_frame)], True, True)
+                    prompt = (text, [(start_frame, end_frame)], True)
                     sample_prompts.append(prompt)
                     
             all_prompts.append(sample_prompts)
