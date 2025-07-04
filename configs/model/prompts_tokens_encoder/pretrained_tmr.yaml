@@ -1,4 +1,3 @@
 _target_: src.model.prompts_tokens_encoders.pretrained_tmr.PretrainedTMRPromptsTokensEncoder
-model_path: models/tmr_humanml3d_guoh3dfeats/last_weights/epoch=99-step=47700.ckpt
+weights_path: /home/nadir/motion-linner/models/tmr_humanml3d_guoh3dfeats/last_weights/text_encoder.pt
 finetune: true
-output_dim: null  # Use the output_dim from the pretrained model

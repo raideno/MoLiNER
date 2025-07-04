@@ -7,11 +7,6 @@ from src.data.typing import ForwardOutput, DecodingStrategy, EvaluationResult
 
 
 class GenericDecoder(BaseDecoder):
-    """
-    A generic decoder implementation that extracts predictions based on similarity scores
-    with configurable overlap handling strategies.
-    """
-    
     def __init__(
         self,
         strategy: DecodingStrategy = DecodingStrategy.FLAT,
@@ -37,32 +32,33 @@ class GenericDecoder(BaseDecoder):
         Returns:
             typing.List[EvaluationResult]: A list of EvaluationResult objects, one for each item in the batch.
         """
-        # (B, P, S)
+        # (Batch Size, Prompts, Spans)
         similarity_scores = torch.sigmoid(forward_output.similarity_matrix)
         
-        # (B, S, 2)
+        # (Batch Size, Spans, 2)
         candidate_spans = forward_output.candidate_spans_indices.cpu().numpy()
         
-        # (B, P) and (B, S)
+        # (Batch Size, Prompts)
         prompts_mask = forward_output.prompts_mask.cpu().numpy()
+        # (Batch Size, Spans)
         spans_mask = forward_output.candidate_spans_mask.cpu().numpy()
 
         batch_size = similarity_scores.shape[0]
         batch_results = []
 
-        for b in range(batch_size):
+        for batch_index in range(batch_size):
             # NOTE: get all predictions above the threshold
             potential_predictions = []
-            num_prompts = int(prompts_mask[b].sum())
-            num_spans = int(spans_mask[b].sum())
+            num_prompts = int(prompts_mask[batch_index].sum())
+            num_spans = int(spans_mask[batch_index].sum())
 
-            for p, s in product(range(num_prompts), range(num_spans)):
-                score = similarity_scores[b, p, s].item()
+            for prompt_index, span_index in product(range(num_prompts), range(num_spans)):
+                score = similarity_scores[batch_index, prompt_index, span_index].item()
                 if score > score_threshold:
-                    start, end = candidate_spans[b, s]
+                    start, end = candidate_spans[batch_index, span_index]
                     potential_predictions.append({
                         "score": score,
-                        "prompt_idx": p,
+                        "prompt_idx": prompt_index,
                         "span": (start, end),
                     })
 
@@ -74,41 +70,42 @@ class GenericDecoder(BaseDecoder):
                 final_predictions = potential_predictions
             else:
                 selected_spans = []
-                for pred in potential_predictions:
-                    current_span = pred["span"]
+                for prediction in potential_predictions:
+                    current_span = prediction["span"]
                     is_valid = True
                     for other_span in selected_spans:
                         # NOTE: we check for overlap
-                        s1, e1 = current_span
-                        s2, e2 = other_span
+                        start_1, end_1 = current_span
+                        start_2, end_2 = other_span
                         
                         # NOTE: partial overlap condition: one starts before the other ends, but they are not perfectly nested.
-                        is_overlapping = max(s1, s2) <= min(e1, e2)
+                        is_overlapping = max(start_1, start_2) <= min(end_1, end_2)
+                        is_fully_nested = (start_1 >= start_2 and end_1 <= end_2) or (start_2 >= start_1 and end_2 <= end_1)
                         
                         if is_overlapping:
+                            # NOTE: reject as no overlap is allowed on FLAT version
                             if self.strategy == DecodingStrategy.FLAT:
                                 is_valid = False
                                 break
+                            # NOTE: for NESTER we only allow fully nested spans
                             elif self.strategy == DecodingStrategy.NESTED:
-                                # NOTE: check if it's a partial overlap (not fully nested)
-                                is_nested = (s1 >= s2 and e1 <= e2) or (s2 >= s1 and e2 <= e1)
-                                if not is_nested:
+                                if not is_fully_nested:
                                     is_valid = False
                                     break
                     
                     if is_valid:
-                        final_predictions.append(pred)
+                        final_predictions.append(prediction)
                         selected_spans.append(current_span)
             
             motion_length = forward_output.candidate_spans_mask.shape[1]
             results_for_sample = []
-            for pred in final_predictions:
-                 results_for_sample.append((
-                     prompts[pred["prompt_idx"]],
-                     pred["span"][0],
-                     pred["span"][1],
-                     pred["score"]
-                 ))
+            for prediction in final_predictions:
+                results_for_sample.append((
+                    prompts[prediction["prompt_idx"]],
+                    prediction["span"][0],
+                    prediction["span"][1],
+                    prediction["score"]
+                ))
 
             batch_results.append(EvaluationResult(
                 motion_length=motion_length,

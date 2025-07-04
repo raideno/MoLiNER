@@ -7,8 +7,10 @@ defaults:
 
   - pair_scorer: dot_product
 
-  - motion_frames_encoder: tmr
+  # - motion_frames_encoder: tmr
+  - motion_frames_encoder: pretrained_tmr
   - prompts_tokens_encoder: transformer
+  # - prompts_tokens_encoder: pretrained_tmr
 
   - spans_generator: static
 

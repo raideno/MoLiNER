@@ -37,14 +37,14 @@ trainer:
       precision: 3
     - _target_: src.callbacks.tqdmbar.TQDMProgressBar
     # NOTE: custom callback for visualization every epoch
-    # - _target_: src.callbacks.visualization.VisualizationCallback
-    #   batch_index: 0
-    #   num_samples: 2
-    #   score_threshold: 0.5
-    #   debug: false
-    #   visualize_on_start: true
-    #   visualize_on_end: true
-    #   dirpath: ${run_dir}/visualizations
+    - _target_: src.callbacks.visualization.VisualizationCallback
+      batch_index: 0
+      num_samples: 2
+      score_threshold: 0.5
+      debug: false
+      visualize_on_start: true
+      visualize_on_end: true
+      dirpath: ${run_dir}/visualizations
 
   logger:
     _target_: src.logger.csv.CSVLogger
