@@ -1,3 +1,5 @@
+# HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py
+
 import tqdm
 import hydra
 import torch

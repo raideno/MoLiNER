@@ -70,6 +70,15 @@ def interface(cfg: DictConfig):
     logger.info("[model]: loading the model & weights")
     model: MoLiNER = instantiate(cfg.model)
     
+    if cfg.ckpt is not None:
+        model.load_from_checkpoint(
+            cfg.model_weights,
+            strict=False,
+            map_location=cfg.device,
+        )
+    
+    model = model.to(cfg.device)
+    
     def gradio_plot(prompts_text: str, dataset_split: str, batch_index: int, sample_in_batch: int):
         if not prompts_text.strip():
             raise gradio.Error("Please enter at least one prompt.")
@@ -102,10 +111,16 @@ def interface(cfg: DictConfig):
         motion_length = int(raw_batch.motion_mask[sample_in_batch].sum())
         motion_tensor = raw_batch.transformed_motion[sample_in_batch, :motion_length, :]
         
-        prediction_outputs = model.evaluate(
-            motion=motion_tensor,
-            prompts=prompts
-        )
+        motion_tensor = motion_tensor.to(cfg.device)
+        
+        model.eval()
+        
+        with torch.no_grad():
+            prediction_outputs = model.evaluate(
+                motion=motion_tensor,
+                prompts=prompts
+            )
+        
         
         prediction_title = f"Model Predictions - {dataset_split.title()} Batch {batch_index} Sample {sample_in_batch} ({len(prompts)} prompts)"
         prediction_figure = plot_evaluation_results(prediction_outputs, title=prediction_title)

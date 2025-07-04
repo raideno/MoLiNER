@@ -1,27 +1,4 @@
 _target_: src.data.babel.BabelDataset
-split_prompts_types: true
-mode: BOTH
-fps: 20
-padding_value: 0.0
-
-load_from_cache_file: DEFAULT_LOAD_FROM_CACHE_FILE
-
-use_filtering: True
-filter_config:
-  # NOTE: will use predefined default values instead
-  # seed: DEFAULT_SEED
-  # fps: DEFAULT_FPS
-
-  min_motion_frames: 20
-  max_motion_frames: 4096
-  min_prompts_per_sample: 1
-  max_prompts_per_sample: 4
-
-  prompt_text_filter_fn:
-    _target_: src.data.filtering.no_transition_filter_fn_factory
-    # NOTE: choose from: locate_classes_only_filter_fn, babel_20_classes_only_filter_fn, babel_60_classes_only_filter_fn, babel_90_classes_only_filter_fn, babel_120_classes_only_filter_fn
-
-  min_span_frames: 1
-  max_span_frames: 32
-  max_spans_per_prompt: 8
-  debug: False
+pipeline: locate
+# pipeline: babel
+# load_from_cache_file: bool = DEFAULT_LOAD_FROM_CACHE_FILE,

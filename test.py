@@ -28,7 +28,6 @@ login_to_huggingface()
 logger = logging.getLogger(__name__)
 
 from src.constants import (
-    DEFAULT_FPS,
     DEFAULT_THRESHOLD,
 )
 
@@ -148,17 +147,16 @@ def test(cfg: DictConfig):
         if not evaluation_result.predictions:
             logger.info("No predictions found above the score threshold.")
 
-        fig = plot_evaluation_results(
+        figure = plot_evaluation_results(
             evaluation_result,
             title=f"Motion-Prompt Localization (Sample {i+1} - Nested Strategy)",
-            fps=DEFAULT_FPS
         )
 
-        if fig:
+        if figure:
             output_path = os.path.join(cfg.run_dir, f"test_timeline_sample_{i+1}.html")
-            fig.write_html(output_path)
+            figure.write_html(output_path)
             # output_path = f"test_timeline_sample_{i+1}.png"
-            # fig.write_image(output_path)
+            # figure.write_image(output_path)
             logger.info(f"Plot saved successfully to: {os.path.abspath(output_path)}")
         else:
             logger.warning("Plot generation skipped because there were no predictions.")
