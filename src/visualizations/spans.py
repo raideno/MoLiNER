@@ -4,13 +4,14 @@ import pandas as pd
 import datetime as dt
 import plotly.express as px
 
-from src.constants import DEFAULT_FPS
+from src.constants import (
+    DEFAULT_FPS
+)
 from src.data.typing import EvaluationResult
 
 def plot_evaluation_results(
     result: EvaluationResult,
     title: str = "Motion-Prompt Localization Results",
-    fps: int = DEFAULT_FPS
 ) -> typing.Optional["plotly.graph_objects.Figure"]:
     """
     Visualizes the evaluation results as a timeline using Plotly Express.
@@ -25,26 +26,33 @@ def plot_evaluation_results(
     Returns:
         A Plotly Figure object, or None if there are no predictions.
     """
-    if not result.predictions:
-        print("No predictions to plot.")
-        return None
-
     data_for_dataframe = []
     
-    for prompt, start, end, score in result.predictions:
-        start_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=start/fps)
-        end_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=end/fps)
-        
-        data_for_dataframe.append({
-            "prompt": prompt,
-            "start": start,
-            "finish": end,
-            "start_timestamp": start_timestamp,
-            "end_timestamp": end_timestamp,
-            "score": f"{score:.2f}"
+    if not result.predictions:
+        # NOTE: empty dataframe with the required columns for a blank plot
+        dataframe = pd.DataFrame({
+            "prompt": [],
+            "start": [],
+            "finish": [],
+            "start_timestamp": [],
+            "end_timestamp": [],
+            "score": []
         })
+    else:
+        for prompt, start, end, score in result.predictions:
+            start_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=start/DEFAULT_FPS)
+            end_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=end/DEFAULT_FPS)
+            
+            data_for_dataframe.append({
+                "prompt": prompt,
+                "start": start,
+                "finish": end,
+                "start_timestamp": start_timestamp,
+                "end_timestamp": end_timestamp,
+                "score": f"{score:.2f}"
+            })
         
-    dataframe = pd.DataFrame(data_for_dataframe)
+        dataframe = pd.DataFrame(data_for_dataframe)
     
     category_orders = {"prompt": sorted(list(dataframe['prompt'].unique()))}
 

@@ -494,6 +494,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
 
         return decoded_results[0]
             
-    def on_epoch_end(self):
-        torch.cuda.empty_cache()
-        gc.collect()
+    # def on_epoch_end(self):
+    #     torch.cuda.empty_cache()
+    #     gc.collect()

@@ -49,8 +49,8 @@ class BasePipeline:
         return SimplifiedBabelCollateFn()
 
 class BabelPipeline(BasePipeline):
-    def __init__(self, name: str):
-        super().__init__("babel")
+    def __init__(self, name: typing.Optional[str] = None):
+        super().__init__(name or "babel")
         
         self.add_step(babel_simplify_batch_structure, batched=False)
 

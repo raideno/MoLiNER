@@ -1,8 +1,9 @@
 import os
 import torch
-import typing
 import logging
+import typing
 
+import numpy as np
 import pytorch_lightning as pl
 
 from src.model import MoLiNER
@@ -25,9 +26,9 @@ class VisualizationCallback(Callback):
         batch_index: int = 0,
         num_samples: int = 2,
         score_threshold: float = 0.5,
-        fps: int = 20,
         visualize_on_start: bool = True,
         visualize_on_end: bool = True,
+        debug: bool = False
     ):
         """
         Args:
@@ -35,7 +36,6 @@ class VisualizationCallback(Callback):
             batch_index (int): The index of the validation batch to use for visualization.
             num_samples (int): The number of samples from the batch to visualize.
             score_threshold (float): The confidence threshold for predictions.
-            fps (int): Frames per second for the output visualization.
             visualize_on_start (bool): Whether to run visualization at the start of the epoch.
             visualize_on_end (bool): Whether to run visualization at the end of the epoch.
         """
@@ -45,10 +45,10 @@ class VisualizationCallback(Callback):
         self.batch_index = batch_index
         self.num_samples = num_samples
         self.score_threshold = score_threshold
-        self.fps = fps
         self.visualize_on_start = visualize_on_start
         self.visualize_on_end = visualize_on_end
         self.visualization_batch: typing.Optional[RawBatch] = None
+        self.debug = debug
         
         os.makedirs(self.dirpath, exist_ok=True)
 
@@ -59,7 +59,8 @@ class VisualizationCallback(Callback):
         if not (self.visualize_on_start or self.visualize_on_end):
             return
 
-        logger.info(f"Setting up visualization: fetching validation batch index {self.batch_index}.")
+        if self.debug:
+            logger.info(f"Setting up visualization: fetching validation batch index {self.batch_index}.")
         
         validation_dataloaders = trainer.val_dataloaders
         if not validation_dataloaders:
@@ -77,14 +78,17 @@ class VisualizationCallback(Callback):
 
         for i, batch in enumerate(validation_dataloader):
             if i == self.batch_index:
-                # Store the batch and move tensors to CPU to avoid device issues
+                # NOTE: we store the batch and move tensors to CPU to avoid device issues
                 self.visualization_batch = self._move_batch_to_cpu(batch)
-                logger.info(f"Successfully stored validation batch {i} for visualization.")
-                logger.info(f"Batch contains {len(batch.sid)} samples with {len(batch.prompts[0])} prompts each.")
+                if self.debug:
+                    logger.info(f"Successfully stored validation batch {i} for visualization.")
+                    logger.info(f"Batch contains {len(batch.sid)} samples with {len(batch.prompts[0])} prompts each.")
                 break
                 
     def _move_batch_to_cpu(self, batch: RawBatch) -> RawBatch:
-        """Move batch tensors to CPU for storage."""
+        """
+        Move batch tensors to CPU for storage.
+        """
         return RawBatch(
             sid=batch.sid,
             dataset_name=batch.dataset_name,
@@ -99,7 +103,6 @@ class VisualizationCallback(Callback):
         """
         Helper function to run evaluation and save plots.
         """
-        # Import here to avoid circular imports
         from src.model.moliner import MoLiNER
         
         if not isinstance(pl_module, MoLiNER):
@@ -112,7 +115,8 @@ class VisualizationCallback(Callback):
             logger.warning("No visualization batch available or logger is not set. Skipping visualizations.")
             return
 
-        logger.info(f"Generating visualizations for epoch {model.current_epoch} ({when})...")
+        if self.debug:
+            logger.info(f"Generating visualizations for epoch {model.current_epoch} ({when})...")
         
         original_mode = model.training
         model.eval()
@@ -130,9 +134,10 @@ class VisualizationCallback(Callback):
                     logger.warning(f"Sample {i} in visualization batch has no prompts. Skipping.")
                     continue
                 
-                logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Motion tensor shape: {motion_tensor.shape}, Device: {motion_tensor.device}")
-                logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Model device: {model.device}")
-                logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prompts: {prompt_texts}")
+                if self.debug:
+                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Motion tensor shape: {motion_tensor.shape}, Device: {motion_tensor.device}")
+                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Model device: {model.device}")
+                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prompts: {prompt_texts}")
                 
                 evaluation_result = model.evaluate(
                     motion=motion_tensor,
@@ -140,12 +145,30 @@ class VisualizationCallback(Callback):
                     score_threshold=self.score_threshold,
                 )
                 
-                # Debug: Log the number of predictions
-                num_predictions = len(evaluation_result.predictions) if evaluation_result.predictions else 0
-                logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Generated {num_predictions} predictions with threshold {self.score_threshold}")
+                result_filename = f"epoch_{model.current_epoch}_{when}_sample_{i}_evaluation_result.pt"
+                result_path = os.path.join(self.dirpath, result_filename)
                 
-                # If no predictions at original threshold, try with lower threshold for debugging
-                if num_predictions == 0:
+                result_data = {
+                    "motion_length": int(evaluation_result.motion_length),
+                    "predictions": evaluation_result.predictions if evaluation_result.predictions else [],
+                    "epoch": int(model.current_epoch),
+                    "when": when,
+                    "sample_index": int(i),
+                    "score_threshold": float(self.score_threshold),
+                    "prompts": prompt_texts
+                }
+                
+                torch.save(result_data, result_path)
+                
+                if self.debug:
+                    logger.info(f"Saved evaluation result to {os.path.abspath(result_path)}")
+                
+                num_predictions = len(evaluation_result.predictions) if evaluation_result.predictions else 0
+                if self.debug:
+                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Generated {num_predictions} predictions with threshold {self.score_threshold}")
+                
+                # NOTE: if no predictions at original threshold, try with lower threshold for debugging
+                if num_predictions == 0 and self.debug:
                     logger.info(f"No predictions found with threshold {self.score_threshold}, trying with threshold 0.1 for debugging...")
                     debug_result = model.evaluate(
                         motion=motion_tensor,
@@ -155,43 +178,44 @@ class VisualizationCallback(Callback):
                     debug_predictions = len(debug_result.predictions) if debug_result.predictions else 0
                     logger.info(f"With threshold 0.1: Generated {debug_predictions} predictions")
                     
-                    if debug_predictions > 0:
-                        debug_scores = [pred[3] for pred in debug_result.predictions]
-                        logger.info(f"Debug prediction scores: {debug_scores}")
-                        logger.info(f"Max score: {max(debug_scores):.4f}, Min score: {min(debug_scores):.4f}")
+                    # if debug_predictions > 0:
+                    #     debug_scores = [pred[3] for pred in debug_result.predictions]
+                    #     logger.info(f"Debug prediction scores: {debug_scores}")
+                    #     logger.info(f"Max score: {max(debug_scores):.4f}, Min score: {min(debug_scores):.4f}")
                 
-                if num_predictions > 0:
-                    # Log the scores for debugging
+                if num_predictions > 0 and self.debug:
                     scores = [pred[3] for pred in evaluation_result.predictions]
                     logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prediction scores: {scores}")
                 
                 prediction_figure = plot_evaluation_results(
                     evaluation_result,
                     title=f"Epoch {model.current_epoch} ({when}) - Sample {i}",
-                    fps=self.fps
                 )
                 if prediction_figure:
                     filename = f"epoch_{model.current_epoch}_{when}_sample_{i}_prediction.html"
                     output_path = os.path.join(self.dirpath, filename)
                     prediction_figure.write_html(output_path)
-                    logger.info(f"Saved visualization to {os.path.abspath(output_path)}")
+                    if self.debug:
+                        logger.info(f"Saved visualization to {os.path.abspath(output_path)}")
                 else:
-                    logger.warning(f"No predictions to visualize for sample {i} in epoch {model.current_epoch} ({when}). Score threshold: {self.score_threshold}")
+                    if self.debug:
+                        logger.warning(f"No predictions to visualize for sample {i} in epoch {model.current_epoch} ({when}). Score threshold: {self.score_threshold}")
                 
                 groundtruth_spans = [(p[0], s[0], s[1], 1.0) for p in raw_batch.prompts[i] for s in p[1]]
                 groundtruth_result = EvaluationResult(motion_length=motion_length, predictions=groundtruth_spans)
                 groundtruth_figure = plot_evaluation_results(
                     groundtruth_result,
                     title=f"Epoch {model.current_epoch} ({when}) - Sample {i} (Ground Truth)",
-                    fps=self.fps
                 )
                 if groundtruth_figure:
                     gt_filename = f"epoch_{model.current_epoch}_{when}_sample_{i}_groundtruth.html"
                     gt_output_path = os.path.join(self.dirpath, gt_filename)
                     groundtruth_figure.write_html(gt_output_path)
-                    logger.info(f"Saved ground truth visualization to {os.path.abspath(gt_output_path)}")
+                    if self.debug:
+                        logger.info(f"Saved ground truth visualization to {os.path.abspath(gt_output_path)}")
                 else:
-                    logger.warning(f"No ground truth spans to visualize for sample {i} in epoch {model.current_epoch} ({when}).")
+                    if self.debug:
+                        logger.warning(f"No ground truth spans to visualize for sample {i} in epoch {model.current_epoch} ({when}).")
                     
         model.train(original_mode)
         

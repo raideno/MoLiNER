@@ -64,7 +64,7 @@ This project uses [Hydra](https://hydra.cc/docs/intro/) for configuration manage
 Train the model using the following command:
 
 ```bash
-HYDRA_FULL_ERROR=1 python train-model.py
+HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py
 ```
 
 ### Weight Extraction
