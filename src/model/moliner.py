@@ -31,26 +31,7 @@ from src.model.spans_generators.index import BaseSpansGenerator
 from src.model.prompts_tokens_encoders.index import BasePromptsTokensEncoder
 from src.model.decoders.index import BaseDecoder
 
-class DebugMode(enum.Enum):
-    NONE = "none"
-    START = "start"
-    END = "end"
-    ALL = "all"
-
-DEFAULT_WAIT_FOR_DEBUG_SECONDS = 5
-DEFAULT_DEBUG_MODE = DebugMode.ALL
-
 logger = logging.getLogger(__name__)
-
-def wait_for_debug(seconds: int):
-    logger.info("press 'Enter' within 5 seconds to enter debug mode...")
-    
-    ready, _, _ = select.select([sys.stdin], [], [], seconds)
-    
-    if ready:
-        pdb.set_trace()
-    else:
-        logger.info("(skipped)")
         
 # TODO: monitor the number of correctly detected spans as well, like the accuracy or something like this
         
@@ -85,7 +66,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         tokenizer: BaseTokenizer,
         
         lr: float,
-        debug: bool = False,
 
         **kwargs,
     ):
@@ -109,67 +89,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self.pair_scorer: BasePairScorer = pair_scorer
         self.decoder: BaseDecoder = decoder
         
-        self.debug: bool = debug
         self.kwargs: dict = kwargs if kwargs is not None else {}
-        
-        debug_mode_value = self.kwargs.get("debug_mode", DEFAULT_DEBUG_MODE)
-        
-        if isinstance(debug_mode_value, str):
-            try:
-                debug_mode_value = DebugMode(debug_mode_value.lower())
-            except ValueError:
-                raise ValueError(f"Invalid debug_mode: '{debug_mode_value}'.")
-        elif not isinstance(debug_mode_value, DebugMode):
-            raise TypeError(f"debug_mode must be a string or DebugMode instance, but got {type(debug_mode_value)}")
-
-        
-        self.debug_mode = debug_mode_value
-        self.wait_for_debug_seconds = self.kwargs.get("wait_for_debug_seconds", DEFAULT_WAIT_FOR_DEBUG_SECONDS)
         
         # NOTE: focal loss parameters
         self.focal_loss_alpha = self.kwargs.get("focal_loss_alpha", 0.25)
         self.focal_loss_gamma = self.kwargs.get("focal_loss_gamma", 2.0)
-
-        # --- --- --- xxx --- --- ---
-        self.visualize_on_start = self.kwargs.get("visualize_on_start", True)
-        self.visualize_on_end = self.kwargs.get("visualize_on_end", True)
-        self.visualization_batch_index = self.kwargs.get("visualization_batch_index", 0)
-        self.num_visualization_samples = self.kwargs.get("num_visualization_samples", 2)
-        self.visualization_score_threshold = self.kwargs.get("visualization_score_threshold", 0.5)
-        self.visualization_fps = self.kwargs.get("visualization_fps", 20)
-        self.visualization_batch: typing.Optional[RawBatch] = None
-        # --- --- --- xxx --- --- ---
                 
-    def on_train_start(self):
-        """
-        Called by PyTorch Lightning before training or testing.
-        """
-        if not (self.visualize_on_start or self.visualize_on_end):
-            return
-        
-        logger.info(f"Setting up visualization: fetching validation batch index {self.visualization_batch_index}.")
-        
-        validation_dataloaders = self.trainer.val_dataloaders
-        
-        if not validation_dataloaders:
-            logger.warning("No validation dataloader found. Cannot perform epoch-wise visualizations.")
-            return
-
-        validation_dataloader = validation_dataloaders[0] if isinstance(validation_dataloaders, list) else validation_dataloaders
-        
-        if len(validation_dataloader) <= self.visualization_batch_index:
-            logger.warning(
-                f"visualization_batch_index ({self.visualization_batch_index}) is out of bounds "
-                f"for the validation dataloader (size: {len(validation_dataloader)}). Disabling visualizations."
-            )
-            return
-
-        for i, batch in enumerate(validation_dataloader):
-            if i == self.visualization_batch_index:
-                self.visualization_batch = batch
-                logger.info(f"Successfully stored validation batch {i} for visualization.")
-                break
-        
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
@@ -292,8 +217,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # loss = all_losses.sum()
         loss = all_losses.sum()
         
-        torch.cuda.empty_cache()
-        gc.collect()
+        # torch.cuda.empty_cache()
+        # gc.collect()
         
         # if reduction == "mean":
         #     loss = all_losses.mean()
@@ -320,10 +245,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         that indicates the compatibility between each prompt and each motion span.
         
         Args:
-            batch (ProcessedBatch): A batch of processed data containing motion features,
-                motion masks, prompt input IDs, and attention masks.
-            batch_index (int): The index of the batch in the current epoch, used for logging
-                and debugging purposes.
+            batch (ProcessedBatch): A batch of processed data containing motion features, motion masks, prompt input IDs, and attention masks.
+            batch_index (int): The index of the batch in the current epoch, used for logging and debugging purposes.
         
         Returns:
             ForwardOutput: An object containing the similarity matrix and all necessary metadata
@@ -570,23 +493,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
             )
 
         return decoded_results[0]
-    
-    def on_train_epoch_start(self):
-        # NOTE: we don't during the sanity check runs
-        if self.trainer.sanity_checking:
-            return
             
-        if self.debug_mode in [DebugMode.START, DebugMode.ALL]:
-            wait_for_debug(self.wait_for_debug_seconds)
-    
-    def on_train_epoch_end(self):
-        # NOTE: we don't during the sanity check runs
-        if self.trainer.sanity_checking:
-            return
-
-        if self.debug_mode in [DebugMode.END, DebugMode.ALL]:
-            wait_for_debug(self.wait_for_debug_seconds)
-            
-    # def on_epoch_end(self):
-    #     torch.cuda.empty_cache()
-    #     gc.collect()
+    def on_epoch_end(self):
+        torch.cuda.empty_cache()
+        gc.collect()

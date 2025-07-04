@@ -1,10 +1,8 @@
-ckpt: best
-resume_dir: null
-
-# TODO: might be useful in case we need to save some validation plots
-# run_dir: out/${now:%Y-%m-%d_%H-%M-%S}
+ckpt: null
+# run_dir: null
 
 share: False
+device: cuda:1
 
 dataloader:
   _target_: torch.utils.data.DataLoader

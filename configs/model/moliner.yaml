@@ -2,20 +2,6 @@ _target_: src.model.MoLiNER
 
 lr: 1e-4
 
-# --- --- --- xxx --- --- ---
-
-# wait_for_debug_seconds:
-# focal_loss_alpha:
-# focal_loss_gamma:
-# visualize_on_start:
-# visualize_on_end:
-# visualization_batch_index:
-# num_visualization_samples:
-# visualization_score_threshold:
-# visualization_fps:
-
-# --- --- --- xxx --- --- ---
-
 defaults:
   - tokenizer: deberta
 

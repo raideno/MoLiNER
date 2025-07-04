@@ -32,346 +32,207 @@ def _normalize_annotations(annotations: dict) -> list[dict]:
         
     return []
 
+from src.constants import (
+    DEFAULT_FPS,
+    DEFAULT_PADDING_VALUE
+)
+
+def babel_simplify_batch_structure(sample: dict) -> dict:
+    """
+    A function for `datasets.map(batched=False)` to simplify the Babel dataset structure.
+    Consolidates sequence_annotations and frame_annotations into a single 'prompts' field.
+    
+    Args:
+        sample: Input sample with sequence_annotations and frame_annotations
+        
+    Returns:
+        Modified sample with simplified structure where 'prompts' field contains:
+        A list of dictionaries, each with:
+        - "text": The prompt text
+        - "span": [start_frame, end_frame] pair
+        - "source": Source field name
+        - "is_sequence": Boolean flag indicating if this is from sequence or frame annotations
+    """
+    from src.constants import DEFAULT_FPS
+    
+    new_sample = {key: value for key, value in sample.items() if key not in ["sequence_annotations", "frame_annotations"]}
+    
+    all_sources = ["proc_label", "raw_label", "act_cat"]
+    
+    motion_length = len(sample["motion"]["new_joints"])
+    max_frame_idx = motion_length - 1
+    
+    sequence_annotations = sample["sequence_annotations"]
+    sequence_labels = _normalize_annotations(sequence_annotations)
+    
+    frame_annotations = sample["frame_annotations"]
+    frame_labels = _normalize_annotations(frame_annotations)
+    
+    prompts_list = []
+    
+    for label in sequence_labels:
+        start_frame = int(label.get("start_t", 0) * DEFAULT_FPS)
+        end_frame = min(int(label.get("end_t", 0) * DEFAULT_FPS), max_frame_idx)
+        
+        for source in all_sources:
+            prompt_text = label.get(source)
+            
+            if prompt_text:
+                if isinstance(prompt_text, list):
+                    for text in prompt_text:
+                        if text:
+                            prompts_list.append({
+                                "text": text,
+                                "span": [start_frame, end_frame],
+                                "source": source,
+                                "is_sequence": True
+                            })
+                else:
+                    prompts_list.append({
+                        "text": prompt_text,
+                        "span": [start_frame, end_frame],
+                        "source": source,
+                        "is_sequence": True
+                    })
+    
+    for label in frame_labels:
+        start_frame = int(label.get("start_t", 0) * DEFAULT_FPS)
+        end_frame = min(int(label.get("end_t", 0) * DEFAULT_FPS), max_frame_idx)
+        
+        for source in all_sources:
+            prompt_text = label.get(source)
+            
+            if prompt_text:
+                if isinstance(prompt_text, list):
+                    for text in prompt_text:
+                        if text:
+                            prompts_list.append({
+                                "text": text,
+                                "span": [start_frame, end_frame],
+                                "source": source,
+                                "is_sequence": False
+                            })
+                else:
+                    prompts_list.append({
+                        "text": prompt_text,
+                        "span": [start_frame, end_frame],
+                        "source": source,
+                        "is_sequence": False
+                    })
+    
+    new_sample["prompts"] = prompts_list
+    
+    return new_sample
+
+def hml3d_simplify_batch_structure(batch: dict[str, list]) -> dict[str, list]:
+    """
+    A function for `datasets.map(batched=True)` to simplify the HML3D dataset structure.
+    Converts the 'texts' field into a unified 'prompts' field compatible with the simplified structure.
+    
+    Args:
+        batch: Input batch with 'texts' field containing list of strings
+        fps: Frames per second for time-to-frame conversion
+        max_texts: Maximum number of texts to sample per motion
+        
+    Returns:
+        Modified batch with simplified structure where 'prompts' field contains:
+        A list of dictionaries, each with:
+        - "text": The prompt text
+        - "spans": List of [start_frame, end_frame] pairs (one span covering the full motion)
+        - "sources": List of source field names for each span (always "texts")
+        - "is_sequence": List of boolean flags for each span (always True for HML3D)
+    """
+    new_batch = {key: [] for key in batch.keys()}
+    
+    new_batch["prompts"] = []
+    
+    num_samples = len(batch[next(iter(batch.keys()))])
+    
+    for i in range(num_samples):
+        motion_length = len(batch["motion"][i]["new_joints"])
+        max_frame_idx = motion_length - 1
+        
+        start_t = batch.get("start_t", [0.0] * num_samples)[i]
+        end_t = batch.get("end_t", [0.0] * num_samples)[i]
+        
+        start_frame = int(start_t * DEFAULT_FPS)
+        end_frame = min(int(end_t * DEFAULT_FPS), max_frame_idx)
+        
+        texts = batch["texts"][i]
+        
+        prompts_list = []
+        for text in texts:
+            if text:
+                prompts_list.append({
+                    "text": text,
+                    "span": [start_frame, end_frame],
+                    "source": "texts",
+                    "is_sequence": True
+                })
+        
+        for key in batch.keys():
+            if key != "texts":
+                new_batch[key].append(batch[key][i])
+        
+        new_batch["prompts"].append(prompts_list)
+    
+    if "texts" in new_batch:
+        del new_batch["texts"]
+    
+    return new_batch
+
 def babel_augment_and_split_batch(batch: dict[str, list]) -> dict[str, list]:
     """
     A function for `datasets.map(batched=True)` to augment the Babel dataset.
     Will split samples with both sequence and frame annotations into two distinct samples.
+    Works with the simplified prompt structure where prompts are individual records.
     """
     new_batch = {key: [] for key in batch.keys()}
     
-    empty_annotation = {
-        'labels': {
-            'act_cat': [],
-            'raw_label': [],
-            'proc_label': [],
-            'start_t': [],
-            'end_t': [],
-        }
-    }
-
     num_samples = len(batch[next(iter(batch.keys()))])
-
+    
     for i in range(num_samples):
-        seq_ann = batch["sequence_annotations"][i]
-        frame_ann = batch["frame_annotations"][i]
-
-        has_seq_prompts = bool(_normalize_annotations(seq_ann))
-        has_frame_prompts = bool(_normalize_annotations(frame_ann))
-
+        prompts_list = batch["prompts"][i]
+        
+        has_seq_prompts = any(prompt_data.get("is_sequence", True) for prompt_data in prompts_list)
+        has_frame_prompts = any(not prompt_data.get("is_sequence", True) for prompt_data in prompts_list)
+        
         if has_seq_prompts and has_frame_prompts:
+            sequence_prompts = [prompt_data for prompt_data in prompts_list if prompt_data.get("is_sequence", True)]
+            
             for key in batch.keys():
-                if key == "frame_annotations":
-                    new_batch[key].append(empty_annotation)
+                if key == "prompts":
+                    new_batch[key].append(sequence_prompts)
                 else:
                     new_batch[key].append(batch[key][i])
             
+            frame_prompts = [prompt_data for prompt_data in prompts_list if not prompt_data.get("is_sequence", True)]
+            
             for key in batch.keys():
-                if key == "sequence_annotations":
-                    new_batch[key].append(empty_annotation)
+                if key == "prompts":
+                    new_batch[key].append(frame_prompts)
                 else:
                     new_batch[key].append(batch[key][i])
         else:
+            # NOTE: if sample has only one type of prompts (or no prompts), we keept it as is
             for key in batch.keys():
                 new_batch[key].append(batch[key][i])
-
+    
     return new_batch
 
-class PromptGenerationMode(enum.Enum):
-    """
-    Enum to specify which annotations to use for prompt generation.
-    - `SEQUENCE_ANNOTATIONS`: Use only sequence annotations.
-    - `FRAME_ANNOTATIONS`: Use only frame annotations.
-    - `BOTH`: Use both sequence and frame annotations.
-    - `FRAME_ANNOTATIONS_WITH_FALLBACK_TO_SEQUENCE`: Use frame annotations, but if they are empty, fall back to sequence annotations.
-    """
-    SEQUENCE_ANNOTATIONS = "SEQUENCE_ANNOTATIONS"
-    FRAME_ANNOTATIONS = "FRAME_ANNOTATIONS"
-    BOTH = "BOTH"
-    FRAME_ANNOTATIONS_WITH_FALLBACK_TO_SEQUENCE = "SEQUENCE_ANNOTATIONS"
-
-def babel_create_raw_batch_collate_fn(
-    fps: int = 20,
-    mode: PromptGenerationMode = PromptGenerationMode.SEQUENCE_ANNOTATIONS,
-    padding_value: float = 0.0,
-    source: str = "proc_label",
-):
-    """
-    Factory to create a collate function for the Babel dataset that produces RawBatch objects.
-
-    Args:
-        fps (int): Frames per second to convert time annotations to frame indices.
-        mode (PromptGenerationMode): Specifies which annotations to use for prompts.
-        padding_value (float): The value to use for padding motion tensors.
-        source (str): The field to use for extracting prompt text from labels. Can be 'proc_label', 'act_cat', or 'raw_label'.
-
-    Returns:
-        A collate function that takes a batch and returns a RawBatch object.
-    """
-    
-    if isinstance(mode, str):
-        mode = PromptGenerationMode(mode)
-    
-    def babel_to_raw_batch(batch: list[dict]) -> "RawBatch":
-        if not all(isinstance(sample.get("motion"), dict) for sample in batch):
-             raise ValueError(
-                "A sample's 'motion' field is not a dictionary. "
-                "Please load the dataset with a configuration like 'full_all_motion'."
-             )
-        if not all("new_joints" in sample["motion"] and "new_joint_vecs" in sample["motion"] for sample in batch):
-            raise ValueError(
-                "A sample is missing 'new_joints' or 'new_joint_vecs'. "
-                "Please use the 'full_all_motion' configuration."
-            )
-
-        joints_list = [torch.tensor(sample["motion"]["new_joints"], dtype=torch.float32) for sample in batch]
-        vecs_list = [torch.tensor(sample["motion"]["new_joint_vecs"], dtype=torch.float32) for sample in batch]
-        
-        lengths = [motion.shape[0] for motion in joints_list]
-
-        padded_joints = torch.nn.utils.rnn.pad_sequence(joints_list, batch_first=True, padding_value=padding_value)
-        padded_vecs = torch.nn.utils.rnn.pad_sequence(vecs_list, batch_first=True, padding_value=padding_value)
-
-        mask = torch.zeros(padded_joints.shape[:2], dtype=torch.bool)
-        for i, length in enumerate(lengths):
-            mask[i, :length] = True
-
-        sids: list[int] = [sample["sid"] for sample in batch]
-        amass_paths: list[str] = [sample["amass_file_relative_path"] for sample in batch]
-        dataset_names: list[str] = ["babel"] * len(batch)
-        
-        def get_prompts_from_annotations(annotations: typing.Dict[str, typing.Any], max_frame: int, sequence_prompt: bool = True) -> typing.List[typing.Tuple[str, int, int, bool]]:
-            """
-            Helper to extract and format prompts from a given annotation dict.
-            Returns individual (text, start_frame, end_frame, is_sequence_prompt) tuples.
-            """
-            prompts = []
-            normalized_labels = _normalize_annotations(annotations)
-            for label in normalized_labels:
-                start_frame = int(label.get("start_t", 0) * fps)
-                end_frame = min(int(label.get("end_t", 0) * fps), max_frame)
-                prompt_text = label.get(source)
-                
-                # Handle both string and array values
-                if prompt_text:
-                    if isinstance(prompt_text, list):
-                        # If it's an array, create a prompt for each string
-                        for text in prompt_text:
-                            if text:
-                                prompts.append((text, start_frame, end_frame, sequence_prompt))
-                    else:
-                        # If it's a string, proceed as before
-                        prompts.append((prompt_text, start_frame, end_frame, sequence_prompt))
-                    
-            return prompts
-        
-        def group_prompts_by_text(prompts_list: typing.List[typing.Tuple[str, int, int, bool]]) -> typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]:
-            """
-            Groups prompts with the same text together, combining their spans.
-            """
-            text_to_prompt = {}
-            
-            for text, start_frame, end_frame, is_sequence_prompt in prompts_list:
-                if text not in text_to_prompt:
-                    text_to_prompt[text] = {
-                        'spans': [],
-                        'is_sequence_prompt': is_sequence_prompt
-                    }
-                text_to_prompt[text]['spans'].append((start_frame, end_frame))
-            
-            # Convert to the new format
-            grouped_prompts = []
-            for text, info in text_to_prompt.items():
-                grouped_prompts.append((text, info['spans'], info['is_sequence_prompt']))
-            
-            return grouped_prompts
-
-        all_prompts = []
-        for i, sample in enumerate(batch):
-            sample_prompts = []
-            max_frame_idx = lengths[i] - 1
-            
-            seq_prompts = get_prompts_from_annotations(sample.get("sequence_annotations", {}), max_frame_idx, True)
-            frame_prompts = get_prompts_from_annotations(sample.get("frame_annotations", {}), max_frame_idx, False)
-
-            if mode == PromptGenerationMode.BOTH:
-                all_individual_prompts = seq_prompts + frame_prompts
-            elif mode == PromptGenerationMode.SEQUENCE_ANNOTATIONS:
-                all_individual_prompts = seq_prompts
-            elif mode == PromptGenerationMode.FRAME_ANNOTATIONS:
-                all_individual_prompts = frame_prompts
-            elif mode == PromptGenerationMode.FRAME_ANNOTATIONS_WITH_FALLBACK_TO_SEQUENCE:
-                all_individual_prompts = frame_prompts if frame_prompts else seq_prompts
-            else:
-                raise ValueError(f"Unsupported PromptGenerationMode: {mode}")
-
-            # Group prompts by text to combine spans for the same prompt
-            sample_prompts = group_prompts_by_text(all_individual_prompts)
-
-            all_prompts.append(sample_prompts)
-            
-        return RawBatch(
-            sid=sids,
-            dataset_name=dataset_names,
-            amass_relative_path=amass_paths,
-            raw_motion=padded_joints,
-            transformed_motion=padded_vecs,
-            motion_mask=mask,
-            prompts=all_prompts
-        )
-        
-    return babel_to_raw_batch
-
-def hml3d_create_raw_batch_collate_fn(
-    fps: int = 20,
-    padding_value: float = 0.0,
-    max_texts: int = 8
-):
-    """
-    Factory to create a collate function for the HML3D dataset that produces RawBatch objects.
-
-    Args:
-        fps (int): Frames per second to convert time annotations to frame indices.
-        padding_value (float): The value to use for padding motion tensors.
-
-    Returns:
-        A collate function that takes a batch and returns a RawBatch object.
-    """
-    
-    def hml3d_to_raw_batch(batch: list[dict]) -> "RawBatch":
-        """
-        Collates a list of HML3D samples into a single RawBatch.
-        Each sample in HML3D has a list of texts and one (start_t, end_t) pair that applies to the entire motion segment described.
-        """
-        if not all(isinstance(sample.get("motion"), dict) for sample in batch):
-             raise ValueError(
-                "A sample's 'motion' field is not a dictionary. "
-                "Please load the dataset with a configuration like 'full_all_motion'."
-             )
-        if not all("new_joints" in sample["motion"] and "new_joint_vecs" in sample["motion"] for sample in batch):
-            raise ValueError(
-                "A sample is missing 'new_joints' or 'new_joint_vecs'. "
-                "Please use the 'full_all_motion' configuration."
-            )
-
-        joints_list = [torch.tensor(sample["motion"]["new_joints"], dtype=torch.float32) for sample in batch]
-        vecs_list = [torch.tensor(sample["motion"]["new_joint_vecs"], dtype=torch.float32) for sample in batch]
-        
-        lengths = [motion.shape[0] for motion in joints_list]
-
-        padded_joints = torch.nn.utils.rnn.pad_sequence(joints_list, batch_first=True, padding_value=padding_value)
-        padded_vecs = torch.nn.utils.rnn.pad_sequence(vecs_list, batch_first=True, padding_value=padding_value)
-
-        mask = torch.zeros(padded_joints.shape[:2], dtype=torch.bool)
-        for i, length in enumerate(lengths):
-            mask[i, :length] = True
-
-        sids: list[int] = [sample["sid"] for sample in batch]
-        amass_paths: list[str] = [sample["amass_file_relative_path"] for sample in batch]
-        dataset_names: list[str] = ["hml3d"] * len(batch)
-        
-        all_prompts = []
-        for i, sample in enumerate(batch):
-            sample_prompts = []
-            max_frame_idx = lengths[i] - 1
-            
-            texts = sample.get("texts", [])
-
-            start_t = sample.get("start_t", 0.0)
-            end_t = sample.get("end_t", 0.0)
-
-            start_frame = int(start_t * fps)
-            end_frame = min(int(end_t * fps), max_frame_idx)
-
-            selected_texts = random.sample(texts, min(len(texts), max_texts))
-
-            for text in selected_texts:
-                if text:
-                    # Each text gets its own prompt with one span
-                    prompt = (text, [(start_frame, end_frame)], True)
-                    sample_prompts.append(prompt)
-                    
-            all_prompts.append(sample_prompts)
-            
-        return RawBatch(
-            sid=sids,
-            dataset_name=dataset_names,
-            amass_relative_path=amass_paths,
-            raw_motion=padded_joints,
-            transformed_motion=padded_vecs,
-            motion_mask=mask,
-            prompts=all_prompts
-        )
-        
-    return hml3d_to_raw_batch
-
-class BabelCollateFn:
-    def __init__(
-        self,
-        fps: int = 20,
-        mode: PromptGenerationMode = PromptGenerationMode.SEQUENCE_ANNOTATIONS,
-        padding_value: float = 0.0,
-        source: str = "proc_label",
-    ):
-        self.fps = fps
-        self.mode = mode
-        self.padding_value = padding_value
-        self.source = source
-        
-        if isinstance(self.mode, str):
-            self.mode = PromptGenerationMode(self.mode)
-
-    def _get_prompts_from_annotations(self, annotations: typing.Dict[str, typing.Any], max_frame: int, sequence_prompt: bool = True) -> typing.List[typing.Tuple[str, int, int, bool]]:
-        """Helper to extract and format prompts from a given annotation dict."""
-        prompts = []
-        normalized_labels = _normalize_annotations(annotations)
-        for label in normalized_labels:
-            start_frame = int(label.get("start_t", 0) * self.fps)
-            end_frame = min(int(label.get("end_t", 0) * self.fps), max_frame)
-            prompt_text = label.get(self.source)
-            
-            # Handle both string and array values
-            if prompt_text:
-                if isinstance(prompt_text, list):
-                    # If it's an array, create a prompt for each string
-                    for text in prompt_text:
-                        if text:
-                            prompts.append((text, start_frame, end_frame, sequence_prompt))
-                else:
-                    # If it's a string, proceed as before
-                    prompts.append((prompt_text, start_frame, end_frame, sequence_prompt))
-                
-        return prompts
-    
-    def _group_prompts_by_text(self, prompts_list: typing.List[typing.Tuple[str, int, int, bool]]) -> typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]:
-        """
-        Groups prompts with the same text together, combining their spans.
-        """
-        text_to_prompt = {}
-        
-        for text, start_frame, end_frame, is_sequence_prompt in prompts_list:
-            if text not in text_to_prompt:
-                text_to_prompt[text] = {
-                    'spans': [],
-                    'is_sequence_prompt': is_sequence_prompt
-                }
-            text_to_prompt[text]['spans'].append((start_frame, end_frame))
-        
-        # Convert to the new format
-        grouped_prompts = []
-        for text, info in text_to_prompt.items():
-            grouped_prompts.append((text, info['spans'], info['is_sequence_prompt']))
-        
-        return grouped_prompts
+class SimplifiedBabelCollateFn:
+    def __init__(self):
+        self.fps = DEFAULT_FPS
+        self.padding_value = DEFAULT_PADDING_VALUE
 
     def __call__(self, batch: list[dict]) -> "RawBatch":
         if not all(isinstance(sample.get("motion"), dict) for sample in batch):
-             raise ValueError("A sample's 'motion' field is not a dictionary. Please load the dataset with a configuration like 'full_all_motion'.")
+            raise ValueError("A sample's 'motion' field is not a dictionary. Please load the dataset with a configuration like 'full_all_motion'.")
         if not all("new_joints" in sample["motion"] and "new_joint_vecs" in sample["motion"] for sample in batch):
             raise ValueError("A sample is missing 'new_joints' or 'new_joint_vecs'. Please use the 'full_all_motion' configuration.")
 
         joints_list = [torch.tensor(sample["motion"]["new_joints"], dtype=torch.float32) for sample in batch]
         vecs_list = [torch.tensor(sample["motion"]["new_joint_vecs"], dtype=torch.float32) for sample in batch]
-        
         lengths = [motion.shape[0] for motion in joints_list]
 
         padded_joints = torch.nn.utils.rnn.pad_sequence(joints_list, batch_first=True, padding_value=self.padding_value)
@@ -384,96 +245,36 @@ class BabelCollateFn:
         sids: list[int] = [sample["sid"] for sample in batch]
         amass_paths: list[str] = [sample["amass_file_relative_path"] for sample in batch]
         dataset_names: list[str] = ["babel"] * len(batch)
-        
+
         all_prompts = []
         for i, sample in enumerate(batch):
             sample_prompts = []
-            max_frame_idx = lengths[i] - 1
+            prompts_list = sample.get("prompts", [])
             
-            seq_prompts = self._get_prompts_from_annotations(sample.get("sequence_annotations", {}), max_frame_idx, True)
-            frame_prompts = self._get_prompts_from_annotations(sample.get("frame_annotations", {}), max_frame_idx, False)
-
-            if self.mode == PromptGenerationMode.BOTH:
-                all_individual_prompts = seq_prompts + frame_prompts
-            elif self.mode == PromptGenerationMode.SEQUENCE_ANNOTATIONS:
-                all_individual_prompts = seq_prompts
-            elif self.mode == PromptGenerationMode.FRAME_ANNOTATIONS:
-                all_individual_prompts = frame_prompts
-            elif self.mode == PromptGenerationMode.FRAME_ANNOTATIONS_WITH_FALLBACK_TO_SEQUENCE:
-                all_individual_prompts = frame_prompts if frame_prompts else seq_prompts
-            else:
-                raise ValueError(f"Unsupported PromptGenerationMode: {self.mode}")
-
-            # Group prompts by text to combine spans for the same prompt
-            sample_prompts = self._group_prompts_by_text(all_individual_prompts)
-
+            # NOTE: convert the prompts list to the expected format
+            # From: [{"text": str, "span": [start, end], "source": str, "is_sequence": bool}, ...]
+            # To: [(prompt_text, [(start_frame, end_frame), ...], is_sequence_prompt), ...]
+            
+            # NOTE: group prompts by text to consolidate spans for the same prompt
+            prompts_dict = {}
+            for prompt_data in prompts_list:
+                prompt_text = prompt_data.get("text", "")
+                span = prompt_data.get("span", [])
+                is_sequence = prompt_data.get("is_sequence", True)
+                
+                if prompt_text and span:
+                    if prompt_text not in prompts_dict:
+                        prompts_dict[prompt_text] = {
+                            "spans": [],
+                            "is_sequence": is_sequence
+                        }
+                    prompts_dict[prompt_text]["spans"].append((span[0], span[1]))
+            
+            for prompt_text, data in prompts_dict.items():
+                sample_prompts.append((prompt_text, data["spans"], data["is_sequence"]))
+            
             all_prompts.append(sample_prompts)
-            
-        return RawBatch(
-            sid=sids,
-            dataset_name=dataset_names,
-            amass_relative_path=amass_paths,
-            raw_motion=padded_joints,
-            transformed_motion=padded_vecs,
-            motion_mask=mask,
-            prompts=all_prompts
-        )
 
-class HML3DCollateFn:
-    def __init__(
-        self,
-        fps: int = 20,
-        padding_value: float = 0.0,
-        max_texts: int = 8
-    ):
-        self.fps = fps
-        self.padding_value = padding_value
-        self.max_texts = max_texts
-    
-    def __call__(self, batch: list[dict]) -> "RawBatch":
-        if not all(isinstance(sample.get("motion"), dict) for sample in batch):
-             raise ValueError("A sample's 'motion' field is not a dictionary. Please load the dataset with a configuration like 'full_all_motion'.")
-        if not all("new_joints" in sample["motion"] and "new_joint_vecs" in sample["motion"] for sample in batch):
-            raise ValueError("A sample is missing 'new_joints' or 'new_joint_vecs'. Please use the 'full_all_motion' configuration.")
-
-        joints_list = [torch.tensor(sample["motion"]["new_joints"], dtype=torch.float32) for sample in batch]
-        vecs_list = [torch.tensor(sample["motion"]["new_joint_vecs"], dtype=torch.float32) for sample in batch]
-        
-        lengths = [motion.shape[0] for motion in joints_list]
-
-        padded_joints = torch.nn.utils.rnn.pad_sequence(joints_list, batch_first=True, padding_value=self.padding_value)
-        padded_vecs = torch.nn.utils.rnn.pad_sequence(vecs_list, batch_first=True, padding_value=self.padding_value)
-
-        mask = torch.zeros(padded_joints.shape[:2], dtype=torch.bool)
-        for i, length in enumerate(lengths):
-            mask[i, :length] = True
-
-        sids: list[int] = [sample["sid"] for sample in batch]
-        amass_paths: list[str] = [sample["amass_file_relative_path"] for sample in batch]
-        dataset_names: list[str] = ["hml3d"] * len(batch)
-        
-        all_prompts = []
-        for i, sample in enumerate(batch):
-            sample_prompts = []
-            max_frame_idx = lengths[i] - 1
-            
-            texts = sample.get("texts", [])
-            start_t = sample.get("start_t", 0.0)
-            end_t = sample.get("end_t", 0.0)
-
-            start_frame = int(start_t * self.fps)
-            end_frame = min(int(end_t * self.fps), max_frame_idx)
-
-            selected_texts = random.sample(texts, min(len(texts), self.max_texts))
-
-            for text in selected_texts:
-                if text:
-                    # Each text gets its own prompt with one span
-                    prompt = (text, [(start_frame, end_frame)], True)
-                    sample_prompts.append(prompt)
-                    
-            all_prompts.append(sample_prompts)
-            
         return RawBatch(
             sid=sids,
             dataset_name=dataset_names,

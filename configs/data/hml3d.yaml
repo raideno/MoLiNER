@@ -1,4 +1,3 @@
 _target_: src.data.hml3d.HML3DDataset
-max_texts: 8
-fps: 20
-padding_value: 0.0
+pipeline: hml3d
+# load_from_cache_file: DEFAULT_LOAD_FROM_CACHE_FILE
