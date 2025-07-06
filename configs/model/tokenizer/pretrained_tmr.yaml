@@ -1,0 +1,2 @@
+_target_: src.model.modules.tokenizers.distilbert.DistilBertTokenizer
+model_name: distilbert-base-uncased

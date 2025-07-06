@@ -1,0 +1,5 @@
+_target_: src.data.babel.BabelDataset
+pipeline: chunking-standardized-locate
+
+defaults:
+  - motion_normalizer: generic

@@ -7,10 +7,8 @@ defaults:
 
   - pair_scorer: dot_product
 
-  # - motion_frames_encoder: tmr
   - motion_frames_encoder: pretrained_tmr
   - prompts_tokens_encoder: transformer
-  # - prompts_tokens_encoder: pretrained_tmr
 
   - spans_generator: static
 
@@ -21,18 +19,3 @@ defaults:
   - span_representation_layer: mlp
 
   - decoder: generic
-
-pair_scorer: ???
-
-motion_frames_encoder: ???
-prompts_tokens_encoder: ???
-
-spans_generator: ???
-
-prompt_tokens_aggregator: ???
-span_frames_aggregator: ???
-
-prompt_representation_layer: ???
-span_representation_layer: ???
-
-decoder: ???

@@ -1,6 +1,7 @@
-import os
 import typing
 import src.auth
+
+import numpy as np
 
 try:
     import datasets
@@ -8,14 +9,9 @@ except ImportError:
     datasets = None
 
 from src.data.pipelines import get_pipeline
-from src.data.batching import SimplifiedBabelCollateFn
 
 from src.constants import (
-    DEFAULT_FPS,
-    DEFAULT_PADDING_VALUE,
-    HUGGING_FACE_TOKEN,
     BABEL_REMOTE_DATASET_NAME,
-    MAP_AUGMENTATION_BATCH_SIZE,
     DEFAULT_LOAD_FROM_CACHE_FILE
 )
 
@@ -29,6 +25,7 @@ class BabelDataset:
         split: str = "train",
         pipeline: str = "locate",
         load_from_cache_file: bool = DEFAULT_LOAD_FROM_CACHE_FILE,
+        motion_normalizer: typing.Optional[object] = None,
     ):
         """
         Initialize Babel dataset with a processing pipeline.
@@ -37,6 +34,7 @@ class BabelDataset:
             split: Dataset split ("train", "validation", "test")
             pipeline: Name of the processing pipeline to use
             load_from_cache_file: Whether to load from cache file
+            motion_normalizer: Optional motion normalizer object
         """
         if datasets is None:
             raise ImportError("datasets library is required but not available")
@@ -44,36 +42,41 @@ class BabelDataset:
         self.split = split
         self.pipeline_name = pipeline
         self.load_from_cache_file = load_from_cache_file
+        self.motion_normalizer = motion_normalizer
         
         raw_dataset = datasets.load_dataset(
             BABEL_REMOTE_DATASET_NAME,
             trust_remote_code=True,
             name="full_all_motion"
         )
+        assert isinstance(raw_dataset, datasets.DatasetDict)
         
-        self._pipeline = get_pipeline(pipeline)
+        self._pipeline = get_pipeline(self.pipeline_name)
         self._dataset = self._pipeline.apply(
             raw_dataset[split], 
             load_from_cache_file=load_from_cache_file
         )
         
-        self._collate_fn = self._pipeline.get_collate_fn()
-    
+        self._collate_function = self._pipeline.get_collate_function()
+
     @property
     def dataset(self):
-        """Get the processed dataset for the specified split."""
         return self._dataset
     
     @property
-    def collate_fn(self):
-        """Get the collate function."""
-        return self._collate_fn
+    def collate_function(self):
+        return self._collate_function
     
     def __getitem__(self, index):
-        """Get item from dataset."""
-        return self.dataset[index]
+        item = self.dataset[index]
+        if self.motion_normalizer and isinstance(item, dict):
+            motion = item.get("motion", None)
+            if motion is not None:
+                normed = self.motion_normalizer.normalize(motion)
+                item = item.copy()
+                item["motion"] = normed
+        return item
     
     def __len__(self):
-        """Get dataset length."""
         return len(self.dataset)
-    
+

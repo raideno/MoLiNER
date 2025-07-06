@@ -84,7 +84,7 @@ def load_model(run_dir, **params):
     return load_model_from_cfg(cfg, **params)
 
 def load_model_from_cfg(cfg, ckpt_name="last", device="cpu", eval_mode=True, pretrained=True):
-    import src.prepare  # noqa
+    # import src.prepare  # noqa
     import torch
 
     run_dir = cfg.run_dir
@@ -122,15 +122,3 @@ def load_model_from_cfg(cfg, ckpt_name="last", device="cpu", eval_mode=True, pre
         model = model.eval()
         logger.info("Put the model in eval mode")
     return model
-
-@hydra.main(version_base=None, config_path="../configs", config_name="load_model")
-def hydra_load_model(cfg: DictConfig) -> None:
-    run_dir = cfg.run_dir
-    ckpt_name = cfg.ckpt
-    device = cfg.device
-    eval_mode = cfg.eval_mode
-    return load_model(run_dir, ckpt_name, device, eval_mode)
-
-
-if __name__ == "__main__":
-    hydra_load_model()

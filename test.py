@@ -8,13 +8,20 @@ import logging
 
 import pytorch_lightning as lightning
 
+from hydra import main
 from omegaconf import DictConfig
 from hydra.utils import instantiate
-from src.auth import login_to_huggingface
-from src.config import read_config, save_config
 
 from src.model import MoLiNER
+from src.auth import login_to_huggingface
+from src.config import read_config, save_config
 from src.visualizations.spans import plot_evaluation_results
+
+from src.constants import (
+    DEFAULT_HYDRA_CONFIG_PATH,
+    DEFAULT_HYDRA_VERSION_BASE,
+    DEFAULT_THRESHOLD
+)
 
 # --- --- --- --- --- --- ---
 import os
@@ -27,11 +34,7 @@ login_to_huggingface()
 
 logger = logging.getLogger(__name__)
 
-from src.constants import (
-    DEFAULT_THRESHOLD,
-)
-
-@hydra.main(config_path="configs", config_name="test", version_base="1.3")
+@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="test", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def test(cfg: DictConfig):
     threshold = cfg.test.threshold if "threshold" in cfg.test else DEFAULT_THRESHOLD
     
@@ -74,7 +77,7 @@ def test(cfg: DictConfig):
         train_dataloader = instantiate(
             cfg.dataloader,
             dataset=train_dataset,
-            collate_fn=train_dataset.collate_fn,
+            collate_fn=train_dataset.collate_function,
             shuffle=True,
             num_workers=0
         )
@@ -82,7 +85,7 @@ def test(cfg: DictConfig):
         val_dataloader = instantiate(
             cfg.dataloader,
             dataset=validation_dataset,
-            collate_fn=validation_dataset.collate_fn,
+            collate_fn=validation_dataset.collate_function,
             shuffle=False,
             num_workers=0
         )
@@ -99,7 +102,7 @@ def test(cfg: DictConfig):
     
     logger.info("[model]: ready")
     
-    from src.data.typing import RawBatch, ProcessedBatch
+    from src.types import RawBatch, ProcessedBatch
     
     raw_batch = RawBatch.create_random(
         batch_size=2,

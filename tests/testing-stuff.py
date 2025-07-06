@@ -16,7 +16,7 @@ import numpy as np
 
 from src.data.babel import BabelDataset
 from src.auth import login_to_huggingface
-from src.data.batching import babel_simplify_batch_structure
+from src.data.utils.batching import babel_simplify_batch_structure
 
 from src.constants import (
     HUGGING_FACE_TOKEN,
@@ -33,7 +33,7 @@ def main():
         name="full_all_motion"
     )
     
-    from src.data.batching import babel_simplify_batch_structure
+    from src.data.utils.batching import babel_simplify_batch_structure
         
     pdb.set_trace()
 
@@ -46,12 +46,12 @@ def main():
     
     print("[#clean_dataset]:", len(clean_dataset))
     
-    from src.data.filtering import FilterConfig, create_simplified_babel_filter_fn, create_locate_classes_filter_fn
+    from src.data.utils.filtering import FilterConfig, create_filter_function, create_locate_classes_filter_function
     
     filter_config = FilterConfig(
         seed=42,
         fps=20,
-        prompt_text_filter_fn=create_locate_classes_filter_fn(),
+        prompt_text_filter_function=create_locate_classes_filter_function(),
         min_motion_frames=4,         # At least 10 frames (0.5 seconds at 20fps)
         max_motion_frames=512,        # At most 600 frames (30 seconds at 20fps)
         min_prompts_per_sample=1,     # At least 1 prompt per sample
@@ -65,7 +65,7 @@ def main():
     )
     
     filtered_dataset = clean_dataset.map(
-        create_simplified_babel_filter_fn(filter_config),
+        create_filter_function(filter_config),
         batched=True,
         batch_size=16
     )

@@ -1,0 +1,13 @@
+# dataset:
+#   # NOTE: or src.data.hml3d
+#   module: src.data.babel
+#   # NOTE: or HML3DDataset
+#   class_name: BabelDataset
+#   init_args:
+#     split: train
+#     pipeline: babel
+
+output_path: babel-stats.pt
+
+defaults:
+  - data: babel

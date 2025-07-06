@@ -1,0 +1,5 @@
+_target_: src.data.babel.BabelDataset
+pipeline: windowing-standardized-locate
+
+defaults:
+  - motion_normalizer: generic

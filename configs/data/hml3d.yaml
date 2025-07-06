@@ -1,3 +1,5 @@
 _target_: src.data.hml3d.HML3DDataset
 pipeline: hml3d
-# load_from_cache_file: DEFAULT_LOAD_FROM_CACHE_FILE
+
+defaults:
+  - motion_normalizer: generic

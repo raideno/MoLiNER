@@ -26,10 +26,10 @@ def save_metric(path, metrics, format="yaml"):
         format (str): 'yaml' (default) or 'json'.
     """
     if format == "yaml":
-        strings = yaml.dump(metrics, indent=4, sort_keys=False)
+        strings = str(yaml.dump(metrics, indent=4, sort_keys=False))
         full_path = path if path.endswith(".yaml") else path + ".yaml"
-        with open(full_path, "w") as f:
-            f.write(strings)
+        with open(full_path, "w") as file:
+            file.write(strings)
     elif format == "json":
         full_path = path if path.endswith(".json") else path + ".json"
         with open(full_path, "w") as f:

@@ -1,5 +1,4 @@
-ckpt: null
-# run_dir: null
+run_dir: ???
 
 share: False
 device: cuda:1
@@ -10,7 +9,9 @@ dataloader:
   num_workers: 8
 
 defaults:
-  - data: babel
+  # - data: babel
+  # - data: locate-babel
+  - data: standardized-chunking-locate-babel
   - model: moliner
   - trainer
   - defaults

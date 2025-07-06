@@ -5,6 +5,7 @@ ignore/
 *.ignore.sh
 *.ignore
 *.ignore.txt
+*.ignore.py
 *.txt.ignore
 
 out/

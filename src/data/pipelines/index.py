@@ -1,11 +1,11 @@
 import typing
 import datasets
 
-from src.data.batching import (
-    SimplifiedBabelCollateFn,
+from src.data.utils.batching import (
     hml3d_simplify_batch_structure,
     babel_simplify_batch_structure,
 )
+from src.data.utils.collator import SimpleBatchStructureCollator
 from src.constants import (
     MAP_AUGMENTATION_BATCH_SIZE,
     DEFAULT_LOAD_FROM_CACHE_FILE
@@ -39,14 +39,15 @@ class BasePipeline:
                 batch_size=step['batch_size'] if step['batched'] else None,
                 load_from_cache_file=load_from_cache_file
             )
+            assert isinstance(processed_dataset, datasets.Dataset), "Each step must return a datasets.Dataset instance"
         
         return processed_dataset
         
-    def get_collate_fn(self) -> typing.Callable:
+    def get_collate_function(self) -> typing.Callable:
         """
         Get the appropriate collate function for this pipeline.
         """
-        return SimplifiedBabelCollateFn()
+        return SimpleBatchStructureCollator()
 
 class BabelPipeline(BasePipeline):
     def __init__(self, name: typing.Optional[str] = None):
@@ -58,7 +59,7 @@ class HML3DPipeline(BasePipeline):
     """
     Pipeline for processing HML3D dataset with simplification.
     Applies simplification to convert 'texts' field to 'prompts' field.
-    Uses SimplifiedBabelCollateFn since the structure becomes the same.
+    Uses SimpleBatchStructureCollator since the structure becomes the same.
     """
     
     def __init__(self):

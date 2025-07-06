@@ -1,1 +1,1 @@
-_target_: src.model.pair_scorers.dot_product.DotProductPairScorer
+_target_: src.model.modules.pair_scorers.dot_product.DotProductPairScorer

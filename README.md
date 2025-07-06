@@ -2,16 +2,13 @@
 
 ## Todos (By Priority)
 
-- [ ] Add a hugging face interface using Gradio.
+- [ ] Add tests to make sure 100% the loss is correctly working.
 - [ ] Perform some statistics about the dataset and spans.
-- [ ] Implement and understand decoding protocols.
 - [ ] Modify or create a variant of the static span generator to accept a lowerK and upperK rather than a single K, it'll then for each position it'll generate spans of size from lowerK to upperK. lower and upper K can be derived from the dataset it self by looking at the shortest and longest prompt.
-- [ ] Add some post processing on the decoding step to clean up the predictions and stick any two spans that should be.
-- [ ] Add possibility to use pretrained TMR motion encoder and text encoder.
+- [ ] Add some post processing on the decoding step to clean up the predictions and merge any two spans into a longer one that should be merged.
 - [ ] Implement a better segmentation and retrieval evaluation.
 - [ ] Implement a pipeline training for TMR on HML3D and Babel.
-- [ ] Make the model save an example of retrieval every epoch on validation to have a look at the evolution of the predictions.
-- [ ] Use einsum for matrix computations.
+
 ---
 
 ## Environment Setup

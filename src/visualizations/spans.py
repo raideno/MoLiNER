@@ -7,7 +7,7 @@ import plotly.express as px
 from src.constants import (
     DEFAULT_FPS
 )
-from src.data.typing import EvaluationResult
+from src.types import EvaluationResult
 
 def plot_evaluation_results(
     result: EvaluationResult,

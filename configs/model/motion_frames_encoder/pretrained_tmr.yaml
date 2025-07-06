@@ -1,3 +1,3 @@
-_target_: src.model.motion_frames_encoders.pretrained_tmr.PretrainedTMRMotionFramesEncoder
+_target_: src.model.modules.motion_frames_encoders.pretrained_tmr.PretrainedTMRMotionFramesEncoder
 weights_path: /home/nadir/motion-linner/models/tmr_humanml3d_guoh3dfeats/last_weights/motion_encoder.pt
 finetune: true

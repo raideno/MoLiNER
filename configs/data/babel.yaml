@@ -1,4 +1,5 @@
 _target_: src.data.babel.BabelDataset
-pipeline: locate
-# pipeline: babel
-# load_from_cache_file: bool = DEFAULT_LOAD_FROM_CACHE_FILE,
+pipeline: babel
+
+defaults:
+  - motion_normalizer: generic

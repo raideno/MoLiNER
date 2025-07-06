@@ -1,16 +1,17 @@
-# HYDRA_FULL_ERROR=1 python extract.py --multirun \
-#       run_dir=
-
 import logging
-import hydra
 
+from hydra import main
 from omegaconf import DictConfig
 
 from src.load import extract_best_ckpt, extract_ckpt
+from src.constants import (
+    DEFAULT_HYDRA_CONFIG_PATH,
+    DEFAULT_HYDRA_VERSION_BASE
+)
 
 logger = logging.getLogger(__name__)
 
-@hydra.main(config_path="configs", config_name="extract", version_base="1.3")
+@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="extract", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def extract(cfg: DictConfig):
     run_dir = cfg.run_dir
     ckpt = cfg.ckpt

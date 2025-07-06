@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 
 from src.model import MoLiNER
 from pytorch_lightning.callbacks import Callback
-from src.data.typing import RawBatch, EvaluationResult
+from src.types import RawBatch, EvaluationResult
 from src.visualizations.spans import plot_evaluation_results
 
 logger = logging.getLogger(__name__)

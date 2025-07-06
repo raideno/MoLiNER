@@ -1,1 +1,1 @@
-_target_: src.model.span_frames_aggregators.concat.ConcatFirstLastAggregator
+_target_: src.model.modules.span_frames_aggregators.concat.ConcatFirstLastAggregator

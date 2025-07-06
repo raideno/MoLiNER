@@ -1,0 +1,2 @@
+from .index import BaseSpanFramesAggregator
+from .concat import ConcatFirstLastAggregator

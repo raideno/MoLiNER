@@ -9,8 +9,8 @@ dataloader:
   num_workers: 8
 
 defaults:
-  - data: babel
-  - model: moliner
+  - data: ???
+  - model: ???
   - trainer
   - defaults
   - _self_

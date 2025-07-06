@@ -1,5 +1,6 @@
 import torch
-import torch.nn.functional as F
+
+from src.model.helpers import reduce
 
 def focal_loss_with_logits(
     inputs: torch.Tensor,
@@ -46,7 +47,7 @@ def focal_loss_with_logits(
     p = torch.sigmoid(inputs)
 
     # Compute the binary cross-entropy loss without reduction
-    loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+    loss = torch.nn.functional.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
 
     # Apply the valid mask to the loss
     loss = loss * valid_mask
@@ -61,16 +62,9 @@ def focal_loss_with_logits(
         alpha_t = alpha * targets + (1 - alpha) * (1 - targets)
         loss = alpha_t * loss
         
-
-    # Apply reduction method
-    if reduction == "none":
-        return loss
-    elif reduction == "mean":
-        return loss.sum() / valid_mask.sum()  # Normalize by the number of valid (non-ignored) elements
-    elif reduction == "sum":
-        return loss.sum()
-    else:
-        raise ValueError(
-            f"Invalid value for argument 'reduction': '{reduction}'. "
-            f"Supported reduction modes: 'none', 'mean', 'sum'"
-        )
+    loss = reduce(
+        logits=loss,
+        reduction=reduction
+    )
+    
+    return loss

@@ -1,14 +1,11 @@
-import os
 import typing
-import src.auth
 import datasets
+
+import src.auth
 
 from src.data.pipelines import get_pipeline
 
 from src.constants import (
-    DEFAULT_FPS,
-    DEFAULT_PADDING_VALUE,
-    HUGGING_FACE_TOKEN,
     HML3D_REMOTE_DATASET_NAME,
     DEFAULT_LOAD_FROM_CACHE_FILE
 )
@@ -22,7 +19,8 @@ class HML3DDataset:
         self,
         split: str = "train",
         pipeline: str = "hml3d",
-        load_from_cache_file: bool = DEFAULT_LOAD_FROM_CACHE_FILE
+        load_from_cache_file: bool = DEFAULT_LOAD_FROM_CACHE_FILE,
+        motion_normalizer: typing.Optional[object] = None,
     ):
         """
         Initialize HML3D dataset with a processing pipeline.
@@ -38,20 +36,22 @@ class HML3DDataset:
         self.split = split
         self.pipeline_name = pipeline
         self.load_from_cache_file = load_from_cache_file
+        self.motion_normalizer = motion_normalizer
         
         raw_dataset = datasets.load_dataset(
             HML3D_REMOTE_DATASET_NAME,
             trust_remote_code=True,
             name="full_all_motion"
         )
+        assert isinstance(raw_dataset, datasets.DatasetDict)
         
-        self._pipeline = get_pipeline(pipeline)
+        self._pipeline = get_pipeline(self.pipeline_name)
         self._dataset = self._pipeline.apply(
             raw_dataset[split], 
             load_from_cache_file=load_from_cache_file
         )
         
-        self._collate_fn = self._pipeline.get_collate_fn()
+        self._collate_function = self._pipeline.get_collate_function()
     
     @property
     def dataset(self):
@@ -59,13 +59,19 @@ class HML3DDataset:
         return self._dataset
     
     @property
-    def collate_fn(self):
+    def collate_function(self):
         """Get the collate function."""
-        return self._collate_fn
+        return self._collate_function
     
     def __getitem__(self, index):
-        """Get item from dataset."""
-        return self.dataset[index]
+        item = self.dataset[index]
+        if self.motion_normalizer and isinstance(item, dict):
+            motion = item.get("motion", None)
+            if motion is not None:
+                normalized = self.motion_normalizer.normalize(motion)
+                item = item.copy()
+                item["motion"] = normalized
+        return item
     
     def __len__(self):
         """Get dataset length."""

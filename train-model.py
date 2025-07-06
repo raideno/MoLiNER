@@ -7,9 +7,15 @@ import logging
 
 import pytorch_lightning as lightning
 
+from hydra import main
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from src.config import read_config, save_config
+
+from src.constants import (
+    DEFAULT_HYDRA_CONFIG_PATH,
+    DEFAULT_HYDRA_VERSION_BASE
+)
 
 # --- --- --- --- --- --- ---
 import os
@@ -20,7 +26,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module='tensorflow')
 
 logger = logging.getLogger(__name__)
 
-@hydra.main(config_path="configs", config_name="train-model", version_base="1.3")
+@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="train-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def train_model(cfg: DictConfig):
     ckpt = None
     if cfg.resume_dir is not None:
@@ -53,16 +59,16 @@ def train_model(cfg: DictConfig):
         split="validation"
     )
     
-    train_dataloader = instantiate(
+    train_dataloader: torch.utils.data.DataLoader = instantiate(
         cfg.dataloader,
         dataset=train_dataset,
-        collate_fn=train_dataset.collate_fn,
+        collate_fn=train_dataset.collate_function,
         shuffle=True,
     )
-    validation_dataloader = instantiate(
+    validation_dataloader: torch.utils.data.DataLoader = instantiate(
         cfg.dataloader,
         dataset=validation_dataset,
-        collate_fn=validation_dataset.collate_fn,
+        collate_fn=validation_dataset.collate_function,
         shuffle=False,
     )
     

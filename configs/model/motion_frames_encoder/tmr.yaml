@@ -1,1 +1,1 @@
-_target_: src.model.motion_frames_encoders.tmr.TMRMotionFramesEncoder
+_target_: src.model.modules.motion_frames_encoders.tmr.TMRMotionFramesEncoder

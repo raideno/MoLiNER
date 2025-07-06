@@ -1,37 +1,3 @@
-# HYDRA_FULL_ERROR=1 python train-start-end-segmentation.py \
-#   ++data.window_size=20 \
-#   ++model.motion_encoder.pretrained=false \
-#   ++data.dir=/home/nadir/windowed-babel-with-poses/ \
-#   ++data.balanced=true \
-#   ++data.normalize=true \
-#   model/label_extractor=majority-based-start-end-with-majority \
-#   model/motion_encoder=tmr \
-#   model/classifier=mlp \
-#   model/window_positional_encoder=null
-
-# HYDRA_FULL_ERROR=1 python train-start-end-segmentation.py \
-#     ++data.window_size=20 \
-#     ++data.dir=/home/nadir/windowed-babel-for-classification/ \
-#     ++data.balanced=false \
-#     ++data.normalize=false \
-#     model/label_extractor=majority-based-start-end-with-majority \
-#     model/motion_encoder=tmr \
-#     model/classifier=mlp \
-#     ++model.motion_encoder.pretrained=false \
-#     ++model.classifier.num_classes=20
-
-# HYDRA_FULL_ERROR=1 python train-start-end-segmentation.py \
-#     ++data.window_size=20 \
-#     ++data.dir=/home/nadir/windowed-babel-for-classification-for-training/ \
-#     ++data.balanced=false \
-#     ++data.normalize=false \
-#     model/label_extractor=majority-based-start-end-with-majority \
-#     model/motion_encoder=stgcn \
-#     model/classifier=mlp \
-#     ++model.motion_encoder.pretrained=false \
-#     ++model.classifier.num_classes=20 \
-#     resume_dir=/home/nadir/tmr-code/outputs/stgcn-multi-class
-
 import tqdm
 import hydra
 import torch
@@ -39,9 +5,15 @@ import logging
 
 import pytorch_lightning as lightning
 
+from hydra import main
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from src.config import read_config, save_config
+
+from src.constants import (
+    DEFAULT_HYDRA_CONFIG_PATH,
+    DEFAULT_HYDRA_VERSION_BASE
+)
 
 # --- --- --- --- --- --- ---
 import os
@@ -52,7 +24,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module='tensorflow')
 
 logger = logging.getLogger(__name__)
 
-@hydra.main(config_path="configs", config_name="test-model", version_base="1.3")
+@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="test-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def test_model(cfg: DictConfig):
     ckpt = None
     if cfg.resume_dir is not None:
@@ -89,13 +61,13 @@ def test_model(cfg: DictConfig):
     train_dataloader = instantiate(
         cfg.dataloader,
         dataset=train_dataset,
-        collate_fn=train_dataset.collate_fn,
+        collate_fn=train_dataset.collate_function,
         shuffle=True,
     )
     val_dataloader = instantiate(
         cfg.dataloader,
         dataset=val_dataset,
-        collate_fn=val_dataset.collate_fn,
+        collate_fn=val_dataset.collate_function,
         shuffle=False,
     )
     
