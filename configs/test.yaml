@@ -1,7 +1,7 @@
 ckpt: best
 resume_dir: null
 
-run_dir: out/${now:%Y-%m-%d_%H-%M-%S}
+run_dir: out/test.${now:%Y-%m-%d_%H-%M-%S}
 
 test:
   pdb: true

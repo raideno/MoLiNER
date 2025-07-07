@@ -59,7 +59,8 @@ def standardize_spans_chunking(
                 continue
                 
             start_frame, end_frame = span
-            current_span_length = end_frame - start_frame
+            # NOTE: treating spans as inclusive, so length = end - start + 1
+            current_span_length = end_frame - start_frame + 1
             
             # NOTE: exact match, no changes needed
             if current_span_length == target_span_length:
@@ -79,7 +80,7 @@ def standardize_spans_chunking(
                     new_end = min(max_frame_idx, end_frame + extend_each_side + extend_remainder)
                     
                     # TODO: check whether we are respecting the motion boundaries
-                    achieved_length = new_end - new_start
+                    achieved_length = new_end - new_start + 1
                     if achieved_length >= target_span_length:
                         if achieved_length > target_span_length:
                             trim_amount = achieved_length - target_span_length
@@ -87,7 +88,7 @@ def standardize_spans_chunking(
                         
                         extended_spans += 1
                         if debug:
-                            logger.debug(f"[Chunking] Extended span from {current_span_length} to {new_end - new_start} frames: '{text[:50]}...'")
+                            logger.debug(f"[Chunking] Extended span from {current_span_length} to {new_end - new_start + 1} frames: '{text[:50]}...'")
                         
                         standardized_prompts.append({
                             "text": text,
@@ -116,11 +117,12 @@ def standardize_spans_chunking(
                 
                 for chunk_idx in range(num_chunks):
                     chunk_start = start_frame + (chunk_idx * target_span_length)
-                    chunk_end = chunk_start + target_span_length
+                    # NOTE: for inclusive spans, chunk_end = chunk_start + target_span_length - 1
+                    chunk_end = chunk_start + target_span_length - 1
                     
                     chunk_end = min(chunk_end, end_frame, max_frame_idx)
                     
-                    if chunk_end - chunk_start == target_span_length:
+                    if chunk_end - chunk_start + 1 == target_span_length:
                         standardized_prompts.append({
                             "text": text,
                             "span": [chunk_start, chunk_end],
@@ -131,7 +133,7 @@ def standardize_spans_chunking(
                 # NOTE: discard remainder if any
                 # TODO: maybe extend it if possible, just like we do for short spans?
                 remainder_start = start_frame + (num_chunks * target_span_length)
-                remainder_length = end_frame - remainder_start
+                remainder_length = end_frame - remainder_start + 1
                 
                 if remainder_length > 0:
                     if debug:
@@ -200,7 +202,8 @@ def standardize_spans_sliding_window(
                 continue
                 
             start_frame, end_frame = span
-            current_span_length = end_frame - start_frame
+            # NOTE: treating spans as inclusive, so length = end - start + 1
+            current_span_length = end_frame - start_frame + 1
             
             # NOTE: exact match, no changes needed
             if current_span_length == target_span_length:
@@ -218,7 +221,7 @@ def standardize_spans_sliding_window(
                     new_start = max(0, start_frame - extend_each_side)
                     new_end = min(max_frame_idx, end_frame + extend_each_side + extend_remainder)
                     
-                    achieved_length = new_end - new_start
+                    achieved_length = new_end - new_start + 1
                     if achieved_length >= target_span_length:
                         if achieved_length > target_span_length:
                             trim_amount = achieved_length - target_span_length
@@ -226,7 +229,7 @@ def standardize_spans_sliding_window(
                         
                         extended_spans += 1
                         if debug:
-                            logger.debug(f"[SlidingWindow] Extended span from {current_span_length} to {new_end - new_start} frames: '{text[:50]}...'")
+                            logger.debug(f"[SlidingWindow] Extended span from {current_span_length} to {new_end - new_start + 1} frames: '{text[:50]}...'")
                         
                         standardized_prompts.append({
                             "text": text,
@@ -250,8 +253,9 @@ def standardize_spans_sliding_window(
                 window_positions = []
                 window_start = start_frame
                 
-                while window_start + target_span_length <= end_frame:
-                    window_end = window_start + target_span_length
+                # NOTE: for inclusive spans, we need window_start + target_span_length - 1 <= end_frame
+                while window_start + target_span_length - 1 <= end_frame:
+                    window_end = window_start + target_span_length - 1
                     window_positions.append((window_start, window_end))
                     window_start += stride
                 
@@ -263,7 +267,7 @@ def standardize_spans_sliding_window(
                 for window_start, window_end in window_positions:
                     window_end = min(window_end, max_frame_idx)
                     
-                    if window_end - window_start == target_span_length:
+                    if window_end - window_start + 1 == target_span_length:
                         standardized_prompts.append({
                             "text": text,
                             "span": [window_start, window_end],

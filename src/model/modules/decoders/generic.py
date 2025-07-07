@@ -6,6 +6,10 @@ from itertools import product
 from .index import BaseDecoder
 from src.types import ForwardOutput, DecodingStrategy, EvaluationResult
 
+from src.constants import (
+    DEFAULT_THRESHOLD
+)
+
 class GenericDecoder(BaseDecoder):
     def __init__(
         self,
@@ -19,7 +23,7 @@ class GenericDecoder(BaseDecoder):
         self,
         forward_output: ForwardOutput,
         prompts: typing.List[str],
-        score_threshold: float = 0.5,
+        score_threshold: float = DEFAULT_THRESHOLD,
     ) -> typing.List[EvaluationResult]:
         """
         Decodes the model's forward pass output into a list of predicted spans.

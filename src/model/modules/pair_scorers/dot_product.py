@@ -5,8 +5,7 @@ from .index import BasePairScorer
 
 class DotProductPairScorer(BasePairScorer):
     """
-    A pair scorer that computes similarity as a sigmoid of the dot product
-    between prompt and span representations.
+    A pair scorer that computes similarity as a the dot product.
     """
     def __init__(self):
         super().__init__()

@@ -27,7 +27,13 @@ class RawBatch:
     # A prompt is now a tuple of (text, list_of_spans, is_sequence_prompt)
     # where list_of_spans is a list of (start_frame, end_frame) tuples for this prompt
     # The is_sequence_prompt flag indicates if the prompt is a sequence-level prompt (True) or a frame-level prompt (False).
-    prompts: typing.List[typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]]
+    prompts: typing.List[
+        typing.List[
+            typing.Tuple[
+                str, typing.List[typing.Tuple[int, int]], bool
+            ]
+        ]
+    ]
     
     @staticmethod
     def _validate_type_or_raise(

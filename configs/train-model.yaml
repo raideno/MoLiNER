@@ -1,7 +1,7 @@
 ckpt: best
 resume_dir: null
 
-run_dir: out/${now:%Y-%m-%d_%H-%M-%S}
+run_dir: out/training.${now:%Y-%m-%d_%H-%M-%S}
 
 dataloader:
   _target_: torch.utils.data.DataLoader

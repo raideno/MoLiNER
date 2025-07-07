@@ -20,7 +20,7 @@ class BasePromptsTokensEncoder(torch.nn.Module, ABC):
     ) -> torch.Tensor:
         """
         Encodes prompt token IDs into dense, contextual embeddings.
-        Returns one embedding per prompt (CLS token).
+        Returns one embedding per prompt.
 
         Args:
             prompt_input_ids (torch.Tensor): Padded tensor of token IDs.

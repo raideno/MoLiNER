@@ -1,4 +1,4 @@
-# HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=
+# HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=moliner data=locate-babel
 
 import tqdm
 import hydra

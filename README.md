@@ -61,16 +61,42 @@ This project uses [Hydra](https://hydra.cc/docs/intro/) for configuration manage
 Train the model using the following command:
 
 ```bash
-HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py
+HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py \
+    model=moliner \
+    data=locate-babel
 ```
+
+The training system supports multiple model architectures and dataset variants. You can combine any model variant with any compatible dataset variant by specifying them in the command above.
+
+#### Available Model Variants
+
+- **`moliner`** - Base MoLiNER model.
+- **`moliner_pretrained-tmr`** - MoLiNER with pre-trained TMR encoder (non frozen).
+- **`moliner_standardized-spans`** - MoLiNER with standardized sizes (16 frames).
+- **`moliner_standardized-spans_pretrained-tmr`** - MoLiNER with both standardized (16 frames) spans and pre-trained TMR encoder (non frozen).
+
+#### Available Dataset Variants
+
+- **`babel`** - Standard Babel dataset.
+- **`hml3d`** - HumanML3D dataset.
+- **`locate-babel`** - Babel dataset with locate classes only.
+- **`standardized-chunking-locate-babel`** - Babel with locate classes & standardized span size (chunks of 16 frames).
+- **`standardized-windowing-locate-babel`** - Babel with locate classes & standardized span size (sliding windows of 16 frames).
+
+#### Training Output
+
+By default, training outputs (checkpoints, logs, etc.) are saved to timestamped directories under `out/` (e.g., `out/2025-07-07_14-30-15/`). This directory path is refered to as `RUN_DIR`in the subsequent commands.
 
 ### Weight Extraction
 
-Extract the model weights after training:
+After training completes, extract the final model weights:
 
 ```bash
-HYDRA_FULL_ERROR=1 python extract.py
+HYDRA_FULL_ERROR=1 python extract.py run_dir=RUN_DIR
 ```
+
+**Parameters:**
+- `RUN_DIR`: Path to the training output directory. This corresponds to the timestamped directory created during training, located in the `out/` directory by default.
 
 ## Evaluation
 

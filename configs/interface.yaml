@@ -9,9 +9,9 @@ dataloader:
   num_workers: 8
 
 defaults:
-  # - data: babel
+  - data: babel
   # - data: locate-babel
-  - data: standardized-chunking-locate-babel
+  # - data: standardized-chunking-locate-babel
   - model: moliner
   - trainer
   - defaults

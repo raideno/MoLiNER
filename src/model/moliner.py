@@ -56,19 +56,22 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         decoder: BaseDecoder,
         
+        # TODO: remove class
         tokenizer: BaseTokenizer,
         
         lr: float,
 
         **kwargs,
     ):
+        # TODO: checkout how we can implement shuffling
+        # TODO: make sure we correctly have dropout everywhere
         super().__init__()
         
         self.lr: float = lr
         
         self.tokenizer: BaseTokenizer = tokenizer
         
-        self.motion_frames_encoder = motion_frames_encoder
+        self.motion_frames_encoder: BaseMotionFramesEncoder = motion_frames_encoder
         self.prompts_tokens_encoder: BasePromptsTokensEncoder = prompts_tokens_encoder
         
         self.spans_generator: BaseSpansGenerator = spans_generator
@@ -85,6 +88,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
     def configure_optimizers(self):
         # TODO: maybe add a more complex optimizer configuration with schedulers, per module lr, etc.
+        # TODO: use a different learning rate per module just like Glinner does https://docs.pytorch.org/docs/0.3.0/optim.html#per-parameter-options
+        # Add decay stuff
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
     
     def compute_loss(
@@ -94,9 +99,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
     ) -> typing.Tuple[torch.Tensor, int]:
         if batch.target_spans is None:
             raise ValueError("Cannot compute loss without target spans (training data)")
-        
-        import pdb
-        pdb.set_trace()
         
         # NOTE: (batch, prompts, spans)
         predicted_logits = forward_output.similarity_matrix
@@ -173,6 +175,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
             aggregated_spans=aggregated_spans,
             spans_masks=spans_masks,
         )
+
+        # TODO: maybe add assert on preliminary phase of mytorch ligthnign
         
         # --- --- --- NEW PROMPTS TREATMENT --- --- ---
         

@@ -10,6 +10,8 @@ import gradio
 import random
 import logging
 
+import src.auth
+
 import pytorch_lightning as lightning
 
 from hydra import main
