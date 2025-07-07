@@ -1,4 +1,5 @@
 import torch
+import typing
 
 from transformers import AutoModel
 
@@ -34,13 +35,15 @@ class TransformerPromptsTokensEncoder(BasePromptsTokensEncoder):
         self,
         prompt_input_ids: torch.Tensor,
         prompt_attention_mask: torch.Tensor,
+        batch_index: typing.Optional[int] = None,
         **kwargs
     ) -> torch.Tensor:
         """
-        Passes the prompts through the transformer model to get contextual embeddings.
+        Passes the prompts through the transformer model to get CLS token embeddings.
 
         It handles the necessary reshaping to feed the 3D input
         (batch, num_prompts, seq_len) into the 2D-expecting transformer model.
+        Returns the CLS token (first token) for each prompt.
         """
         # NOTE: (batch_size, num_prompts, seq_len)
         B, P, L = prompt_input_ids.shape
@@ -58,8 +61,12 @@ class TransformerPromptsTokensEncoder(BasePromptsTokensEncoder):
         # NOTE: (batch_size * num_prompts, seq_len, hidden_size)
         last_hidden_state = outputs.last_hidden_state
         
-        # NOTE: reshape back to (B, P, L, hidden_size)
-        hidden_size = last_hidden_state.shape[-1]
-        output_embeddings = last_hidden_state.view(B, P, L, hidden_size)
+        # NOTE: Extract CLS token (first token) for each prompt
+        # Shape: (batch_size * num_prompts, hidden_size)
+        cls_tokens = last_hidden_state[:, 0, :]
+        
+        # NOTE: reshape back to (B, P, hidden_size)
+        hidden_size = cls_tokens.shape[-1]
+        output_embeddings = cls_tokens.view(B, P, hidden_size)
         
         return output_embeddings

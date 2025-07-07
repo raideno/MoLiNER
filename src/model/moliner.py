@@ -18,7 +18,6 @@ from src.model.modules import (
     BaseMotionFramesEncoder,
     BasePromptRepresentationLayer,
     BaseSpanRepresentationLayer,
-    BasePromptTokensAggregator,
     BaseSpanFramesAggregator,
     BaseSpansGenerator,
     BasePromptsTokensEncoder,
@@ -38,7 +37,6 @@ logger = logging.getLogger(__name__)
         
 # TODO: we should use (prompt_ids and span_ids) or something like this to identify the prompts and their associated spans
 # TODO: add a shuffler, takes in the spans and prompts representation, shuffle them and return the shuffled representations.
-# TODO: specify a token embedding layer to embed the prompt tokens before passing them to the prompts encoder.
 
 class MoLiNER(pytorch_lightning.LightningModule):
     def __init__(
@@ -49,7 +47,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         spans_generator: BaseSpansGenerator,
         
-        prompt_tokens_aggregator: BasePromptTokensAggregator,
         span_frames_aggregator: BaseSpanFramesAggregator,
         
         prompt_representation_layer: BasePromptRepresentationLayer,
@@ -76,7 +73,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         self.spans_generator: BaseSpansGenerator = spans_generator
         
-        self.prompt_tokens_aggregator: BasePromptTokensAggregator = prompt_tokens_aggregator
         self.span_frames_aggregator: BaseSpanFramesAggregator = span_frames_aggregator
         
         self.prompt_representation_layer: BasePromptRepresentationLayer = prompt_representation_layer
@@ -98,6 +94,9 @@ class MoLiNER(pytorch_lightning.LightningModule):
     ) -> typing.Tuple[torch.Tensor, int]:
         if batch.target_spans is None:
             raise ValueError("Cannot compute loss without target spans (training data)")
+        
+        import pdb
+        pdb.set_trace()
         
         # NOTE: (batch, prompts, spans)
         predicted_logits = forward_output.similarity_matrix
@@ -179,25 +178,19 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         # NOTE: prompt_input_ids (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
         
-        # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens, prompt_embedding_dimension)
-        # TODO: verify this and if it is valid for returning the class token as well, i feel we need to change it to batch_max_prompt_length_in_tokens + 1 instead to support cls token
-        prompts_tokens_embeddings = self.prompts_tokens_encoder(
+        # NOTE: (batch_size, batch_max_prompts_per_motion, prompt_embedding_dimension)
+        # The prompts_tokens_encoder now returns one embedding per prompt (CLS token)
+        prompts_embeddings = self.prompts_tokens_encoder(
             prompt_input_ids=batch.prompt_input_ids,
             prompt_attention_mask=batch.prompt_attention_mask
         )
         
         # NOTE: (batch, prompts); indicates which prompts are valid and non-padding; contain at least a valid token.
         prompts_mask = (batch.prompt_attention_mask.sum(dim=-1) > 0).float()
-        
-        # NOTE: (batch_size, batch_max_prompts_per_motion, prompt_tokens_aggregation_dimension)
-        aggregated_prompts = self.prompt_tokens_aggregator(
-            prompts_tokens_embeddings=prompts_tokens_embeddings,
-            prompts_attention_mask=batch.prompt_attention_mask,
-        )
 
         # NOTE: (batch_size, batch_max_prompts_per_motion, prompt_representation_dimension)
         prompts_representation = self.prompt_representation_layer(
-            aggregated_prompts=aggregated_prompts,
+            aggregated_prompts=prompts_embeddings,
             prompts_mask=batch.prompt_attention_mask,
         )
         
@@ -235,8 +228,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         return loss, num_unmatched_gt_spans
     
     def training_step(self, *args, **kwargs):
-        pdb.set_trace()
-        
         raw_batch: RawBatch = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         

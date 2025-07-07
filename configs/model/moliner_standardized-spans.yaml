@@ -12,7 +12,6 @@ defaults:
 
   - spans_generator: 16_windowed
 
-  - prompt_tokens_aggregator: special_token
   - span_frames_aggregator: concat
 
   - prompt_representation_layer: mlp

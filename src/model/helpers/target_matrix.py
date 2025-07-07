@@ -35,6 +35,7 @@ def create_target_matrix(
     # NOTE: (Batch Size, #Prompts, #GroundTruthSpans, #CandidateSpans)
     # A match is a match only if both start and end frames match exactly
     # Boolean tensor indicating if each ground truth span matches any candidate span
+    # TODO: this is problmeatic i think as it expects everything to be ordered
     matches = torch.all(groundtruth_spans_expanded == candidate_spans_expanded, dim=-1)
     
     # NOTE: (Batch Size, #Prompts, #Spans, 1)

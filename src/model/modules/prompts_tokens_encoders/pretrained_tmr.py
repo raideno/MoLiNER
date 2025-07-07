@@ -84,7 +84,10 @@ class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     def get_output_dim(self) -> int:
         """
         Returns the output dimension of the text encoder.
+        Note: This might differ from latent_dim if the TMR encoder uses a different output dimension.
         """
+        # NOTE: The TMR encoder might use a different output dimension than the configured latent_dim
+        # We return latent_dim as a fallback, but the actual dimension is determined at runtime
         return self.latent_dim
     
     def forward(
@@ -96,13 +99,14 @@ class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     ) -> torch.Tensor:
         """
         Encode prompts using the pretrained TMR text encoder.
+        Returns the CLS token for each prompt.
         
         Args:
             prompt_input_ids (torch.Tensor): Token IDs of shape (batch_size, num_prompts, seq_len)
             prompt_attention_mask (torch.Tensor): Attention mask of shape (batch_size, num_prompts, seq_len)
             
         Returns:
-            torch.Tensor: Encoded prompt tokens of shape (batch_size, num_prompts, seq_len, hidden_size)
+            torch.Tensor: CLS token embeddings of shape (batch_size, num_prompts, hidden_size)
         """
         # NOTE: (batch_size, num_prompts, seq_len)
         B, P, L = prompt_input_ids.shape
@@ -121,17 +125,13 @@ class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
             # NOTE: (B * P, L, 768)
             base_features = base_outputs.last_hidden_state
             
-            output_embeddings_list = []
+            cls_embeddings_list = []
             
             for i in range(B * P):
                 # NOTE: we skip empty prompts
                 if reshaped_mask[i].sum() == 0:
-                    empty_embeddings = torch.zeros(
-                        L, self.get_output_dim(), 
-                        device=prompt_input_ids.device, 
-                        dtype=torch.float32
-                    )
-                    output_embeddings_list.append(empty_embeddings)
+                    # NOTE: We'll determine the correct size after processing at least one valid prompt
+                    cls_embeddings_list.append(None)
                     continue
                 
                 try:
@@ -148,41 +148,48 @@ class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
                         return_full_sequence=True
                     )
                     
-                    num_cls_tokens = getattr(self.tmr_text_encoder, 'nbtokens', 0)
-                    if num_cls_tokens > 0:
-                        sequence_embeddings = full_sequence[:, num_cls_tokens:, :]
-                    else:
-                        sequence_embeddings = full_sequence
+                    # NOTE: cls_token is of shape (1, hidden_size) as tmr is a VAE, thus we only take the mean
+                    mean, std = cls_token.squeeze(0)
+                    cls_token = mean
                     
-                    # TODO: recheck the following padding logic
-                    seq_len = sequence_embeddings.shape[1]
-                    if seq_len < L:
-                        padding = torch.zeros(
-                            1, L - seq_len, self.get_output_dim(),
-                            device=sequence_embeddings.device,
-                            dtype=sequence_embeddings.dtype
-                        )
-                        sequence_embeddings = torch.cat([sequence_embeddings, padding], dim=1)
-                    elif seq_len > L:
-                        sequence_embeddings = sequence_embeddings[:, :L, :]
-                    
-                    token_embeddings = sequence_embeddings.squeeze(0)
-                    token_embeddings = token_embeddings * reshaped_mask[i].unsqueeze(-1).float()
-                    
-                    output_embeddings_list.append(token_embeddings)
+                    # NOTE: Use the CLS token directly (shape: [1, hidden_size])
+                    cls_embedding = cls_token.squeeze(0)  # Remove batch dimension
+                    cls_embeddings_list.append(cls_embedding)
                     
                 except Exception as e:
-                    logger.warning(f"Failed to encode prompt {i}, using zero embeddings: {e}")
-                    zero_embeddings = torch.zeros(
-                        L, self.get_output_dim(), 
-                        device=prompt_input_ids.device, 
+                    logger.warning(f"Failed to encode prompt {i}, using zero CLS embedding: {e}")
+                    # NOTE: We'll determine the correct size after processing at least one valid prompt
+                    cls_embeddings_list.append(None)
+            
+            # NOTE: Find the first valid embedding to determine the correct dimension
+            valid_embedding = None
+            for embedding in cls_embeddings_list:
+                if embedding is not None:
+                    valid_embedding = embedding
+                    break
+            
+            if valid_embedding is None:
+                # NOTE: All prompts are empty, use the configured latent_dim
+                actual_hidden_size = self.get_output_dim()
+            else:
+                actual_hidden_size = valid_embedding.shape[-1]
+            
+            # NOTE: Replace None entries with zero embeddings of the correct size
+            for i, emb in enumerate(cls_embeddings_list):
+                if emb is None:
+                    cls_embeddings_list[i] = torch.zeros(
+                        actual_hidden_size,
+                        device=prompt_input_ids.device,
                         dtype=torch.float32
                     )
-                    output_embeddings_list.append(zero_embeddings)
             
-            flat_embeddings = torch.stack(output_embeddings_list, dim=0)
+            # NOTE: stack all CLS embeddings: (B * P, hidden_size)
+            flat_cls_embeddings = torch.stack(cls_embeddings_list, dim=0)
             
-            hidden_size = flat_embeddings.shape[-1]
-            output_embeddings = flat_embeddings.view(B, P, L, hidden_size)
+            # NOTE: Get the actual hidden size from the tensor
+            actual_hidden_size = flat_cls_embeddings.shape[-1]
+            
+            # NOTE: Reshape back to (B, P, actual_hidden_size)
+            output_embeddings = flat_cls_embeddings.view(B, P, actual_hidden_size)
             
             return output_embeddings
