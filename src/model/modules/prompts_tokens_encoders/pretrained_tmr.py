@@ -1,6 +1,7 @@
 import torch
 import typing
 import logging
+import transformers
 
 from transformers import AutoModel
 
@@ -50,6 +51,7 @@ class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         self.finetune = finetune
         self.latent_dim = latent_dim
         
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained("distilbert-base-uncased")
         # NOTE: for feature extraction before passing it to the ActorStyle Encoder
         self.base_text_model = AutoModel.from_pretrained("distilbert-base-uncased")
         
@@ -193,3 +195,36 @@ class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
             output_embeddings = flat_cls_embeddings.view(B, P, actual_hidden_size)
             
             return output_embeddings
+
+    def tokenize(
+        self,
+        texts: typing.List[str],
+        max_length: typing.Optional[int] = None,
+        padding: bool = True,
+        truncation: bool = True,
+        return_tensors: str = "pt",
+        batch_index: typing.Optional[int] = None,
+    ) -> typing.Dict[str, torch.Tensor]:
+        """
+        Tokenizes a list of text strings.
+        """
+        if max_length is None:
+            max_length = self.model_max_length
+            
+        result = self.tokenizer(
+            texts,
+            max_length=max_length,
+            padding=padding,
+            truncation=truncation,
+            return_tensors=return_tensors
+        )
+        
+        return result
+    
+    @property
+    def model_max_length(self) -> int:
+        return self.tokenizer.model_max_length
+    
+    @property
+    def pad_token_id(self) -> int:
+        return self.tokenizer.pad_token_id

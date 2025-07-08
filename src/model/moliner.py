@@ -4,6 +4,7 @@ import torch
 import typing
 import logging
 import warnings
+import transformers
 import pytorch_lightning
 
 from src.types import (
@@ -13,7 +14,6 @@ from src.types import (
 )
 
 from src.model.modules import (
-    BaseTokenizer,
     BasePairScorer,
     BaseMotionFramesEncoder,
     BasePromptRepresentationLayer,
@@ -56,9 +56,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         decoder: BaseDecoder,
         
-        # TODO: remove class
-        tokenizer: BaseTokenizer,
-        
         lr: float,
 
         **kwargs,
@@ -68,8 +65,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         super().__init__()
         
         self.lr: float = lr
-        
-        self.tokenizer: BaseTokenizer = tokenizer
         
         self.motion_frames_encoder: BaseMotionFramesEncoder = motion_frames_encoder
         self.prompts_tokens_encoder: BasePromptsTokensEncoder = prompts_tokens_encoder
@@ -223,7 +218,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         )   
 
     def step(self, raw_batch: RawBatch, batch_index: int) -> tuple[torch.Tensor, int]:
-        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.tokenizer)
+        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
@@ -310,7 +305,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
 
         processed_batch = ProcessedBatch.from_raw_batch(
             raw_batch=raw_batch,
-            tokenizer=self.tokenizer
+            encoder=self.prompts_tokens_encoder
         )
 
         with torch.no_grad():

@@ -1,5 +1,6 @@
 import torch
 import typing
+import transformers
 
 from transformers import AutoModel
 
@@ -19,6 +20,8 @@ class TransformerPromptsTokensEncoder(BasePromptsTokensEncoder):
             finetune (bool): If True, the transformer's weights will be updated during training. If False, they will be frozen.
         """
         super().__init__()
+        
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.model_name)
         self.transformer = AutoModel.from_pretrained(model_name)
 
         if not finetune:
@@ -70,3 +73,33 @@ class TransformerPromptsTokensEncoder(BasePromptsTokensEncoder):
         output_embeddings = cls_tokens.view(B, P, hidden_size)
         
         return output_embeddings
+    
+    def tokenize(
+        self, 
+        texts: typing.List[str],
+        max_length: typing.Optional[int] = None,
+        padding: bool = True,
+        truncation: bool = True,
+        return_tensors: str = "pt",
+        batch_index: typing.Optional[int] = None,
+    ) -> typing.Dict[str, torch.Tensor]:
+        if max_length is None:
+            max_length = self.model_max_length
+            
+        result = self.tokenizer(
+            texts,
+            max_length=max_length,
+            padding=padding,
+            truncation=truncation,
+            return_tensors=return_tensors
+        )
+        
+        return result
+    
+    @property
+    def model_max_length(self) -> int:
+        return self.tokenizer.model_max_length
+    
+    @property
+    def pad_token_id(self) -> int:
+        return self.tokenizer.pad_token_id

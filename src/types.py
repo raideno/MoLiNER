@@ -4,10 +4,9 @@ import typing
 import random
 import string
 import dataclasses
+import transformers
 
-# NOTE: this is to avoid circular import issues
-if typing.TYPE_CHECKING:
-    from src.model.modules.tokenizers.index import BaseTokenizer
+from src.model.modules import BasePromptsTokensEncoder
 
 @dataclasses.dataclass
 class RawBatch:
@@ -120,7 +119,7 @@ class RawBatch:
             motion_mask=motion_mask,
             prompts=prompts
         )
-        
+
 # TODO: we could have multiple prompts of the same type in a single motion, so when encoding them we should only encode one of them and not all of them.
 @dataclasses.dataclass
 class ProcessedBatch:
@@ -200,7 +199,7 @@ class ProcessedBatch:
     def from_raw_batch(
         cls,
         raw_batch: RawBatch,
-        tokenizer: "BaseTokenizer",
+        encoder: BasePromptsTokensEncoder,
     ) -> "ProcessedBatch":
         batch_size = raw_batch.transformed_motion.shape[0]
         device = raw_batch.transformed_motion.device
@@ -213,14 +212,15 @@ class ProcessedBatch:
                 batch_max_spans_per_prompt = max(batch_max_spans_per_prompt, len(prompt[1]))
         
         # NOTE: first collect all texts to determine global max sequence length
-        all_texts_in_batch = []
+        all_texts_in_batch: list[str] = []
         for batch_prompts in raw_batch.prompts:
             for prompt in batch_prompts:
                 all_texts_in_batch.append(prompt[0])
-        
+                
         if all_texts_in_batch:
-            global_tokenized = tokenizer.tokenize(
+            global_tokenized = encoder.tokenize(
                 all_texts_in_batch,
+                max_length=encoder.model_max_length,
                 padding=True,
                 truncation=True,
                 return_tensors='pt'
@@ -244,7 +244,7 @@ class ProcessedBatch:
             
             # NOTE: we tokenize the prompt texts
             if texts:
-                tokenized = tokenizer.tokenize(
+                tokenized = encoder.tokenize(
                     texts,
                     padding=True,
                     truncation=True,
@@ -257,7 +257,7 @@ class ProcessedBatch:
                 current_seq_len = prompt_ids.shape[1]
                 if current_seq_len < batch_max_sequence_length:
                     pad_length = batch_max_sequence_length - current_seq_len
-                    pad_ids = torch.full((prompt_ids.shape[0], pad_length), tokenizer.pad_token_id, dtype=torch.long)
+                    pad_ids = torch.full((prompt_ids.shape[0], pad_length), encoder.pad_token_id, dtype=torch.long)
                     prompt_ids = torch.cat([prompt_ids, pad_ids], dim=1)
                     pad_mask = torch.zeros((prompt_mask.shape[0], pad_length), dtype=torch.long)
                     prompt_mask = torch.cat([prompt_mask, pad_mask], dim=1)

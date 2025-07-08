@@ -6,4 +6,3 @@ from .prompts_tokens_encoders import BasePromptsTokensEncoder
 from .span_frames_aggregators import BaseSpanFramesAggregator
 from .span_representation_layers import BaseSpanRepresentationLayer
 from .spans_generators import BaseSpansGenerator
-from .tokenizers import BaseTokenizer

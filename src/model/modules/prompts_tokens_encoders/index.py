@@ -34,3 +34,24 @@ class BasePromptsTokensEncoder(torch.nn.Module, ABC):
                 Shape: (batch_size, num_prompts, hidden_dim)
         """
         pass
+    
+    @abstractmethod
+    def tokenize(
+        self,
+        texts: typing.List[str],
+        max_length: int = 512,
+        padding: bool = True,
+        truncation: bool = True,
+        return_tensors: str = 'pt'
+    ) -> typing.Dict[str, torch.Tensor]:
+        pass
+    
+    @property
+    @abstractmethod
+    def model_max_length(self) -> int:
+        pass
+    
+    @property
+    @abstractmethod
+    def pad_token_id(self) -> int:
+        pass
