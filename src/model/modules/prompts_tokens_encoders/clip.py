@@ -13,7 +13,10 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     well-suited for multimodal tasks involving text and motion.
     """
     
-    def __init__(self, frozen: bool = True):
+    def __init__(
+        self,
+        frozen: bool = True
+    ):
         """
         Initializes the CLIPPromptsTokensEncoder.
 

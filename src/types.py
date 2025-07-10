@@ -6,7 +6,9 @@ import string
 import dataclasses
 import transformers
 
-from src.model.modules import BasePromptsTokensEncoder
+# Use TYPE_CHECKING to avoid circular imports
+if typing.TYPE_CHECKING:
+    from src.model.modules import BasePromptsTokensEncoder
 
 @dataclasses.dataclass
 class RawBatch:
@@ -198,8 +200,8 @@ class ProcessedBatch:
     @classmethod
     def from_raw_batch(
         cls,
-        raw_batch: RawBatch,
-        encoder: BasePromptsTokensEncoder,
+        raw_batch: "RawBatch",
+        encoder: "BasePromptsTokensEncoder",
     ) -> "ProcessedBatch":
         batch_size = raw_batch.transformed_motion.shape[0]
         device = raw_batch.transformed_motion.device

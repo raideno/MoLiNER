@@ -12,7 +12,7 @@ PIPELINE_REGISTRY = {
     "chunking_standardized_locate": ChunkingStandardizedLocatePipeline,
 }
 
-def get_pipeline(name: str) -> BasePipeline:
+def get_pipeline(name: str) -> "BasePipeline":
     if name not in PIPELINE_REGISTRY:
         raise ValueError(f"Unknown pipeline: {name}. Available pipelines: {list(PIPELINE_REGISTRY.keys())}")
     

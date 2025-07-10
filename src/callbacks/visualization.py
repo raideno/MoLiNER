@@ -51,7 +51,7 @@ class VisualizationCallback(Callback):
             self.score_thresholds = [float(t) for t in score_threshold]
         self.visualize_on_start = visualize_on_start
         self.visualize_on_end = visualize_on_end
-        self.visualization_batch: typing.Optional[RawBatch] = None
+        self.visualization_batch: typing.Optional["RawBatch"] = None
         self.debug = debug
         
         os.makedirs(self.dirpath, exist_ok=True)
@@ -89,7 +89,7 @@ class VisualizationCallback(Callback):
                     logger.info(f"Batch contains {len(batch.sid)} samples with {len(batch.prompts[0])} prompts each.")
                 break
                 
-    def _move_batch_to_cpu(self, batch: RawBatch) -> RawBatch:
+    def _move_batch_to_cpu(self, batch: "RawBatch") -> "RawBatch":
         """
         Move batch tensors to CPU for storage.
         """

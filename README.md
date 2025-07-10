@@ -119,6 +119,10 @@ python train-model.py \
 | `standardized-windowing-locate-babel` | Babel dataset with window-based annotations.    |
 | `kit_ml`                              | KIT-ML dataset for motion-language retrieval.   |
 
+### Hardware Configuration
+
+By default, the trainer is configured to use CUDA acceleration. You can override the accelerator and device settings in [`configs/trainer.yaml`](./configs/trainer.yaml).
+
 **Note:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
 
 ## Weights Extraction

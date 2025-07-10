@@ -203,7 +203,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
             prompts_mask=prompts_mask
         )   
 
-    def step(self, raw_batch: RawBatch, batch_index: int) -> tuple[torch.Tensor, int]:
+    def step(self, raw_batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, int]:
         processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
         
         output = self.forward(processed_batch, batch_index=batch_index)
@@ -213,7 +213,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         return loss, num_unmatched_gt_spans
     
     def training_step(self, *args, **kwargs):
-        raw_batch: RawBatch = args[0]
+        raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         raw_batch.validate_type_or_raise(name="batch")
@@ -228,7 +228,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         return loss
     
     def validation_step(self, *args, **kwargs):
-        raw_batch: RawBatch = args[0]
+        raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         raw_batch.validate_type_or_raise(name="batch")
@@ -243,7 +243,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         return loss
         
     def test_step(self, *args, **kwargs):
-        raw_batch: RawBatch = args[0]
+        raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         raw_batch.validate_type_or_raise(name="batch")

@@ -9,7 +9,10 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     A prompts token encoder that uses a pretrained transformer model from
     the Hugging Face Hub (e.g., DeBERTa, BERT).
     """
-    def __init__(self, frozen: bool = True):
+    def __init__(
+        self,
+        frozen: bool = True
+    ):
         """
         Initializes the DebertaPromptsTokensEncoder.
 
