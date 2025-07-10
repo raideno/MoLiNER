@@ -9,7 +9,7 @@ To get started with MoLiNER, you need to set up the environment and install the 
 1. **Clone the repository:**
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/raideno/MoLiNER.git
 cd MoLiNER
 ```
 
@@ -86,8 +86,8 @@ defaults:
 
   # tmr/scratch, tmr/pretrained, tmr/frozen
   - motion_frames_encoder: tmr/scratch
-  # deberta, tmr/scratch, tmr/pretrained, tmr/frozen, clip
-  - prompts_tokens_encoder: deberta
+  # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
+  - prompts_tokens_encoder: deberta/pretrained
 
   #  windowed/16, windowed/8, static/16
   - spans_generator: windowed/16
@@ -97,7 +97,8 @@ defaults:
   # transformer, endpoints, query, lstm, convolution, pooling/min, pooling/mean, pooling/max
   - span_representation_layer: endpoints
 
-  - decoder: generic
+  # generic/flat, generic/nested, generic/overlap
+  - decoder: generic/overlap
 ```
 
 You can override the different components of the model with the available ones to create your own variant of the model. This can be done at CLI level or by creating your own `.yaml` file in the [`./configs/model`](./configs/model/) and using it when calling the [train-model](#training) script.

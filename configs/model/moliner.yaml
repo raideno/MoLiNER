@@ -8,8 +8,8 @@ defaults:
 
   # tmr/scratch, tmr/pretrained, tmr/frozen
   - motion_frames_encoder: tmr/scratch
-  # deberta, tmr/scratch, tmr/pretrained, tmr/frozen, clip
-  - prompts_tokens_encoder: deberta
+  # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
+  - prompts_tokens_encoder: deberta/pretrained
 
   #  windowed/16, windowed/8, static/16
   - spans_generator: windowed/16
@@ -19,4 +19,5 @@ defaults:
   # transformer, endpoints, query, lstm, convolution, pooling/min, pooling/mean, pooling/max
   - span_representation_layer: endpoints
 
-  - decoder: generic
+  # generic/flat, generic/nested, generic/overlap
+  - decoder: generic/overlap
