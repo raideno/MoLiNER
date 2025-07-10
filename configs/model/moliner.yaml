@@ -3,18 +3,18 @@ _target_: src.model.MoLiNER
 lr: 1e-4
 
 defaults:
-  - tokenizer: deberta
-
   - pair_scorer: dot_product
 
-  - motion_frames_encoder: pretrained_tmr
-  - prompts_tokens_encoder: transformer
+  # NOTE: tmr/scratch, tmr/pretrained, tmr/frozen
+  - motion_frames_encoder: tmr/scratch
+  # NOTE: deberta, tmr/scratch, tmr/pretrained, tmr/frozen, clip
+  - prompts_tokens_encoder: deberta
 
-  - spans_generator: static
+  # NOTE:  windowed/16, windowed/8, static/16
+  - spans_generator: windowed/16
 
-  - span_frames_aggregator: concat
-
-  - prompt_representation_layer: mlp
+  # NOTE: mlp/deberta, mlp/tmr, mlp/clip
+  - prompt_representation_layer: mlp/deberta
   - span_representation_layer: mlp
 
   - decoder: generic

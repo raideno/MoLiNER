@@ -1,0 +1,3 @@
+defaults:
+  - _base
+input_dim: 512 # NOTE: clip

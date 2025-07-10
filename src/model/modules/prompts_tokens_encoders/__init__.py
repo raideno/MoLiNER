@@ -1,3 +1,5 @@
 from .index import BasePromptsTokensEncoder
-from .pretrained_tmr import PretrainedTMRPromptsTokensEncoder
-from .transformer import TransformerPromptsTokensEncoder
+
+from .tmr import TMRPromptsTokensEncoder
+from .deberta import DebertaPromptsTokensEncoder
+from .clip import CLIPPromptsTokensEncoder

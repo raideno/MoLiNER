@@ -6,25 +6,28 @@ from transformers import AutoModel
 
 from .index import BasePromptsTokensEncoder
 
-class TransformerPromptsTokensEncoder(BasePromptsTokensEncoder):
+class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     """
     A prompts token encoder that uses a pretrained transformer model from
     the Hugging Face Hub (e.g., DeBERTa, BERT).
     """
-    def __init__(self, model_name: str, finetune: bool = True):
+    def __init__(self, frozen: bool = True):
         """
-        Initializes the TransformerPromptsTokensEncoder.
+        Initializes the DebertaPromptsTokensEncoder.
 
         Args:
-            model_name (str): The name of the model to load from the HuggingFace Hub (e.g., "microsoft/deberta-v3-base").
-            finetune (bool): If True, the transformer's weights will be updated during training. If False, they will be frozen.
+            frozen (bool): If True, the transformer's weights will not be updated during training.
         """
         super().__init__()
         
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.model_name)
-        self.transformer = AutoModel.from_pretrained(model_name)
+        MODEL_NAME = "microsoft/deberta-v3-base"
+        
+        self.frozen = frozen
+        
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_NAME)
+        self.transformer = AutoModel.from_pretrained(MODEL_NAME)
 
-        if not finetune:
+        if self.frozen:
             for param in self.transformer.parameters():
                 param.requires_grad = False
 

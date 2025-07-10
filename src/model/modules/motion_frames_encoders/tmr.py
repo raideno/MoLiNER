@@ -9,58 +9,52 @@ logger = logging.getLogger(__name__)
 HML3D_FEATURES_SIZE = 263
 
 class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
-    """
-    TMR-based motion frames encoder that processes motion sequences using a transformer architecture.
-    
-    This encoder uses the TMR (Text-Motion Retrieval) model's transformer-based encoder to generate
-    frame-level embeddings from motion sequences.
-    """
-    
     def __init__(
         self,
-        latent_dim: int = 256,
+        frozen: bool = False,
         pretrained: bool = False,
-        ff_size: int = 1024,
-        num_layers: int = 6,
-        num_heads: int = 4,
-        dropout: float = 0.1,
-        activation: str = "gelu"
+        weights_path: typing.Optional[str] = None,
+        # --- --- ---
     ):
-        """
-        Initialize the TMR motion frames encoder.
-        
-        Args:
-            latent_dim (int): Dimension of the output embeddings
-            pretrained (bool): Whether to use pretrained weights
-            ff_size (int): Feed-forward network size in transformer layers
-            num_layers (int): Number of transformer layers
-            num_heads (int): Number of attention heads
-            dropout (float): Dropout rate
-            activation (str): Activation function type
-        """
         super().__init__()
         
-        self.latent_dim = latent_dim
+        self.frozen = frozen
+        self.pretrained = pretrained
+        self.weights_path = weights_path
         
         from src.model.helpers import ACTORStyleEncoder
         
+        self.vae: bool = True
+        self.latent_dim: int = 256
+        self.ff_size: int = 1024
+        self.num_layers: int = 6
+        self.num_heads: int = 4
+        self.dropout: float = 0.1
+        self.activation: str = "gelu"
+        
         self.tmr_encoder = ACTORStyleEncoder(
             nfeats=HML3D_FEATURES_SIZE,
-            vae=False,
-            latent_dim=latent_dim,
-            ff_size=ff_size,
-            num_layers=num_layers,
-            num_heads=num_heads,
-            dropout=dropout,
-            activation=activation
+            vae=self.vae,
+            latent_dim=self.latent_dim,
+            ff_size=self.ff_size,
+            num_layers=self.num_layers,
+            num_heads=self.num_heads,
+            dropout=self.dropout,
+            activation=self.activation
         )
         
         if pretrained:
-            # TODO: load the pretrained weights
-            self.tmr_encoder.eval()
-            raise NotImplementedError(
-                "Pretrained weights loading is not implemented yet for TMRMotionFramesEncoder."
-            )
+            if self.weights_path is not None:
+                self.tmr_encoder.load_state_dict(
+                    torch.load(weights_path)
+                )
+            else:
+                logger.warning("Pretrained weights path is not provided. Using uninitialized TMR encoder.")
+                raise ValueError("Pretrained weights path must be specified if pretrained is True.")
+    
+        if frozen:
+            for param in self.tmr_encoder.parameters():
+                param.requires_grad = False
     
     def forward(
         self, 

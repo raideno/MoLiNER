@@ -3,86 +3,66 @@ import typing
 import logging
 import transformers
 
-from transformers import AutoModel
-
 from .index import BasePromptsTokensEncoder
 
 logger = logging.getLogger(__name__)
 
-class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
-    """
-    A prompts token encoder that uses the text encoder from a pretrained TMR model.
-    
-    This encoder uses the TMR model's text encoder to generate contextual embeddings
-    for prompt tokens. It expects pre-tokenized input (token IDs and attention masks)
-    and focuses only on the encoding part, following the separation of concerns pattern.
-    
-    Note: Tokenization should be handled separately using a compatible tokenizer
-    (e.g., DistilBertTokenizer) that matches the base model used here.
-    """
-    
+class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     def __init__(
         self,
-        weights_path: str,
-        finetune: bool = True,
-        latent_dim: int = 256,
-        ff_size: int = 1024,
-        num_layers: int = 6,
-        num_heads: int = 4,
-        dropout: float = 0.1,
-        activation: str = "gelu",
+        frozen: bool = False,
+        pretrained: bool = False,
+        weights_path: typing.Optional[str] = None,
     ):
-        """
-        Initialize the pretrained TMR prompts tokens encoder.
-        
-        Args:
-            weights_path (str): Path to the pretrained TMR text encoder weights
-            finetune (bool): Whether to finetune the model or freeze it
-            latent_dim (int): Dimension of the output embeddings
-            ff_size (int): Feed-forward network size in transformer layers
-            num_layers (int): Number of transformer layers
-            num_heads (int): Number of attention heads
-            dropout (float): Dropout rate
-            activation (str): Activation function type
-        """
         super().__init__()
         
+        self.frozen = frozen
+        self.pretrained = pretrained
         self.weights_path = weights_path
-        self.finetune = finetune
-        self.latent_dim = latent_dim
         
         self.tokenizer = transformers.AutoTokenizer.from_pretrained("distilbert-base-uncased")
         # NOTE: for feature extraction before passing it to the ActorStyle Encoder
-        self.base_text_model = AutoModel.from_pretrained("distilbert-base-uncased")
+        self.base_text_model = transformers.AutoModel.from_pretrained("distilbert-base-uncased")
         
         from src.model.helpers import ACTORStyleEncoder
+        
+        self.vae: bool = True
+        self.latent_dim: int = 256
+        self.ff_size: int = 1024
+        self.num_layers: int = 6
+        self.num_heads: int = 4
+        self.dropout: float = 0.1
+        self.activation: str = "gelu"
         
         self.tmr_text_encoder = ACTORStyleEncoder(
             # NOTE: DistilBERT hidden size
             nfeats=768,
             vae=True,
-            latent_dim=latent_dim,
-            ff_size=ff_size,
-            num_layers=num_layers,
-            num_heads=num_heads,
-            dropout=dropout,
-            activation=activation
+            latent_dim=self.latent_dim,
+            ff_size=self.ff_size,
+            num_layers=self.num_layers,
+            num_heads=self.num_heads,
+            dropout=self.dropout,
+            activation=self.activation
         )
         
-        self.tmr_text_encoder.load_state_dict(
-            torch.load(weights_path, map_location='cpu')
-        )
-        self.tmr_text_encoder.train()
-        
-        if not finetune:
+        if pretrained:
+            if self.weights_path is not None:
+                self.tmr_encoder.load_state_dict(
+                    torch.load(weights_path)
+                )
+            else:
+                logger.warning("Pretrained weights path is not provided. Using uninitialized TMR encoder.")
+                raise ValueError("Pretrained weights path must be specified if pretrained is True.")
+    
+        if frozen:
             for param in self.tmr_text_encoder.parameters():
                 param.requires_grad = False
-            for param in self.base_text_model.parameters():
-                param.requires_grad = False
-            logger.info("TMR text encoder parameters frozen (finetune=False)")
-        else:
-            logger.info("TMR text encoder parameters will be finetuned")
-    
+        
+        # NOTE: the base text model is always frozen
+        for param in self.base_text_model.parameters():
+            param.requires_grad = False
+        
     def get_output_dim(self) -> int:
         """
         Returns the output dimension of the text encoder.
@@ -117,7 +97,7 @@ class PretrainedTMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         reshaped_ids = prompt_input_ids.view(B * P, L)
         reshaped_mask = prompt_attention_mask.view(B * P, L)
         
-        with torch.set_grad_enabled(self.finetune):
+        with torch.set_grad_enabled(not self.frozen):
             base_outputs = self.base_text_model(
                 input_ids=reshaped_ids,
                 attention_mask=reshaped_mask,

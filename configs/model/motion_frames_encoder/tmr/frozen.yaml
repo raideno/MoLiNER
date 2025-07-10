@@ -1,0 +1,4 @@
+defaults:
+  - _base
+frozen: true
+pretrained: true

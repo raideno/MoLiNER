@@ -1,5 +1,3 @@
 _target_: src.model.modules.prompt_representation_layers.mlp.MLPPromptRepresentationLayer
-input_dim: 768
-# input_dim: 256
 representation_dim: 256
 dropout_rate: 0.1

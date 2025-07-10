@@ -7,6 +7,7 @@ import tqdm
 import hydra
 import torch
 import gradio
+import typing
 import random
 import logging
 
@@ -26,7 +27,8 @@ from src.types import RawBatch, ProcessedBatch, EvaluationResult
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
-    DEFAULT_HYDRA_VERSION_BASE
+    DEFAULT_HYDRA_VERSION_BASE,
+    DEFAULT_THRESHOLD
 )
 
 # --- --- --- --- --- --- ---
@@ -110,12 +112,13 @@ def interface(cfg: DictConfig):
         
         return raw_batch, motion_tensor, motion_length, batch_size
 
-    def show_groundtruth_and_json(dataset_split: str, batch_index: int, sample_in_batch: int):
+    def show_groundtruth_and_json(dataset_split: str, batch_index: int, sample_in_batch: int, source_filter: typing.List[str]):
         """Show ground truth and JSON data immediately when sample changes"""
         try:
             raw_batch, motion_tensor, motion_length, batch_size = get_sample_data(dataset_split, batch_index, sample_in_batch)
             
             groundtruth_spans = []
+            groundtruth_sources = []
             sample_prompts = raw_batch.prompts[sample_in_batch]
             
             logger.info(f"Sample prompts from batch: {sample_prompts}")
@@ -128,11 +131,18 @@ def interface(cfg: DictConfig):
                         prompt_text = prompt_data[0]
                         spans = prompt_data[1] if len(prompt_data) > 1 else []
                         
+                        if len(prompt_data) >= 3:
+                            is_sequence_prompt = prompt_data[2] if len(prompt_data) > 2 else False
+                            source = "sequence_prompt" if is_sequence_prompt else "frame_prompt"
+                        else:
+                            source = "unspecified"
+                        
                         if isinstance(spans, (list, tuple)):
                             for span in spans:
                                 if isinstance(span, (list, tuple)) and len(span) >= 2:
                                     start_frame, end_frame = span[0], span[1]
                                     groundtruth_spans.append((prompt_text, start_frame, end_frame, 1.0))
+                                    groundtruth_sources.append(source)
             else:
                 logger.warning("No prompts found in sample for ground truth visualization")
             
@@ -141,7 +151,12 @@ def interface(cfg: DictConfig):
             if groundtruth_spans:
                 groundtruth_result = EvaluationResult(motion_length=motion_length, predictions=groundtruth_spans)
                 groundtruth_title = f"Ground Truth - {dataset_split.title()} Batch {batch_index} Sample {sample_in_batch} ({len(groundtruth_spans)} spans)"
-                groundtruth_figure = plot_evaluation_results(groundtruth_result, title=groundtruth_title)
+                groundtruth_figure = plot_evaluation_results(
+                    groundtruth_result, 
+                    title=groundtruth_title,
+                    sources=groundtruth_sources,
+                    filter_sources=source_filter if source_filter else None
+                )
             else:
                 raise gradio.Error(f"No ground truth annotations found for sample {sample_in_batch} in batch {batch_index}.")
             
@@ -162,7 +177,7 @@ def interface(cfg: DictConfig):
             logger.error(f"Error in show_groundtruth_and_json: {str(e)}")
             return None, f"Error: {str(e)}"
 
-    def show_prediction(prompts_text: str, dataset_split: str, batch_index: int, sample_in_batch: int):
+    def show_prediction(prompts_text: str, threshold: float, dataset_split: str, batch_index: int, sample_in_batch: int):
         """Show model predictions when button is clicked"""
         if not prompts_text.strip():
             raise gradio.Error("Please enter at least one prompt.")
@@ -183,10 +198,11 @@ def interface(cfg: DictConfig):
             with torch.no_grad():
                 prediction_outputs = model.evaluate(
                     motion=motion_tensor,
-                    prompts=prompts
+                    prompts=prompts,
+                    score_threshold=threshold,
                 )
             
-            prediction_title = f"Model Predictions - {dataset_split.title()} Batch {batch_index} Sample {sample_in_batch} ({len(prompts)} prompts)"
+            prediction_title = f"Model Predictions - {dataset_split.title()} Batch {batch_index} Sample {sample_in_batch} ({len(prompts)} prompts, threshold={threshold:.3f})"
             prediction_figure = plot_evaluation_results(prediction_outputs, title=prediction_title)
             
             return prediction_figure
@@ -215,6 +231,22 @@ def interface(cfg: DictConfig):
                     value="walking, running",
                     placeholder="Enter prompts separated by commas, e.g., walking, running, jumping",
                     lines=3
+                )
+                
+                threshold_slider = gradio.Slider(
+                    minimum=0.0,
+                    maximum=1.0,
+                    value=DEFAULT_THRESHOLD,
+                    step=0.01,
+                    label="Score Threshold",
+                    info="Confidence threshold for predictions (0.0 to 1.0)"
+                )
+                
+                source_filter = gradio.CheckboxGroup(
+                    choices=["unspecified", "raw_label", "sequence_prompt", "frame_prompt", "proc_label", "act_cat"],
+                    value=["unspecified", "raw_label", "sequence_prompt", "frame_prompt", "proc_label", "act_cat"],
+                    label="Source Filter (Ground Truth)",
+                    info="Select which sources to display in ground truth visualization"
                 )
                 
                 dataset_split_input = gradio.Dropdown(
@@ -254,23 +286,23 @@ def interface(cfg: DictConfig):
         sample_json_output = gradio.Code(label="Sample Data (JSON)", language="json")
         
         # NOTE: update ground truth and JSON whenever sample parameters change
-        for input_component in [dataset_split_input, batch_index_input, sample_in_batch_input]:
+        for input_component in [dataset_split_input, batch_index_input, sample_in_batch_input, source_filter]:
             input_component.change(
                 fn=show_groundtruth_and_json,
-                inputs=[dataset_split_input, batch_index_input, sample_in_batch_input],
+                inputs=[dataset_split_input, batch_index_input, sample_in_batch_input, source_filter],
                 outputs=[groundtruth_plot, sample_json_output]
             )
         
         # NOTE: generate predictions only when button is clicked
         predict_button.click(
             fn=show_prediction,
-            inputs=[prompts_input, dataset_split_input, batch_index_input, sample_in_batch_input],
+            inputs=[prompts_input, threshold_slider, dataset_split_input, batch_index_input, sample_in_batch_input],
             outputs=[prediction_plot]
         )
         
         interface.load(
             fn=show_groundtruth_and_json,
-            inputs=[dataset_split_input, batch_index_input, sample_in_batch_input],
+            inputs=[dataset_split_input, batch_index_input, sample_in_batch_input, source_filter],
             outputs=[groundtruth_plot, sample_json_output]
         )
     

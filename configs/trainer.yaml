@@ -40,7 +40,8 @@ trainer:
     - _target_: src.callbacks.visualization.VisualizationCallback
       batch_index: 0
       num_samples: 2
-      score_threshold: 0.5
+      # NOTE: can be a single value or list of thresholds
+      score_threshold: [0.3, 0.5, 0.7]
       debug: false
       visualize_on_start: true
       visualize_on_end: true
