@@ -1,3 +1,2 @@
-defaults:
-  - _base
+_target_: src.model.modules.decoders.generic.GenericDecoder
 strategy: FLAT

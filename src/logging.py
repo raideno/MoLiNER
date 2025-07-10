@@ -1,6 +1,6 @@
+import yaml
 import json
 import tqdm
-import yaml
 import logging
 
 # from https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit

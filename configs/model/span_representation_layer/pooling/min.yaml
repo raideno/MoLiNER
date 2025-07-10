@@ -1,3 +1,1 @@
-defaults:
-  - _base
 _target_: src.model.modules.span_representation_layers.pooling.MinPoolingSpanRepresentationLayer

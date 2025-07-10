@@ -6,9 +6,9 @@ trainer:
   num_sanity_val_steps: 0
   check_val_every_n_epoch: 1
   # NOTE: options: cuda, cpu, mps (for Apple Silicon), auto
-  accelerator: cuda
+  accelerator: auto
   # NOTE: auto, [0], [1], [0,1], etc. or specific device IDs
-  devices: [1]
+  # devices: [1]
 
   profiler:
     _target_: pytorch_lightning.profilers.SimpleProfiler

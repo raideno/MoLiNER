@@ -5,6 +5,12 @@ import hydra
 import torch
 import logging
 
+# # --- --- --- --- --- --- ---
+# import os
+# import sys
+# sys.path.append(os.getcwd())
+# # --- --- --- --- --- --- ---
+
 import pytorch_lightning as lightning
 
 from hydra import main
@@ -28,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 @main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="train-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def train_model(cfg: DictConfig):
+    print(cfg)
+    
     ckpt = None
     if cfg.resume_dir is not None:
         assert cfg.ckpt is not None

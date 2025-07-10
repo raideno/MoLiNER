@@ -56,7 +56,7 @@ The main configuration files are located in the [`configs/`](./configs/) directo
 You can override any configuration setting from the command line. For example:
 
 ```bash
-python train-model.py data=babel model=moliner trainer.trainer.max_epochs=100
+python train-model.py data=babel/20 model=moliner trainer.trainer.max_epochs=100
 ```
 
 This command will train the `moliner` model on the `babel` dataset for 100 epochs.
@@ -105,19 +105,19 @@ You can override the different components of the model with the available ones t
 
 ```bash
 python train-model.py \
-    data=babel \
+    data=babel/20 \
     model=moliner \
     prompts_tokens_encoder=clip
 ```
 
-| **Data Variants**                     | **Description**                                 |
-| ------------------------------------- | ----------------------------------------------- |
-| `babel`                               | Babel dataset for motion-language segmentation. |
-| `hml3d`                               | HumanML3D dataset for 3D motion-language tasks. |
-| `locate-babel`                        | Babel dataset with sequence-level annotations.  |
-| `standardized-chunking-locate-babel`  | Babel dataset with chunk-based annotations.     |
-| `standardized-windowing-locate-babel` | Babel dataset with window-based annotations.    |
-| `kit_ml`                              | KIT-ML dataset for motion-language retrieval.   |
+| **Data Variants**                 | **Description**                                 |
+| --------------------------------- | ----------------------------------------------- |
+| `babel/base`                      | Babel dataset for motion-language segmentation. |
+| `babel/20`                        | Babel dataset with sequence-level annotations.  |
+| `babel/20-standardized-chunking`  | Babel dataset with chunk-based annotations.     |
+| `babel/20-standardized-windowing` | Babel dataset with window-based annotations.    |
+| `hml3d/base`                      | HumanML3D dataset for 3D motion-language tasks. |
+| `kitml/base`                      | KIT-ML dataset for motion-language retrieval.   |
 
 ### Hardware Configuration
 

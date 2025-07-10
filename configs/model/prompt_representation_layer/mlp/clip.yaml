@@ -1,4 +1,5 @@
-defaults:
-  - _base
+_target_: src.model.modules.prompt_representation_layers.mlp.MLPPromptRepresentationLayer
+representation_dim: 256
+dropout_rate: 0.1
 # NOTE: clip's output dimension
 input_dim: 512
