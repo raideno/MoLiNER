@@ -1,4 +1,0 @@
-_target_: src.model.modules.span_representation_layers.mlp.MLPSpanRepresentationLayer
-motion_embed_dim: 256
-representation_dim: 256
-dropout_rate: 0.1

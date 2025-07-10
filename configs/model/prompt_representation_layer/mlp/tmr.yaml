@@ -1,3 +1,4 @@
 defaults:
   - _base
-input_dim: 256 # NOTE: tmr
+# NOTE: tmr's output dimension
+input_dim: 256

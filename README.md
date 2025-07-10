@@ -1,25 +1,19 @@
-# MoLiNER (Motion LiNER)
+# MoLiNER: Motion-Language-based Instance Segmentation and Retrieval
 
-## Todos (By Priority)
+MoLiNER for motion analysis, language-based segmentation and retrieval.
 
-- [ ] Add tests to make sure 100% the loss is correctly working.
-- [ ] Perform some statistics about the dataset and spans.
-- [ ] Modify or create a variant of the static span generator to accept a lowerK and upperK rather than a single K, it'll then for each position it'll generate spans of size from lowerK to upperK. lower and upper K can be derived from the dataset it self by looking at the shortest and longest prompt.
-- [ ] Add some post processing on the decoding step to clean up the predictions and merge any two spans into a longer one that should be merged.
-- [ ] Implement a better segmentation and retrieval evaluation.
-- [ ] Implement a pipeline training for TMR on HML3D and Babel.
+## Installation
 
----
+To get started with MoLiNER, you need to set up the environment and install the required dependencies.
 
-## Environment Setup
+1. **Clone the repository:**
 
-#### 1. Environment Configuration
+```bash
+git clone <your-repository-url>
+cd MoLiNER
+```
 
-Copy the [`.env.example`](./.env.example) file and rename it to `.env`. Replace the necessary fields with the correct values.
-
-The `TOKEN` environment variable is required for downloading datasets from Hugging Face.
-
-#### 2. Python Environment Setup
+2. **Setup Python Environment:**
 
 ```bash
 python -m venv .venv
@@ -27,107 +21,157 @@ python -m venv .venv
 source .venv/bin/activate
 # On Windows
 .venv\Scripts\activate
+# NOTE: installing the dependencies
 pip install -r requirements.txt
 ```
 
-**Note:** All commands below assume your Python environment is properly set up and activated.
+3. **Hugging Face Authentication (Required):**
 
-## Testing and Development
+Rename the [`.env.example`](./.env.example) file and rename it to `.env`; replace the `xxx` value with the appropriate values.
 
-<!-- #### 1. Implementation Tests
-
-Test the implementations of different model components to ensure they work properly. This is useful when modifying any submodule of the model.
+4. **Required Pretrained Weights:**
 
 ```bash
-pytest -v -s
-``` -->
-
-#### 2. Model Testing
-
-Test dataset loading, dataloader creation, and forward pass through the model. You can use [`pdb`](https://docs.python.org/3/library/pdb.html) for debugging if enabled in the configuration.
-
-```bash
-HYDRA_FULL_ERROR=1 python test.py
+bash scripts/download-tmr-pretrained-models.sh
 ```
+
+## Dataset Preparation
+
+This project supports multiple datasets: **Babel**, **HumanML3D**, and **KIT-ML** (upcoming). All data downloading, preprocessing, etc is done automatically. The only required thing is to specify the `HUGGING_FACE_TOKEN` inside of the `.env` as instructed in the previous step, this is required as the raw data is hosted on hugging face in a private repository.
+
+All data related code is available inside of [`src/data`](./src/data/).
 
 ## Configuration
 
-This project uses [Hydra](https://hydra.cc/docs/intro/) for configuration management. All configurations are stored in the [`/configs`](/configs/) directory and can be modified as needed.
+This project uses [Hydra](https://hydra.cc/) for configuration management. This allows for a flexible and composable way to configure experiments.
+
+The main configuration files are located in the [`configs/`](./configs/) directory.
+
+- [`defaults.yaml`](./configs/defaults.yaml): Contains global default settings.
+- [`train-model.yaml`](./configs/train-model.yaml), [`test-model.yaml`](./configs/test-model.yaml), etc.: Main configuration files for different scripts.
+- [`configs/model/moliner.yaml`](./configs/model/moliner.yaml): Configuration for the model architecture (e.g., encoders, decoders).
+- [`configs/data/`](./configs/data/): Configuration for datasets.
+- [`configs/trainer.yaml`](./configs/trainer.yaml): Configuration for the PyTorch Lightning trainer.
+
+You can override any configuration setting from the command line. For example:
+
+```bash
+python train-model.py data=babel model=moliner trainer.trainer.max_epochs=100
+```
+
+This command will train the `moliner` model on the `babel` dataset for 100 epochs.
 
 ## Training
 
-### Model Training
-
-Train the model using the following command:
+To train a new model, use the `train-model.py` script. You need to specify the model and data configurations.
 
 ```bash
-HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py \
+HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<model_name> data=<dataset_name>
+```
+
+All the available variants of the model can be found at [`configs/model`](./configs/model/) and the different data variants can be found at [`configs/data`](./configs/data/).
+
+| **Model Variants** | **Description**                     |
+| ------------------ | ----------------------------------- |
+| `moliner`          | Default MoLiNER model architecture. |
+
+```yaml
+_target_: src.model.MoLiNER
+
+lr: 1e-4
+
+defaults:
+  # dot_product
+  - pair_scorer: dot_product
+
+  # tmr/scratch, tmr/pretrained, tmr/frozen
+  - motion_frames_encoder: tmr/scratch
+  # deberta, tmr/scratch, tmr/pretrained, tmr/frozen, clip
+  - prompts_tokens_encoder: deberta
+
+  #  windowed/16, windowed/8, static/16
+  - spans_generator: windowed/16
+
+  # mlp/deberta, mlp/tmr, mlp/clip
+  - prompt_representation_layer: mlp/deberta
+  # transformer, endpoints, query, lstm, convolution, pooling/min, pooling/mean, pooling/max
+  - span_representation_layer: endpoints
+
+  - decoder: generic
+```
+
+You can override the different components of the model with the available ones to create your own variant of the model. This can be done at CLI level or by creating your own `.yaml` file in the [`./configs/model`](./configs/model/) and using it when calling the [train-model](#training) script.
+
+```bash
+python train-model.py \
+    data=babel \
     model=moliner \
-    data=locate-babel
+    prompts_tokens_encoder=clip
 ```
 
-The training system supports multiple model architectures and dataset variants. You can combine any model variant with any compatible dataset variant by specifying them in the command above.
+| **Data Variants**                     | **Description**                                 |
+| ------------------------------------- | ----------------------------------------------- |
+| `babel`                               | Babel dataset for motion-language segmentation. |
+| `hml3d`                               | HumanML3D dataset for 3D motion-language tasks. |
+| `locate-babel`                        | Babel dataset with sequence-level annotations.  |
+| `standardized-chunking-locate-babel`  | Babel dataset with chunk-based annotations.     |
+| `standardized-windowing-locate-babel` | Babel dataset with window-based annotations.    |
+| `kit_ml`                              | KIT-ML dataset for motion-language retrieval.   |
 
-#### Available Model Variants
+**Note:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
 
-- **`moliner`** - Base MoLiNER model.
-- **`moliner_pretrained-tmr`** - MoLiNER with pre-trained TMR encoder (non frozen).
-- **`moliner_standardized-spans`** - MoLiNER with standardized sizes (16 frames).
-- **`moliner_standardized-spans_pretrained-tmr`** - MoLiNER with both standardized (16 frames) spans and pre-trained TMR encoder (non frozen).
+## Weights Extraction
 
-#### Available Dataset Variants
-
-- **`babel`** - Standard Babel dataset.
-- **`hml3d`** - HumanML3D dataset.
-- **`locate-babel`** - Babel dataset with locate classes only.
-- **`standardized-chunking-locate-babel`** - Babel with locate classes & standardized span size (chunks of 16 frames).
-- **`standardized-windowing-locate-babel`** - Babel with locate classes & standardized span size (sliding windows of 16 frames).
-
-#### Training Output
-
-By default, training outputs (checkpoints, logs, etc.) are saved to timestamped directories under `out/` (e.g., `out/2025-07-07_14-30-15/`). This directory path is refered to as `RUN_DIR`in the subsequent commands.
-
-### Weight Extraction
-
-After training completes, extract the final model weights:
+Before running evaluation or inference, you might want to extract the model weights from the PyTorch Lightning checkpoint for easier loading.
 
 ```bash
-HYDRA_FULL_ERROR=1 python extract.py run_dir=RUN_DIR
+python extract.py run_dir=<path_to_run_dir>
 ```
 
-**Parameters:**
-- `RUN_DIR`: Path to the training output directory. This corresponds to the timestamped directory created during training, located in the `out/` directory by default.
+This will save the model weights in the run directory.
 
 ## Evaluation
 
 ### Model Testing
 
-Test the model on the test split:
+To test a model on the test split of a dataset, use the `test-model.py` script. You need to provide the path on which the model have been "trained".
 
 ```bash
-HYDRA_FULL_ERROR=1 python test-model.py
+HYDRA_FULL_ERROR=1 python test-model.py run_dir=<path_to_run_dir>
 ```
 
 ### Retrieval Evaluation
 
-Evaluate the model for in-motion retrieval. Supports HumanML3D dataset, Babel sequence-level dataset, and Babel frame-level dataset:
+To evaluate the model's performance on in-motion retrieval tasks:
 
 ```bash
-HYDRA_FULL_ERROR=1 python evaluate-retrieval.py
+HYDRA_FULL_ERROR=1 python evaluate-retrieval.py run_dir=<path_to_run_dir>
 ```
+
+This supports HumanML3D, Babel sequence-level, and Babel frame-level datasets.
 
 ### Segmentation Evaluation
 
-Evaluate the model for segmentation tasks. Available for Babel frame-level dataset:
+To evaluate the model on segmentation tasks with the Babel frame-level dataset:
 
 ```bash
-HYDRA_FULL_ERROR=1 python evaluate-segmentation.py
+HYDRA_FULL_ERROR=1 python evaluate-segmentation.py run_dir=<path_to_run_dir>
 ```
+
+## Inference
+
+To use a trained model for inference, you can use the `interface.py` script or load the model in your own scripts using the helper functions in `src/load.py`.
 
 ## Gradio Web Interface
 
-Launch an interactive web interface for real-time model evaluation and visualization:
+A Gradio web interface is available for interactive model evaluation and visualization. To launch it, run:
 
 ```bash
-HYDRA_FULL_ERROR=1 python interface.py
+HYDRA_FULL_ERROR=1 python interface.py run_dir=<path_to_run_dir>
 ```
+
+You can then access the interface in your web browser.
+
+## Pre-trained Models
+
+Upcoming...

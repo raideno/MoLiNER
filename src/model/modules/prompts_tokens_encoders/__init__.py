@@ -1,4 +1,4 @@
-from .index import BasePromptsTokensEncoder
+from ._base import BasePromptsTokensEncoder
 
 from .tmr import TMRPromptsTokensEncoder
 from .deberta import DebertaPromptsTokensEncoder

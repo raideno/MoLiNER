@@ -1,2 +1,10 @@
-from .index import BaseSpanRepresentationLayer
-from .mlp import MLPSpanRepresentationLayer
+from ._base import BaseSpanRepresentationLayer
+
+from .convolution import ConvolutionalSpanRepresentationLayer
+from .endpoints import EndpointsSpanRepresentationLayer
+from .pooling import MaxPoolingSpanRepresentationLayer, MeanPoolingSpanRepresentationLayer, MinPoolingSpanRepresentationLayer
+from .query import SpanQueryRepresentationLayer
+from .lstm import LSTMSpanRepresentationLayer
+from .span_mlp import SpanMLPRepresentationLayer
+from .span_cat import SpanCATRepresentationLayer
+from .transformer import TransformerSpanRepresentationLayer

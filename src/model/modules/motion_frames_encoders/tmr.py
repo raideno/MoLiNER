@@ -2,7 +2,7 @@ import torch
 import typing
 import logging
 
-from .index import BaseMotionFramesEncoder
+from ._base import BaseMotionFramesEncoder
 
 logger = logging.getLogger(__name__)
 

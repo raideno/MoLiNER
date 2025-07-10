@@ -1,2 +1,3 @@
-from .index import BaseDecoder
+from ._base import BaseDecoder
+
 from .generic import GenericDecoder

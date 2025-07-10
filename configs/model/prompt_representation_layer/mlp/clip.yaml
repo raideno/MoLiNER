@@ -1,3 +1,4 @@
 defaults:
   - _base
-input_dim: 512 # NOTE: clip
+# NOTE: clip's output dimension
+input_dim: 512

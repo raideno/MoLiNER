@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from .index import BasePairScorer
+from ._base import BasePairScorer
 
 class DotProductPairScorer(BasePairScorer):
     """

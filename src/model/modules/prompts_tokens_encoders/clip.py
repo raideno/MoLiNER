@@ -2,7 +2,7 @@ import torch
 import typing
 import transformers
 
-from .index import BasePromptsTokensEncoder
+from ._base import BasePromptsTokensEncoder
 
 class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     """

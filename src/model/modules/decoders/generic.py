@@ -1,9 +1,8 @@
 import torch
 import typing
 
-from itertools import product
+from ._base import BaseDecoder
 
-from .index import BaseDecoder
 from src.types import ForwardOutput, DecodingStrategy, EvaluationResult
 
 class GenericDecoder(BaseDecoder):
@@ -52,7 +51,7 @@ class GenericDecoder(BaseDecoder):
             num_prompts = int(prompts_mask[batch_index].sum())
             num_spans = int(spans_mask[batch_index].sum())
 
-            for prompt_index, span_index in product(range(num_prompts), range(num_spans)):
+            for prompt_index, span_index in itertools.product(range(num_prompts), range(num_spans)):
                 score = similarity_scores[batch_index, prompt_index, span_index].item()
                 if score > score_threshold:
                     start, end = candidate_spans[batch_index, span_index]

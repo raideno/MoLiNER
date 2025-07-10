@@ -1,3 +1,4 @@
 defaults:
   - _base
-input_dim: 768 # NOTE: deberta
+# NOTE: deberta's output dimension
+input_dim: 768

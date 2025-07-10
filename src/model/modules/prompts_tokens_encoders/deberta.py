@@ -2,9 +2,7 @@ import torch
 import typing
 import transformers
 
-from transformers import AutoModel
-
-from .index import BasePromptsTokensEncoder
+from ._base import BasePromptsTokensEncoder
 
 class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     """
@@ -25,7 +23,7 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
         self.frozen = frozen
         
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_NAME)
-        self.transformer = AutoModel.from_pretrained(MODEL_NAME)
+        self.transformer = transformers.AutoModel.from_pretrained(MODEL_NAME)
 
         if self.frozen:
             for param in self.transformer.parameters():

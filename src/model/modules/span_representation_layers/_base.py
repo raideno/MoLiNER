@@ -1,5 +1,6 @@
 import torch
 import typing
+
 from abc import ABC, abstractmethod
 
 class BaseSpanRepresentationLayer(torch.nn.Module, ABC):

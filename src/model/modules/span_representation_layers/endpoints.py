@@ -1,9 +1,9 @@
 import torch
 import typing
 
-from .index import BaseSpanRepresentationLayer
+from ._base import BaseSpanRepresentationLayer
 
-class MLPSpanRepresentationLayer(BaseSpanRepresentationLayer):
+class EndpointsSpanRepresentationLayer(BaseSpanRepresentationLayer):
     """
     A span representation layer that aggregates span frames by concatenating
     the first and last frame embeddings, then uses a two-layer MLP to transform
@@ -11,16 +11,18 @@ class MLPSpanRepresentationLayer(BaseSpanRepresentationLayer):
     """
     def __init__(self, motion_embed_dim: int, representation_dim: int, dropout_rate: float = 0.1):
         """
-        Initializes the MLPSpanRepresentationLayer.
-
         Args:
             motion_embed_dim (int): The dimension of the motion frame embeddings.
-                                   The aggregated input will be 2 * motion_embed_dim.
             representation_dim (int): The dimension of the final output representation.
             dropout_rate (float): The dropout rate to apply for regularization.
         """
         super().__init__()
-        input_dim = 2 * motion_embed_dim  # Concatenation of first and last frames
+        
+        self.start_proj = torch.nn.Linear(motion_embed_dim, motion_embed_dim)
+        self.end_proj = torch.nn.Linear(motion_embed_dim, motion_embed_dim)
+
+        # NOTE: operates on the concatenation of first and last frame embeddings
+        input_dim = 2 * motion_embed_dim
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(input_dim, input_dim),
             torch.nn.GELU(),
@@ -35,39 +37,35 @@ class MLPSpanRepresentationLayer(BaseSpanRepresentationLayer):
         spans_masks: torch.Tensor,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:
-        """
-        Aggregates frames within each span using concat first-last strategy,
-        then passes through MLP and applies mask to zero out representations 
-        for padded spans.
-        """
-        # First, aggregate the spans using concat first-last strategy
-        aggregated_spans = self._aggregate_spans_concat_first_last(
-            motion_features, span_indices, spans_masks
+        first_frames, last_frames = self._get_span_endpoints(
+            motion_features, span_indices
         )
+
+        projected_first = self.start_proj(first_frames)
+        projected_last = self.end_proj(last_frames)
+
+        aggregated_spans = torch.cat((projected_first, projected_last), dim=-1)
         
-        # Then pass through MLP
-        representations = self.mlp(aggregated_spans)
+        # TODO: check if this is necessary and if it is badly impacting the model's performance
+        masked_aggregated_spans = aggregated_spans * spans_masks.unsqueeze(-1)
         
-        # Zero out padded spans
+        representations = self.mlp(masked_aggregated_spans)
+        
         masked_representations = representations * spans_masks.unsqueeze(-1)
         
         return masked_representations
     
-    def _aggregate_spans_concat_first_last(
+    def _get_span_endpoints(
         self,
         motion_features: torch.Tensor,
         span_indices: torch.Tensor,
-        span_mask: torch.Tensor,
-    ) -> torch.Tensor:
-        """
-        Aggregates spans by concatenating the feature vectors of their first and last frames.
-        This implementation is fully vectorized using torch.gather.
-        """
+    ) -> typing.Tuple[torch.Tensor, torch.Tensor]:
         batch_size, max_spans, _ = span_indices.shape
         _, _, embed_dim = motion_features.shape
 
         if batch_size == 0 or max_spans == 0:
-            return torch.empty(batch_size, max_spans, 2 * embed_dim, device=motion_features.device)
+            empty_tensor = torch.empty(batch_size, max_spans, embed_dim, device=motion_features.device)
+            return empty_tensor, empty_tensor
 
         start_indices = span_indices[..., 0]
         end_indices = span_indices[..., 1]
@@ -81,9 +79,5 @@ class MLPSpanRepresentationLayer(BaseSpanRepresentationLayer):
 
         first_frames = torch.gather(motion_features, 1, start_gather_idx)
         last_frames = torch.gather(motion_features, 1, end_gather_idx)
-
-        aggregated_spans = torch.cat((first_frames, last_frames), dim=-1)
-
-        masked_aggregated_spans = aggregated_spans * span_mask.unsqueeze(-1)
                 
-        return masked_aggregated_spans
+        return first_frames, last_frames

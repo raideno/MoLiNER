@@ -3,7 +3,7 @@ import typing
 import logging
 import transformers
 
-from .index import BasePromptsTokensEncoder
+from ._base import BasePromptsTokensEncoder
 
 logger = logging.getLogger(__name__)
 
