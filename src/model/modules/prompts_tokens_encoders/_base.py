@@ -55,3 +55,12 @@ class BasePromptsTokensEncoder(torch.nn.Module, ABC):
     @abstractmethod
     def pad_token_id(self) -> int:
         pass
+    
+    @property
+    @abstractmethod
+    def pretrained(self) -> bool:
+        """
+        Indicates whether the encoder is pretrained or not.
+        This is used by the model to adjust learning rates and training strategies.
+        """
+        pass

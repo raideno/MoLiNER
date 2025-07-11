@@ -117,3 +117,11 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
         Returns the padding token ID used by the Deberta tokenizer.
         """
         return self.tokenizer.pad_token_id
+    
+    @property
+    def pretrained(self) -> bool:
+        """
+        Indicates whether the encoder is pretrained or not.
+        This is used by the model to adjust learning rates and training strategies.
+        """
+        return True
