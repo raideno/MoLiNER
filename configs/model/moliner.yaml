@@ -1,10 +1,12 @@
 _target_: src.model.MoLiNER
 
-lr: 1e-4
+lr:
+  scratch: 5e-5
+  pretrained: 1e-5
 
 defaults:
   # tmr/scratch, tmr/pretrained, tmr/frozen
-  - motion_frames_encoder: tmr/scratch
+  - motion_frames_encoder: tmr/frozen
   # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
   - prompts_tokens_encoder: deberta/frozen
 

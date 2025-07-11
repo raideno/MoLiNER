@@ -36,3 +36,12 @@ class BaseMotionFramesEncoder(torch.nn.Module, ABC):
                 Shape: (batch_size, seq_len, encoded_dim)
         """
         pass
+    
+    @property
+    @abstractmethod
+    def pretrained(self) -> bool:
+        """
+        Indicates whether the encoder is pretrained or not.
+        This is used by the model to adjust learning rates and training strategies.
+        """
+        pass

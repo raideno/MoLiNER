@@ -91,3 +91,11 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
         frame_embeddings = frame_embeddings * motion_masks.unsqueeze(-1).float()
         
         return frame_embeddings
+    
+    @property
+    def pretrained(self) -> bool:
+        """
+        Indicates whether the encoder is pretrained or not.
+        This is used by the model to adjust learning rates and training strategies.
+        """
+        return self.pretrained

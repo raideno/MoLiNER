@@ -5,6 +5,7 @@ import typing
 import logging
 import warnings
 import transformers
+import typing_extensions
 import pytorch_lightning
 
 from src.types import (
@@ -26,11 +27,22 @@ from src.model.modules import (
 from src.model.loss import focal_loss_with_logits
 
 from src.model.helpers import (
+    reduce,
     create_loss_mask,
     create_target_matrix,
-    reduce,
     create_negatives_mask
 )
+
+class LearningRateConfig(typing_extensions.TypedDict):
+    """
+    Configuration for learning rates in the MoLiNER model.
+    
+    Attributes:
+        scratch: Learning rate for non-pretrained components (trained from scratch)
+        pretrained: Learning rate for pretrained components (fine-tuned)
+    """
+    scratch: float
+    pretrained: float
 
 logger = logging.getLogger(__name__)
         
@@ -53,14 +65,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         decoder: BaseDecoder,
         
-        lr: float,
+        lr: LearningRateConfig,
 
         **kwargs,
     ):
         super().__init__()
-        
-        self.lr: float = lr
-        
+                
         self.motion_frames_encoder: BaseMotionFramesEncoder = motion_frames_encoder
         self.prompts_tokens_encoder: BasePromptsTokensEncoder = prompts_tokens_encoder
         
@@ -70,15 +80,58 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self.span_representation_layer: BaseSpanRepresentationLayer = span_representation_layer
         
         self.scorer: BasePairScorer = scorer
+        
         self.decoder: BaseDecoder = decoder
+        
+        self.lr: LearningRateConfig = lr
         
         self.kwargs: dict = kwargs if kwargs is not None else {}
         
     def configure_optimizers(self):
-        # TODO: maybe add a more complex optimizer configuration with schedulers, per module lr, etc.
-        # TODO: use a different learning rate per module just like Glinner does https://docs.pytorch.org/docs/0.3.0/optim.html#per-parameter-options
-        # Add decay stuff
-        return torch.optim.AdamW(self.parameters(), lr=self.lr)
+        pretrained_lr = self.lr["pretrained"]
+        non_pretrained_lr = self.lr["scratch"]
+        
+        pretrained_parameters = []
+        non_pretrained_parameters = []
+        
+        if self.prompts_tokens_encoder.pretrained:
+            pretrained_parameters.extend(list(self.prompts_tokens_encoder.parameters()))
+        else:
+            non_pretrained_parameters.extend(list(self.prompts_tokens_encoder.parameters()))
+            
+        if self.motion_frames_encoder.pretrained:
+            pretrained_parameters.extend(list(self.motion_frames_encoder.parameters()))
+        else:
+            non_pretrained_parameters.extend(list(self.motion_frames_encoder.parameters()))
+        
+        non_pretrained_modules = [
+            self.spans_generator,
+            self.prompt_representation_layer,
+            self.span_representation_layer,
+            self.scorer,
+            self.decoder
+        ]
+        
+        for module in non_pretrained_modules:
+            non_pretrained_parameters.extend(list(module.parameters()))
+        
+        param_groups = []
+        
+        if len(pretrained_parameters) > 0:
+            param_groups.append({
+                'params': pretrained_parameters,
+                'lr': pretrained_lr,
+                'name': 'pretrained'
+            })
+        
+        if len(non_pretrained_parameters) > 0:
+            param_groups.append({
+                'params': non_pretrained_parameters,
+                'lr': non_pretrained_lr,
+                'name': 'non_pretrained'
+            })
+        
+        return torch.optim.AdamW(param_groups)
     
     def compute_loss(
         self,
@@ -92,7 +145,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         predicted_logits = forward_output.similarity_matrix
         
         # NOTE: (batch, prompts, spans)
-        target_logits, num_unmatched_gt_spans = create_target_matrix(forward_output, batch)
+        target_logits, unmatched_spans_count = create_target_matrix(forward_output, batch)
         
         # NOTE: (batch, prompts, spans); indicates which pairs are not padding and should be considered for loss computation
         loss_mask = create_loss_mask(forward_output, batch)
@@ -122,7 +175,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
             reduction="sum"
         )
         
-        return loss, num_unmatched_gt_spans
+        return loss, unmatched_spans_count
     
     def forward(
         self,
@@ -171,7 +224,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         )
         
         # NOTE: (batch, prompts); indicates which prompts are valid and non-padding; contain at least a valid token.
-        prompts_mask = (batch.prompt_attention_mask.sum(dim=-1) > 0).float()
+        prompts_mask = torch.gt(batch.prompt_attention_mask.sum(dim=-1), 0).float()
 
         # NOTE: (batch_size, batch_max_prompts_per_motion, prompt_representation_dimension)
         prompts_representation = self.prompt_representation_layer.forward(
@@ -208,9 +261,9 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
-        loss, num_unmatched_gt_spans = self.compute_loss(output, processed_batch)
+        loss, unmatched_spans_count = self.compute_loss(output, processed_batch)
 
-        return loss, num_unmatched_gt_spans
+        return loss, unmatched_spans_count
     
     def training_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
@@ -220,10 +273,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, num_unmatched_gt_spans = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
         
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("train/u-gt", float(num_unmatched_gt_spans), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
+        self.log("train/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
 
         return loss
     
@@ -235,10 +288,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, num_unmatched_gt_spans = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
         
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("val/u-gt", float(num_unmatched_gt_spans), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
+        self.log("val/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
         
         return loss
         
@@ -250,10 +303,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, num_unmatched_gt_spans = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
         
         self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("test/u-gt", float(num_unmatched_gt_spans), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
+        self.log("test/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
         
         return loss
     

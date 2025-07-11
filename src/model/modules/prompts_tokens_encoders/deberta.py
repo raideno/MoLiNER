@@ -11,7 +11,7 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     """
     def __init__(
         self,
-        frozen: bool = True
+        frozen: bool
     ):
         """
         Initializes the DebertaPromptsTokensEncoder.
@@ -28,7 +28,10 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_NAME)
         self.transformer = transformers.AutoModel.from_pretrained(MODEL_NAME)
 
+        self.transformer.train()
+
         if self.frozen:
+            self.transformer.eval()
             for param in self.transformer.parameters():
                 param.requires_grad = False
 
@@ -114,3 +117,11 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
         Returns the padding token ID used by the Deberta tokenizer.
         """
         return self.tokenizer.pad_token_id
+    
+    @property
+    def pretrained(self) -> bool:
+        """
+        Indicates whether the encoder is pretrained or not.
+        This is used by the model to adjust learning rates and training strategies.
+        """
+        return True

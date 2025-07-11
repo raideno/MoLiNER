@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     def __init__(
         self,
-        frozen: bool = False,
-        pretrained: bool = False,
+        frozen: bool,
+        pretrained: bool,
         weights_path: typing.Optional[str] = None,
     ):
         super().__init__()
@@ -47,7 +47,7 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
             dropout=self.dropout,
             activation=self.activation
         )
-        
+                
         if pretrained:
             if self.weights_path is not None:
                 self.tmr_encoder.load_state_dict(
@@ -57,7 +57,10 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
                 logger.warning("Pretrained weights path is not provided. Using uninitialized TMR encoder.")
                 raise ValueError("Pretrained weights path must be specified if pretrained is True.")
     
+        self.transformer.train()
+    
         if frozen:
+            self.transformer.eval()
             for param in self.tmr_text_encoder.parameters():
                 param.requires_grad = False
         
@@ -217,3 +220,11 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         Returns the padding token ID used by the Distilbert tokenizer.
         """
         return self.tokenizer.pad_token_id
+    
+    @property
+    def pretrained(self) -> bool:
+        """
+        Indicates whether the encoder is pretrained or not.
+        This is used by the model to adjust learning rates and training strategies.
+        """
+        return self.pretrained
