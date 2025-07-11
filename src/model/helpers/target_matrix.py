@@ -53,8 +53,8 @@ def create_target_matrix(
     # TODO: write tests to check that the count is correct
     total_groundtruth_spans = int(groundtruth_spans_mask.sum().item())
     matched_candidate_spans = int(target_matrix.sum().item())
-    num_unmatched_gt_spans = total_groundtruth_spans - matched_candidate_spans
+    unmatched_spans_count = total_groundtruth_spans - matched_candidate_spans
     
     # --- --- --- xxx --- --- ---
     
-    return target_matrix, num_unmatched_gt_spans
+    return target_matrix, unmatched_spans_count

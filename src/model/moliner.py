@@ -92,7 +92,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         predicted_logits = forward_output.similarity_matrix
         
         # NOTE: (batch, prompts, spans)
-        target_logits, num_unmatched_gt_spans = create_target_matrix(forward_output, batch)
+        target_logits, unmatched_spans_count = create_target_matrix(forward_output, batch)
         
         # NOTE: (batch, prompts, spans); indicates which pairs are not padding and should be considered for loss computation
         loss_mask = create_loss_mask(forward_output, batch)
@@ -122,7 +122,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
             reduction="sum"
         )
         
-        return loss, num_unmatched_gt_spans
+        return loss, unmatched_spans_count
     
     def forward(
         self,
@@ -208,9 +208,9 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
-        loss, num_unmatched_gt_spans = self.compute_loss(output, processed_batch)
+        loss, unmatched_spans_count = self.compute_loss(output, processed_batch)
 
-        return loss, num_unmatched_gt_spans
+        return loss, unmatched_spans_count
     
     def training_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
@@ -220,10 +220,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, num_unmatched_gt_spans = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
         
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("train/u-gt", float(num_unmatched_gt_spans), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
+        self.log("train/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
 
         return loss
     
@@ -235,10 +235,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, num_unmatched_gt_spans = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
         
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("val/u-gt", float(num_unmatched_gt_spans), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
+        self.log("val/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
         
         return loss
         
@@ -250,10 +250,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, num_unmatched_gt_spans = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
         
         self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("test/u-gt", float(num_unmatched_gt_spans), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
+        self.log("test/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
         
         return loss
     
