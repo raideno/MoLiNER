@@ -5,6 +5,12 @@ import hydra
 import torch
 import logging
 
+# # --- --- --- --- --- --- ---
+# import os
+# import sys
+# sys.path.append(os.getcwd())
+# # --- --- --- --- --- --- ---
+
 import pytorch_lightning as lightning
 
 from hydra import main
@@ -39,10 +45,6 @@ def train_model(cfg: DictConfig):
         config_path = save_config(cfg)
         logger.info("Training script")
         logger.info(f"The config can be found here: \n{config_path}")
-
-    logger.info(f"[cfg]: {cfg}")
-    logger.info(f"[cfg.data]: {cfg.data}")
-    logger.info(f"[cfg.model]: {cfg.model}")
 
     logger.info(f"[ckpt]: {ckpt}")
 

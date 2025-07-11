@@ -1,19 +1,22 @@
-from .index import BasePipeline, BabelPipeline, HML3DPipeline
+from ._base import BasePipeline
+
+from .hml3d import HML3DPipeline
+from .babel import BabelPipeline
 from .locate import LocatePipeline
 from .standardized_locate import WindowingStandardizedLocatePipeline, ChunkingStandardizedLocatePipeline
     
-PIPELINE_REGISTRY = {
-    "locate": LocatePipeline,
-    "babel": BabelPipeline,
-    "hml3d": HML3DPipeline,
-    "windowing-standardized-locate": WindowingStandardizedLocatePipeline,
-    "chunking-standardized-locate": ChunkingStandardizedLocatePipeline,
-    "windowing_standardized_locate": WindowingStandardizedLocatePipeline,
-    "chunking_standardized_locate": ChunkingStandardizedLocatePipeline,
+PIPELINE_REGISTRY: dict[type[BasePipeline], list[str]] = {
+    LocatePipeline: ["20", "locate"],
+    BabelPipeline: ["babel"],
+    HML3DPipeline: ["hml3d"],
+    WindowingStandardizedLocatePipeline: ["20-windowing-standardized", "windowing-standardized-locate", "windowing_standardized_locate"],
+    ChunkingStandardizedLocatePipeline: ["20-chunking-standardized", "chunking-standardized-locate", "chunking_standardized_locate"],
 }
 
-def get_pipeline(name: str) -> BasePipeline:
-    if name not in PIPELINE_REGISTRY:
-        raise ValueError(f"Unknown pipeline: {name}. Available pipelines: {list(PIPELINE_REGISTRY.keys())}")
+def get_pipeline(name: str) -> "BasePipeline":
+    for pipeline_class, names in PIPELINE_REGISTRY.items():
+        if name in names:
+            return pipeline_class()
     
-    return PIPELINE_REGISTRY[name]()
+    all_names = [name for names in PIPELINE_REGISTRY.values() for name in names]
+    raise ValueError(f"Unknown pipeline: {name}. Available pipelines: {all_names}")

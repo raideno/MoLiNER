@@ -46,7 +46,11 @@ def main():
     
     print("[#clean_dataset]:", len(clean_dataset))
     
-    from src.data.utils.filtering import FilterConfig, create_filter_function, create_locate_classes_filter_function
+    from src.data.utils.filtering import (
+        FilterConfig,
+        FilterFunction,
+        create_locate_classes_filter_function
+    )
     
     filter_config = FilterConfig(
         seed=42,
@@ -64,8 +68,10 @@ def main():
         debug=True                    # Enable debug logging
     )
     
+    filter_function = FilterFunction(filter_config)
+    
     filtered_dataset = clean_dataset.map(
-        create_filter_function(filter_config),
+        filter_function,
         batched=True,
         batch_size=16
     )

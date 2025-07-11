@@ -12,6 +12,8 @@ from src.types import EvaluationResult
 def plot_evaluation_results(
     result: EvaluationResult,
     title: str = "Motion-Prompt Localization Results",
+    sources: typing.Optional[typing.List[str]] = None,
+    filter_sources: typing.Optional[typing.List[str]] = None,
 ) -> typing.Optional["plotly.graph_objects.Figure"]:
     """
     Visualizes the evaluation results as a timeline using Plotly Express.
@@ -21,12 +23,17 @@ def plot_evaluation_results(
     Args:
         result (EvaluationResult): The output from the model's `evaluate` method.
         title (str): The title for the plot.
-        fps (int): Frames per second, used to convert frame numbers to timestamps.
+        sources (List[str], optional): List of source labels for each span in result.predictions.
+            Must have the same length as result.predictions if provided.
+        filter_sources (List[str], optional): If provided, only spans with sources in this list will be displayed.
 
     Returns:
         A Plotly Figure object, or None if there are no predictions.
     """
     data_for_dataframe = []
+    
+    if sources is not None and len(sources) != len(result.predictions):
+        raise ValueError(f"Sources list length ({len(sources)}) must match predictions length ({len(result.predictions)})")
     
     if not result.predictions:
         # NOTE: empty dataframe with the required columns for a blank plot
@@ -36,10 +43,17 @@ def plot_evaluation_results(
             "finish": [],
             "start_timestamp": [],
             "end_timestamp": [],
-            "score": []
+            "score": [],
+            "source": []
         })
     else:
-        for prompt, start, end, score in result.predictions:
+        for i, (prompt, start, end, score) in enumerate(result.predictions):
+            source = sources[i] if sources is not None else "unknown"
+            
+            # NOTE: apply source filtering if specified
+            if filter_sources is not None and source not in filter_sources:
+                continue
+                
             start_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=start/DEFAULT_FPS)
             end_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=end/DEFAULT_FPS)
             
@@ -49,12 +63,17 @@ def plot_evaluation_results(
                 "finish": end,
                 "start_timestamp": start_timestamp,
                 "end_timestamp": end_timestamp,
-                "score": f"{score:.2f}"
+                "score": f"{score:.2f}",
+                "source": source
             })
         
         dataframe = pd.DataFrame(data_for_dataframe)
     
     category_orders = {"prompt": sorted(list(dataframe['prompt'].unique()))}
+
+    hover_data_fields = ["score", "start", "finish"]
+    if sources is not None:
+        hover_data_fields.append("source")
 
     figure = px.timeline(
         dataframe,
@@ -62,7 +81,7 @@ def plot_evaluation_results(
         x_end="end_timestamp",
         y="prompt",
         color="prompt",
-        hover_data=["score", "start", "finish"],
+        hover_data=hover_data_fields,
         title=title,
         category_orders=category_orders
     )

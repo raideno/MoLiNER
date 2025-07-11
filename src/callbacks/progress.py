@@ -5,7 +5,6 @@ from pytorch_lightning.callbacks import Callback
 
 logger = logging.getLogger(__name__)
 
-
 class ProgressLogger(Callback):
     def __init__(self, precision: int = 2):
         self.precision = precision

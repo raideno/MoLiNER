@@ -1,5 +1,0 @@
-_target_: src.data.hml3d.HML3DDataset
-pipeline: hml3d
-
-defaults:
-  - motion_normalizer: generic

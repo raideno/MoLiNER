@@ -2,7 +2,6 @@ import sys
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import TQDMProgressBar as OriginalTQDMProgressBar
 
-
 def customize_bar(bar):
     if not sys.stdout.isatty():
         bar.disable = True

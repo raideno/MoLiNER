@@ -1,3 +1,3 @@
-from .stgcn import STGCNEncoder
+from ._base import BaseMotionFramesEncoder
+
 from .tmr import TMRMotionFramesEncoder
-from .index import BaseMotionFramesEncoder

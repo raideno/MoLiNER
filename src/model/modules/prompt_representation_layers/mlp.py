@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from .index import BasePromptRepresentationLayer
+from ._base import BasePromptRepresentationLayer
 
 class MLPPromptRepresentationLayer(BasePromptRepresentationLayer):
     """

@@ -4,6 +4,7 @@ import torch
 import typing
 import logging
 import warnings
+import transformers
 import pytorch_lightning
 
 from src.types import (
@@ -13,12 +14,10 @@ from src.types import (
 )
 
 from src.model.modules import (
-    BaseTokenizer,
     BasePairScorer,
     BaseMotionFramesEncoder,
     BasePromptRepresentationLayer,
     BaseSpanRepresentationLayer,
-    BaseSpanFramesAggregator,
     BaseSpansGenerator,
     BasePromptsTokensEncoder,
     BaseDecoder
@@ -35,8 +34,8 @@ from src.model.helpers import (
 
 logger = logging.getLogger(__name__)
         
-# TODO: we should use (prompt_ids and span_ids) or something like this to identify the prompts and their associated spans
 # TODO: add a shuffler, takes in the spans and prompts representation, shuffle them and return the shuffled representations.
+# TODO: make sure we correctly have dropout everywhere
 
 class MoLiNER(pytorch_lightning.LightningModule):
     def __init__(
@@ -47,41 +46,30 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         spans_generator: BaseSpansGenerator,
         
-        span_frames_aggregator: BaseSpanFramesAggregator,
-        
         prompt_representation_layer: BasePromptRepresentationLayer,
         span_representation_layer: BaseSpanRepresentationLayer,
         
-        pair_scorer: BasePairScorer,
+        scorer: BasePairScorer,
         
         decoder: BaseDecoder,
-        
-        # TODO: remove class
-        tokenizer: BaseTokenizer,
         
         lr: float,
 
         **kwargs,
     ):
-        # TODO: checkout how we can implement shuffling
-        # TODO: make sure we correctly have dropout everywhere
         super().__init__()
         
         self.lr: float = lr
-        
-        self.tokenizer: BaseTokenizer = tokenizer
         
         self.motion_frames_encoder: BaseMotionFramesEncoder = motion_frames_encoder
         self.prompts_tokens_encoder: BasePromptsTokensEncoder = prompts_tokens_encoder
         
         self.spans_generator: BaseSpansGenerator = spans_generator
         
-        self.span_frames_aggregator: BaseSpanFramesAggregator = span_frames_aggregator
-        
         self.prompt_representation_layer: BasePromptRepresentationLayer = prompt_representation_layer
         self.span_representation_layer: BaseSpanRepresentationLayer = span_representation_layer
         
-        self.pair_scorer: BasePairScorer = pair_scorer
+        self.scorer: BasePairScorer = scorer
         self.decoder: BaseDecoder = decoder
         
         self.kwargs: dict = kwargs if kwargs is not None else {}
@@ -149,7 +137,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # --- --- --- MOTIONS TREATMENT --- --- ---
         
         # NOTE: motion_frames_embeddings: (batch_size, batch_max_frames_per_motion, motion_embedding_dimension)
-        motion_frames_embeddings = self.motion_frames_encoder(
+        motion_frames_embeddings = self.motion_frames_encoder.forward(
             motion_features=batch.motion_features,
             motion_masks=batch.motion_mask
         )
@@ -158,33 +146,26 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # The spans_indices tensor contains the start and end frame indices for each span (inclusive).
         # NOTE: spans_masks: (batch_size, max_num_spans)
         # spans_masks indicates which spans are valid (1) vs. padding (0). It is necessary as the number of spans generated per motion can vary.
-        spans_indices, spans_masks = self.spans_generator(
+        spans_indices, spans_masks = self.spans_generator.forward(
             motion_features=motion_frames_embeddings,
             motion_masks=batch.motion_mask,
         )
         
-        # NOTE: (batch_size, batch_max_spans_per_motion_in_batch, span_aggregation_dimension)
-        aggregated_spans = self.span_frames_aggregator(
+        # NOTE: (batch_size, batch_max_spans_per_motion_in_batch, span_representation_dimension)
+        # The span representation layer now handles both aggregation and transformation
+        spans_representation = self.span_representation_layer.forward(
             motion_features=motion_frames_embeddings,
             span_indices=spans_indices,
-            span_mask=spans_masks
-        )
-        
-        # NOTE: (batch_size, batch_max_spans_per_motion_in_batch, span_representation_dimension)
-        spans_representation = self.span_representation_layer(
-            aggregated_spans=aggregated_spans,
             spans_masks=spans_masks,
         )
 
-        # TODO: maybe add assert on preliminary phase of mytorch ligthnign
-        
         # --- --- --- NEW PROMPTS TREATMENT --- --- ---
         
         # NOTE: prompt_input_ids (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
         
         # NOTE: (batch_size, batch_max_prompts_per_motion, prompt_embedding_dimension)
         # The prompts_tokens_encoder now returns one embedding per prompt (CLS token)
-        prompts_embeddings = self.prompts_tokens_encoder(
+        prompts_embeddings = self.prompts_tokens_encoder.forward(
             prompt_input_ids=batch.prompt_input_ids,
             prompt_attention_mask=batch.prompt_attention_mask
         )
@@ -193,7 +174,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         prompts_mask = (batch.prompt_attention_mask.sum(dim=-1) > 0).float()
 
         # NOTE: (batch_size, batch_max_prompts_per_motion, prompt_representation_dimension)
-        prompts_representation = self.prompt_representation_layer(
+        prompts_representation = self.prompt_representation_layer.forward(
             aggregated_prompts=prompts_embeddings,
             prompts_mask=batch.prompt_attention_mask,
         )
@@ -206,7 +187,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # assert span_representation_dimension == span_representation_dimension
         
         # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_motion_in_batch)
-        similarity_matrix = self.pair_scorer(
+        similarity_matrix = self.scorer.forward(
             prompts_representation=prompts_representation,
             spans_representation=spans_representation
         )
@@ -222,8 +203,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
             prompts_mask=prompts_mask
         )   
 
-    def step(self, raw_batch: RawBatch, batch_index: int) -> tuple[torch.Tensor, int]:
-        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.tokenizer)
+    def step(self, raw_batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, int]:
+        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
@@ -232,7 +213,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         return loss, num_unmatched_gt_spans
     
     def training_step(self, *args, **kwargs):
-        raw_batch: RawBatch = args[0]
+        raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         raw_batch.validate_type_or_raise(name="batch")
@@ -247,7 +228,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         return loss
     
     def validation_step(self, *args, **kwargs):
-        raw_batch: RawBatch = args[0]
+        raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         raw_batch.validate_type_or_raise(name="batch")
@@ -262,7 +243,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         return loss
         
     def test_step(self, *args, **kwargs):
-        raw_batch: RawBatch = args[0]
+        raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         raw_batch.validate_type_or_raise(name="batch")
@@ -280,7 +261,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self,
         motion: torch.Tensor,
         prompts: typing.List[str],
-        score_threshold: float = 0.5,
+        score_threshold: float,
     ) -> EvaluationResult:
         """
         Run inference on a single motion and a list of prompts.
@@ -310,7 +291,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
 
         processed_batch = ProcessedBatch.from_raw_batch(
             raw_batch=raw_batch,
-            tokenizer=self.tokenizer
+            encoder=self.prompts_tokens_encoder
         )
 
         with torch.no_grad():
@@ -325,7 +306,3 @@ class MoLiNER(pytorch_lightning.LightningModule):
             )
 
         return decoded_results[0]
-            
-    # def on_epoch_end(self):
-    #     torch.cuda.empty_cache()
-    #     gc.collect()

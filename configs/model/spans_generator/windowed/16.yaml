@@ -1,0 +1,3 @@
+_target_: src.model.modules.spans_generators.windowed.WindowedSpansGenerator
+stride: 1
+K: 16

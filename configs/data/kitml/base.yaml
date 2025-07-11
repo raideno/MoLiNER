@@ -1,0 +1,3 @@
+motion_normalizer:
+  # _target_: src.helpers.motion_normalizer.MotionNormalizer
+  stats_path: ./kitml-stats.pt

@@ -1,4 +1,0 @@
-_target_: src.model.modules.span_representation_layers.mlp.MLPSpanRepresentationLayer
-input_dim: 512
-representation_dim: 256
-dropout_rate: 0.1

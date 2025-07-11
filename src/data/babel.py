@@ -1,12 +1,7 @@
 import typing
+import datasets
+
 import src.auth
-
-import numpy as np
-
-try:
-    import datasets
-except ImportError:
-    datasets = None
 
 from src.data.pipelines import get_pipeline
 

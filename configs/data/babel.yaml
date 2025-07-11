@@ -1,5 +1,0 @@
-_target_: src.data.babel.BabelDataset
-pipeline: babel
-
-defaults:
-  - motion_normalizer: generic

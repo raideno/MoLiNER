@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from .index import BaseSpansGenerator
+from ._base import BaseSpansGenerator
 
 class StaticSpansGenerator(BaseSpansGenerator):
     def __init__(self, K: int, padding_value: int = -1):

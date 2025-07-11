@@ -1,6 +1,7 @@
 import torch
 
 from src.types import RawBatch
+
 from src.constants import (
     DEFAULT_FPS,
     DEFAULT_PADDING_VALUE

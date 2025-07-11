@@ -1,0 +1,2 @@
+_target_: src.model.modules.prompts_tokens_encoders.clip.CLIPPromptsTokensEncoder
+frozen: true

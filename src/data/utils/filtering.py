@@ -16,54 +16,52 @@ from src.constants import (
 
 logger = logging.getLogger(__name__)
 
-def no_transition_filter_function_factory():
-    def no_transition_filter_function(text: str) -> bool:
-        """
-        Keeps the prompt if it does NOT contain any transition keywords.
-        """
-        transition_keywords = {"transition"}
-        
-        return not any(keyword in text for keyword in transition_keywords)
-
-def create_exact_match_filter(
-    allowed_classes: typing.List[str]
-) -> typing.Callable[[str], bool]:
+class NoTransitionFilter:
     """
-    Factory to create a filter that only keeps prompts that are an exact match to one of the strings in the provided list.
-
-    This is ideal for filtering based on predefined class sets like LOCATE or BABEL-X.
-
-    Args:
-        allowed_classes: A list of strings representing the entire set of
-                         prompts to keep.
-
-    Returns:
-        A callable that returns `True` if the prompt is in the allowed set, `False` otherwise.
+    Callable class that keeps a prompt if it does NOT contain any transition keywords.
+    This is picklable and safe for multiprocessing.
     """
-    allowed_set = set(allowed_classes)
+    def __init__(self):
+        self.transition_keywords = {"transition"}
 
-    def filter_function(text: str) -> bool:
+    def __call__(self, text: str) -> bool:
         """
-        Keeps the prompt if its text is an exact match in the allowed set.
+        Returns True if the text does not contain transition keywords.
         """
-        return text in allowed_set
-        
-    return filter_function
+        return not any(keyword in text for keyword in self.transition_keywords)
+
+class ExactMatchFilter:
+    """
+    Callable class that filters prompts for an exact match from a list of allowed classes.
+    This is picklable and safe for multiprocessing.
+    """
+    def __init__(self, allowed_classes: typing.List[str]):
+        """
+        Args:
+            allowed_classes: A list of strings representing the prompts to keep.
+        """
+        self.allowed_set = set(allowed_classes)
+
+    def __call__(self, text: str) -> bool:
+        """
+        Returns True if the text is in the allowed set.
+        """
+        return text in self.allowed_set
 
 def create_locate_classes_filter_function():
-    return create_exact_match_filter(allowed_classes=LOCATE_CLASSES)
+    return ExactMatchFilter(allowed_classes=LOCATE_CLASSES)
 
 def create_babel_20_classes_filter_function():
-    return create_exact_match_filter(allowed_classes=BABEL_20_CLASSES)
+    return ExactMatchFilter(allowed_classes=BABEL_20_CLASSES)
 
 def create_babel_60_classes_filter_function():
-    return create_exact_match_filter(allowed_classes=BABEL_60_CLASSES)
+    return ExactMatchFilter(allowed_classes=BABEL_60_CLASSES)
 
 def create_babel_90_classes_filter_function():
-    return create_exact_match_filter(allowed_classes=BABEL_90_CLASSES)
+    return ExactMatchFilter(allowed_classes=BABEL_90_CLASSES)
 
 def create_babel_120_classes_filter_function():
-    return create_exact_match_filter(allowed_classes=BABEL_120_CLASSES)
+    return ExactMatchFilter(allowed_classes=BABEL_120_CLASSES)
 
 @dataclasses.dataclass
 class FilterConfig:
@@ -84,20 +82,26 @@ class FilterConfig:
     debug: bool = False
     sources: list[str] = dataclasses.field(default_factory=lambda: ["proc_label"])
 
-def create_filter_function(config: FilterConfig):
+class FilterFunction:
     """
-    Creates a filtering function for the simplified Babel dataset structure.
+    Callable class to filter the Babel dataset based on a configuration.
+    This is compatible with multiprocessing (num_workers > 0 in DataLoader).
     Works with datasets that have been processed with babel_simplify_batch_structure().
-    
-    Args:
-        config (FilterConfig): Configuration object specifying all filtering parameters.
-        
-    Returns:
-        Callable: A function that takes a batch with 'prompts' field and returns a filtered batch.
     """
-    random.seed(config.seed)
-    
-    def filter_and_transform_batch(batch: dict[str, list]) -> dict[str, list]:
+    def __init__(self, config: FilterConfig):
+        """
+        Args:
+            config (FilterConfig): Configuration object specifying all filtering parameters.
+        """
+        self.config = config
+        # Seed in __init__ so that if the object is created once and passed to workers,
+        # the main process's random state is set. Workers will inherit or have their own.
+        random.seed(self.config.seed)
+
+    def __call__(self, batch: dict[str, list]) -> dict[str, list]:
+        """
+        Filters and transforms a batch of data.
+        """
         # pdb.set_trace()
         new_batch = {key: [] for key in batch.keys()}
         num_samples_in = len(batch[next(iter(batch.keys()))])
@@ -111,9 +115,9 @@ def create_filter_function(config: FilterConfig):
             
             # --- --- --- MOTION LENGTH FILTERING --- --- ---
             motion_length = len(batch["motion"][i]["new_joints"])
-            if not (config.min_motion_frames <= motion_length <= config.max_motion_frames):
-                if config.debug:
-                    logger.debug(f"[Filter] SID {sample_sid}: Dropping sample, motion duration {motion_length} is outside [{config.min_motion_frames}, {config.max_motion_frames}].")
+            if not (self.config.min_motion_frames <= motion_length <= self.config.max_motion_frames):
+                if self.config.debug:
+                    logger.debug(f"[Filter] SID {sample_sid}: Dropping sample, motion duration {motion_length} is outside [{self.config.min_motion_frames}, {self.config.max_motion_frames}].")
                 continue
             
             # --- --- --- SPAN AND PROMPT FILTERING --- --- ---
@@ -131,26 +135,26 @@ def create_filter_function(config: FilterConfig):
                     continue
                 
                 # Apply source filtering
-                if source not in config.sources:
+                if source not in self.config.sources:
                     spans_dropped_this_sample += 1
-                    if config.debug:
-                        logger.debug(f"[Filter] SID {sample_sid}: Dropping prompt '{prompt_text}' from source '{source}' (not in allowed sources: {config.sources}).")
+                    if self.config.debug:
+                        logger.debug(f"[Filter] SID {sample_sid}: Dropping prompt '{prompt_text}' from source '{source}' (not in allowed sources: {self.config.sources}).")
                     continue
                 
                 # Apply prompt text filtering
-                if config.prompt_text_filter_function and not config.prompt_text_filter_function(prompt_text):
+                if self.config.prompt_text_filter_function and not self.config.prompt_text_filter_function(prompt_text):
                     spans_dropped_this_sample += 1
-                    if config.debug:
+                    if self.config.debug:
                         logger.debug(f"[Filter] SID {sample_sid}: Dropping prompt '{prompt_text}' due to custom filter function.")
                     continue
                 
                 # Filter spans by duration
                 start_frame, end_frame = span
                 duration = end_frame - start_frame
-                if not (config.min_span_frames <= duration <= config.max_span_frames):
+                if not (self.config.min_span_frames <= duration <= self.config.max_span_frames):
                     spans_dropped_this_sample += 1
-                    if config.debug:
-                        logger.debug(f"[Filter] SID {sample_sid}: Dropping span for '{prompt_text}', duration {duration} is outside [{config.min_span_frames}, {config.max_span_frames}].")
+                    if self.config.debug:
+                        logger.debug(f"[Filter] SID {sample_sid}: Dropping span for '{prompt_text}', duration {duration} is outside [{self.config.min_span_frames}, {self.config.max_span_frames}].")
                     continue
                 
                 # Keep this prompt
@@ -168,12 +172,12 @@ def create_filter_function(config: FilterConfig):
             # Apply max_spans_per_prompt limit
             final_prompts_list = []
             for text, text_prompts in prompts_by_text.items():
-                if len(text_prompts) > config.max_spans_per_prompt:
-                    spans_dropped_this_sample += len(text_prompts) - config.max_spans_per_prompt
-                    if config.debug:
-                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {config.max_spans_per_prompt} from {len(text_prompts)} spans for prompt '{text}'.")
+                if len(text_prompts) > self.config.max_spans_per_prompt:
+                    spans_dropped_this_sample += len(text_prompts) - self.config.max_spans_per_prompt
+                    if self.config.debug:
+                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {self.config.max_spans_per_prompt} from {len(text_prompts)} spans for prompt '{text}'.")
                     # Randomly sample spans
-                    text_prompts = random.sample(text_prompts, config.max_spans_per_prompt)
+                    text_prompts = random.sample(text_prompts, self.config.max_spans_per_prompt)
                 final_prompts_list.extend(text_prompts)
             
             # --- --- --- SAMPLE-LEVEL FILTERING --- --- ---
@@ -181,16 +185,16 @@ def create_filter_function(config: FilterConfig):
             unique_prompts = set(prompt_data["text"] for prompt_data in final_prompts_list)
             num_unique_prompts = len(unique_prompts)
             
-            if num_unique_prompts < config.min_prompts_per_sample:
+            if num_unique_prompts < self.config.min_prompts_per_sample:
                 total_spans_filtered += spans_dropped_this_sample
                 total_prompts_filtered += len(final_prompts_list)  # All prompts in this sample are dropped
-                if config.debug:
-                    logger.debug(f"[Filter] SID {sample_sid}: Dropping sample, has {num_unique_prompts} prompts, less than min {config.min_prompts_per_sample}.")
+                if self.config.debug:
+                    logger.debug(f"[Filter] SID {sample_sid}: Dropping sample, has {num_unique_prompts} prompts, less than min {self.config.min_prompts_per_sample}.")
                 continue
             
             # Handle too many prompts
-            if num_unique_prompts > config.max_prompts_per_sample:
-                if config.split_max_prompts_per_sample:
+            if num_unique_prompts > self.config.max_prompts_per_sample:
+                if self.config.split_max_prompts_per_sample:
                     # Split the sample: create multiple samples instead of discarding prompts
                     # Group prompts by text and then split groups
                     prompts_by_text_final = {}
@@ -206,11 +210,11 @@ def create_filter_function(config: FilterConfig):
                     
                     # Split unique texts into chunks
                     text_chunks = []
-                    for chunk_start in range(0, len(unique_texts), config.max_prompts_per_sample):
-                        chunk_end = min(chunk_start + config.max_prompts_per_sample, len(unique_texts))
+                    for chunk_start in range(0, len(unique_texts), self.config.max_prompts_per_sample):
+                        chunk_end = min(chunk_start + self.config.max_prompts_per_sample, len(unique_texts))
                         text_chunks.append(unique_texts[chunk_start:chunk_end])
                     
-                    if config.debug:
+                    if self.config.debug:
                         logger.debug(f"[Filter] SID {sample_sid}: Splitting sample into {len(text_chunks)} samples with {[len(chunk) for chunk in text_chunks]} unique prompts each.")
                     
                     # Create a sample for each chunk
@@ -232,9 +236,9 @@ def create_filter_function(config: FilterConfig):
                     continue  # Skip the normal single sample processing
                 else:
                     # Original behavior: randomly sample and discard excess prompts
-                    total_prompts_filtered += num_unique_prompts - config.max_prompts_per_sample
-                    if config.debug:
-                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {config.max_prompts_per_sample} from {num_unique_prompts} unique prompts.")
+                    total_prompts_filtered += num_unique_prompts - self.config.max_prompts_per_sample
+                    if self.config.debug:
+                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {self.config.max_spans_per_prompt} from {num_unique_prompts} unique prompts.")
                     
                     # Group prompts by text and randomly sample texts
                     prompts_by_text_final = {}
@@ -246,7 +250,7 @@ def create_filter_function(config: FilterConfig):
                     
                     # Randomly sample unique texts
                     unique_texts = list(prompts_by_text_final.keys())
-                    sampled_texts = random.sample(unique_texts, config.max_prompts_per_sample)
+                    sampled_texts = random.sample(unique_texts, self.config.max_prompts_per_sample)
                     
                     # Collect all prompts for sampled texts
                     final_prompts_list = []
@@ -270,5 +274,3 @@ def create_filter_function(config: FilterConfig):
         print(f"\tTotal prompts filtered out: {total_prompts_filtered}")
         
         return new_batch
-    
-    return filter_and_transform_batch

@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from dotenv import load_dotenv
-    logger.info("[.env]:", load_dotenv())
+    logger.info(f"[.env]: {load_dotenv()}")
 except ImportError:
     def load_dotenv():
         return False

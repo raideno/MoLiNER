@@ -1,13 +1,13 @@
-from src.data.pipelines.index import BabelPipeline
+from .babel import BabelPipeline
 
 from src.data.utils.filtering import (
-    create_filter_function,
+    FilterConfig,
+    FilterFunction,
     create_locate_classes_filter_function,
-    FilterConfig
 )
 from src.data.utils.augmentation import (
-    standardize_spans_sliding_window,
-    standardize_spans_chunking
+    StandardizeSpansSlidingWindow,
+    StandardizeSpansChunking
 )
 
 SPAN_LENGTH = 16
@@ -36,15 +36,15 @@ class WindowingStandardizedLocatePipeline(BabelPipeline):
     def __init__(self):
         super().__init__("locate")
 
-        sliding_window_fn = standardize_spans_sliding_window(
+        sliding_window_function = StandardizeSpansSlidingWindow(
             target_span_length=SPAN_LENGTH,
             max_extend_frames=MAX_EXTEND_FRAMES,
             debug=DEBUG
         )
-        self.add_step(sliding_window_fn, batched=False)
+        self.add_step(sliding_window_function, batched=False)
     
-        locate_filter_fn = create_filter_function(FILTER_CONFIG)
-        self.add_step(locate_filter_fn, batched=True)
+        locate_filter_function = FilterFunction(FILTER_CONFIG)
+        self.add_step(locate_filter_function, batched=True)
         
 class ChunkingStandardizedLocatePipeline(BabelPipeline):
     """
@@ -55,12 +55,12 @@ class ChunkingStandardizedLocatePipeline(BabelPipeline):
     def __init__(self):
         super().__init__("locate")
 
-        chunking_fn = standardize_spans_chunking(
+        chunking_function = StandardizeSpansSlidingWindow(
             target_span_length=SPAN_LENGTH,
             max_extend_frames=MAX_EXTEND_FRAMES,
             debug=DEBUG
         )
-        self.add_step(chunking_fn, batched=False)
+        self.add_step(chunking_function, batched=False)
     
-        locate_filter_fn = create_filter_function(FILTER_CONFIG)
-        self.add_step(locate_filter_fn, batched=True)
+        locate_filter_function = FilterFunction(FILTER_CONFIG)
+        self.add_step(locate_filter_function, batched=True)
