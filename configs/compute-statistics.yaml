@@ -1,4 +1,4 @@
-output_path: babel-stats.pt
+output_path: statistics/babel-stats.pt
 
 defaults:
   - data: babel

@@ -11,7 +11,7 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     """
     def __init__(
         self,
-        frozen: bool = True
+        frozen: bool
     ):
         """
         Initializes the DebertaPromptsTokensEncoder.
@@ -28,7 +28,10 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_NAME)
         self.transformer = transformers.AutoModel.from_pretrained(MODEL_NAME)
 
+        self.transformer.train()
+
         if self.frozen:
+            self.transformer.eval()
             for param in self.transformer.parameters():
                 param.requires_grad = False
 

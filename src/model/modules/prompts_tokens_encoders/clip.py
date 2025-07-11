@@ -15,7 +15,7 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     def __init__(
         self,
-        frozen: bool = True
+        frozen: bool,
     ):
         """
         Initializes the CLIPPromptsTokensEncoder.
@@ -32,7 +32,10 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
         self.tokenizer = transformers.CLIPTokenizer.from_pretrained(MODEL_NAME)
         self.text_encoder = transformers.CLIPTextModel.from_pretrained(MODEL_NAME)
         
+        self.transformer.train()
+        
         if self.frozen:
+            self.transformer.eval()
             for param in self.text_encoder.parameters():
                 param.requires_grad = False
 
