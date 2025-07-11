@@ -63,8 +63,6 @@ class TransformerSpanRepresentationLayer(BaseSpanRepresentationLayer):
                         cls_token = self.cls_token.expand(1, -1, -1)
                         span_with_cls = torch.cat([cls_token, span_frames], dim=1)
                         
-                        # NOTE: The transformer encoder does not support a custom mask for this case easily,
-                        # so we rely on the fact that we process one span at a time.
                         encoded_span = self.transformer_encoder(span_with_cls)
                         
                         # NOTE: Use the embedding of the [CLS] token as the representation

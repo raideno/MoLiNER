@@ -29,6 +29,7 @@ class HML3DDataset:
             split: Dataset split ("train", "validation", "test")
             pipeline: Name of the processing pipeline to use
             load_from_cache_file: Whether to load from cache file
+            motion_normalizer: Optional motion normalizer object
         """
         if datasets is None:
             raise ImportError("datasets library is required but not available")

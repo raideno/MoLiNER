@@ -69,6 +69,12 @@ To train a new model, use the `train-model.py` script. You need to specify the m
 HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<model_name> data=<dataset_name>
 ```
 
+For example:
+
+```bash
+HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=moliner data=babel/20-standardized-windowing
+```
+
 All the available variants of the model can be found at [`configs/model`](./configs/model/) and the different data variants can be found at [`configs/data`](./configs/data/).
 
 | **Model Variants** | **Description**                     |
@@ -81,9 +87,6 @@ _target_: src.model.MoLiNER
 lr: 1e-4
 
 defaults:
-  # dot_product
-  - pair_scorer: dot_product
-
   # tmr/scratch, tmr/pretrained, tmr/frozen
   - motion_frames_encoder: tmr/scratch
   # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
@@ -97,15 +100,18 @@ defaults:
   # transformer, endpoints, query, lstm, convolution, pooling/min, pooling/mean, pooling/max
   - span_representation_layer: endpoints
 
-  # generic/flat, generic/nested, generic/overlap
-  - decoder: generic/overlap
+  # product
+  - scorer: product
+
+  # greedy/flat, greedy/nested, greedy/overlap
+  - decoder: greedy/overlap
 ```
 
 You can override the different components of the model with the available ones to create your own variant of the model. This can be done at CLI level or by creating your own `.yaml` file in the [`./configs/model`](./configs/model/) and using it when calling the [train-model](#training) script.
 
 ```bash
 python train-model.py \
-    data=babel/20 \
+    data=babel/20-standardized-windowing \
     model=moliner \
     prompts_tokens_encoder=clip
 ```

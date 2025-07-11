@@ -34,8 +34,6 @@ logger = logging.getLogger(__name__)
 
 @main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="train-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def train_model(cfg: DictConfig):
-    print(cfg)
-    
     ckpt = None
     if cfg.resume_dir is not None:
         assert cfg.ckpt is not None
@@ -47,10 +45,6 @@ def train_model(cfg: DictConfig):
         config_path = save_config(cfg)
         logger.info("Training script")
         logger.info(f"The config can be found here: \n{config_path}")
-
-    logger.info(f"[cfg]: {cfg}")
-    logger.info(f"[cfg.data]: {cfg.data}")
-    logger.info(f"[cfg.model]: {cfg.model}")
 
     logger.info(f"[ckpt]: {ckpt}")
 

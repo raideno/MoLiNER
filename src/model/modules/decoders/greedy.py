@@ -1,11 +1,12 @@
 import torch
 import typing
+import itertools
 
 from ._base import BaseDecoder
 
 from src.types import ForwardOutput, DecodingStrategy, EvaluationResult
 
-class GenericDecoder(BaseDecoder):
+class GreedyDecoder(BaseDecoder):
     def __init__(
         self,
         strategy: DecodingStrategy = DecodingStrategy.FLAT,

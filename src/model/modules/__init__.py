@@ -1,6 +1,6 @@
 from .decoders import BaseDecoder
 from .motion_frames_encoders import BaseMotionFramesEncoder
-from .pair_scorers import BasePairScorer
+from .scorers import BasePairScorer
 from .prompt_representation_layers import BasePromptRepresentationLayer
 from .prompts_tokens_encoders import BasePromptsTokensEncoder
 from .span_representation_layers import BaseSpanRepresentationLayer

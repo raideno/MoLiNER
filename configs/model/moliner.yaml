@@ -3,13 +3,10 @@ _target_: src.model.MoLiNER
 lr: 1e-4
 
 defaults:
-  # dot_product
-  - pair_scorer: dot_product
-
   # tmr/scratch, tmr/pretrained, tmr/frozen
   - motion_frames_encoder: tmr/scratch
   # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
-  - prompts_tokens_encoder: deberta/pretrained
+  - prompts_tokens_encoder: deberta/frozen
 
   #  windowed/16, windowed/8, static/16
   - spans_generator: windowed/16
@@ -19,5 +16,8 @@ defaults:
   # transformer, endpoints, query, lstm, convolution, pooling/min, pooling/mean, pooling/max
   - span_representation_layer: endpoints
 
-  # generic/flat, generic/nested, generic/overlap
-  - decoder: generic/overlap
+  # product
+  - scorer: product
+
+  # greedy/flat, greedy/nested, greedy/overlap
+  - decoder: greedy/overlap

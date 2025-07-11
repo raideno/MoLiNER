@@ -12,7 +12,7 @@ from src.constants import (
 )
 
 class BasePipeline:
-    def __init__(self, name: str):
+    def __init__(self, name: typing.Optional[str] = None):
         self.name = name
         self.steps = []
         
@@ -48,21 +48,3 @@ class BasePipeline:
         Get the appropriate collate function for this pipeline.
         """
         return SimpleBatchStructureCollator()
-
-class BabelPipeline(BasePipeline):
-    def __init__(self, name: typing.Optional[str] = None):
-        super().__init__(name or "babel")
-        
-        self.add_step(babel_simplify_batch_structure, batched=False)
-
-class HML3DPipeline(BasePipeline):
-    """
-    Pipeline for processing HML3D dataset with simplification.
-    Applies simplification to convert 'texts' field to 'prompts' field.
-    Uses SimpleBatchStructureCollator since the structure becomes the same.
-    """
-    
-    def __init__(self):
-        super().__init__("hml3d")
-        
-        self.add_step(hml3d_simplify_batch_structure, batched=True)

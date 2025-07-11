@@ -20,9 +20,11 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         self.pretrained = pretrained
         self.weights_path = weights_path
         
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained("distilbert-base-uncased")
+        MODEL_NAME = "distilbert-base-uncased"
+        
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_NAME)
         # NOTE: for feature extraction before passing it to the ActorStyle Encoder
-        self.base_text_model = transformers.AutoModel.from_pretrained("distilbert-base-uncased")
+        self.base_text_model = transformers.AutoModel.from_pretrained(MODEL_NAME)
         
         from src.model.helpers import ACTORStyleEncoder
         
@@ -203,8 +205,15 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     @property
     def model_max_length(self) -> int:
-        return self.tokenizer.model_max_length
+        """
+        Returns the maximum sequence length supported by the Distilbert tokenizer.
+        """
+        # return self.tokenizer.model_max_length
+        return 512
     
     @property
     def pad_token_id(self) -> int:
+        """
+        Returns the padding token ID used by the Distilbert tokenizer.
+        """
         return self.tokenizer.pad_token_id

@@ -26,6 +26,8 @@ def __get_locate_classes_flat_list() -> typing.List[str]:
     }
     return [item for sublist in locate_classes_dict.values() for item in sublist]
 
+DEFAULT_STRIDE = 1
+
 BABEL_20_CLASSES = []
 BABEL_60_CLASSES = []
 BABEL_90_CLASSES = []

@@ -49,7 +49,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         prompt_representation_layer: BasePromptRepresentationLayer,
         span_representation_layer: BaseSpanRepresentationLayer,
         
-        pair_scorer: BasePairScorer,
+        scorer: BasePairScorer,
         
         decoder: BaseDecoder,
         
@@ -69,7 +69,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self.prompt_representation_layer: BasePromptRepresentationLayer = prompt_representation_layer
         self.span_representation_layer: BaseSpanRepresentationLayer = span_representation_layer
         
-        self.pair_scorer: BasePairScorer = pair_scorer
+        self.scorer: BasePairScorer = scorer
         self.decoder: BaseDecoder = decoder
         
         self.kwargs: dict = kwargs if kwargs is not None else {}
@@ -187,7 +187,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # assert span_representation_dimension == span_representation_dimension
         
         # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_motion_in_batch)
-        similarity_matrix = self.pair_scorer.forward(
+        similarity_matrix = self.scorer.forward(
             prompts_representation=prompts_representation,
             spans_representation=spans_representation
         )

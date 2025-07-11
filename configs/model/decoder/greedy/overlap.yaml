@@ -1,0 +1,2 @@
+_target_: src.model.modules.decoders.greedy.GreedyDecoder
+strategy: OVERLAP

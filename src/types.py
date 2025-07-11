@@ -222,7 +222,6 @@ class ProcessedBatch:
         if all_texts_in_batch:
             global_tokenized = encoder.tokenize(
                 all_texts_in_batch,
-                max_length=encoder.model_max_length,
                 padding=True,
                 truncation=True,
                 return_tensors='pt'

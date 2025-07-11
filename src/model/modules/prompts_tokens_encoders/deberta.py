@@ -102,8 +102,15 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     @property
     def model_max_length(self) -> int:
-        return self.tokenizer.model_max_length
+        """
+        Returns the maximum sequence length supported by the Deberta tokenizer.
+        """
+        # return self.tokenizer.model_max_length
+        return 512
     
     @property
     def pad_token_id(self) -> int:
+        """
+        Returns the padding token ID used by the Deberta tokenizer.
+        """
         return self.tokenizer.pad_token_id

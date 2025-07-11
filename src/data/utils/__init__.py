@@ -8,20 +8,20 @@ from .batching import (
 )
 
 from .filtering import (
-    no_transition_filter_function_factory,
-    create_exact_match_filter,
+    NoTransitionFilter,
+    ExactMatchFilter,
     create_locate_classes_filter_function,
     create_babel_20_classes_filter_function,
     create_babel_60_classes_filter_function,
     create_babel_90_classes_filter_function,
     create_babel_120_classes_filter_function,
     FilterConfig,
-    create_filter_function
+    FilterFunction
 )
 
 from .augmentation import (
-    standardize_spans_chunking,
-    standardize_spans_sliding_window,
+    StandardizeSpansChunking,
+    StandardizeSpansSlidingWindow,
     separate_frame_and_sequence_spans
 )
 

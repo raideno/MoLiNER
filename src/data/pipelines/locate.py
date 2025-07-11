@@ -1,9 +1,9 @@
-from src.data.pipelines.index import BabelPipeline
+from .babel import BabelPipeline
 
 from src.data.utils.filtering import (
-    create_filter_function,
+    FilterConfig,
+    FilterFunction,
     create_locate_classes_filter_function,
-    FilterConfig
 )
 
 class LocatePipeline(BabelPipeline):
@@ -29,5 +29,5 @@ class LocatePipeline(BabelPipeline):
             debug=False
         )
 
-        locate_filter_fn = create_filter_function(locate_filter_config)
-        self.add_step(locate_filter_fn, batched=True)
+        locate_filter_function = FilterFunction(locate_filter_config)
+        self.add_step(locate_filter_function, batched=True)

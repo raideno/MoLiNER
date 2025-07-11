@@ -122,10 +122,14 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     @property
     def model_max_length(self) -> int:
-        """Returns the maximum sequence length supported by the CLIP tokenizer."""
+        """
+        Returns the maximum sequence length supported by the CLIP tokenizer.
+        """
         return self.tokenizer.model_max_length
     
     @property
     def pad_token_id(self) -> int:
-        """Returns the padding token ID used by the CLIP tokenizer."""
+        """
+        Returns the padding token ID used by the CLIP tokenizer.
+        """
         return self.tokenizer.pad_token_id

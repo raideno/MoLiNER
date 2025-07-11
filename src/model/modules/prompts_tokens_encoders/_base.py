@@ -39,7 +39,7 @@ class BasePromptsTokensEncoder(torch.nn.Module, ABC):
     def tokenize(
         self,
         texts: typing.List[str],
-        max_length: int = 512,
+        max_length: typing.Optional[int] = None,
         padding: bool = True,
         truncation: bool = True,
         return_tensors: str = 'pt'

@@ -2,39 +2,40 @@ import typing
 import logging
 
 from src.constants import (
-    DEFAULT_DEBUG
+    DEFAULT_DEBUG,
+    DEFAULT_STRIDE
 )
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_STRIDE = 1
-
-def standardize_spans_chunking(
-    target_span_length: int,
-    # TODO: should be defined relative to the motion length, e.g. 1/4 of the motion length with a max of K frames or something like that
-    max_extend_frames: int,
-    debug: bool = DEFAULT_DEBUG
-) -> typing.Callable[[dict], dict]:
+class StandardizeSpansChunking:
     """
-    Factory function to create a span standardization function using chunking approach.
+    Callable class to standardize spans using a chunking approach.
     
     Chunking approach:
-    - Long spans are split into non-overlapping chunks of target_span_length frames
-    - Short spans are extended up to max_extend_frames if possible, otherwise discarded
-    - Each chunk becomes a separate prompt with the same text
-    
-    Args:
-        target_span_length: Target number of frames for each span
-        max_extend_frames: Maximum number of frames to extend short spans
-        debug: Whether to print debug information
-        
-    Returns:
-        Function that takes a sample dict and returns modified sample with standardized spans
+    - Long spans are split into non-overlapping chunks of a target length.
+    - Short spans are extended if possible, otherwise discarded.
+    - Each chunk becomes a separate prompt with the same text.
     """
-    def standardize_spans_chunking_(sample: dict) -> dict:
+    def __init__(
+        self,
+        target_span_length: int,
+        max_extend_frames: int,
+        debug: bool = DEFAULT_DEBUG
+    ):
         """
-        Standardize spans using chunking approach.
-        Works with simplified batch structure where prompts are individual records.
+        Args:
+            target_span_length: Target number of frames for each span.
+            max_extend_frames: Maximum number of frames to extend short spans.
+            debug: Whether to print debug information.
+        """
+        self.target_span_length = target_span_length
+        self.max_extend_frames = max_extend_frames
+        self.debug = debug
+
+    def __call__(self, sample: dict) -> dict:
+        """
+        Standardize spans for a given sample.
         """
         new_sample = {key: value for key, value in sample.items()}
         
@@ -59,35 +60,30 @@ def standardize_spans_chunking(
                 continue
                 
             start_frame, end_frame = span
-            # NOTE: treating spans as inclusive, so length = end - start + 1
             current_span_length = end_frame - start_frame + 1
             
-            # NOTE: exact match, no changes needed
-            if current_span_length == target_span_length:
+            if current_span_length == self.target_span_length:
                 standardized_prompts.append(prompt_data)
                 continue
             
-            # NOTE: short span, extend if possible otherwise discard
-            if current_span_length < target_span_length:
-                needed_frames = target_span_length - current_span_length
+            if current_span_length < self.target_span_length:
+                needed_frames = self.target_span_length - current_span_length
                 
-                if needed_frames <= max_extend_frames:
-                    # NOTE: expand span symmetrically if possible
+                if needed_frames <= self.max_extend_frames:
                     extend_each_side = needed_frames // 2
                     extend_remainder = needed_frames % 2
                     
                     new_start = max(0, start_frame - extend_each_side)
                     new_end = min(max_frame_idx, end_frame + extend_each_side + extend_remainder)
                     
-                    # TODO: check whether we are respecting the motion boundaries
                     achieved_length = new_end - new_start + 1
-                    if achieved_length >= target_span_length:
-                        if achieved_length > target_span_length:
-                            trim_amount = achieved_length - target_span_length
+                    if achieved_length >= self.target_span_length:
+                        if achieved_length > self.target_span_length:
+                            trim_amount = achieved_length - self.target_span_length
                             new_end -= trim_amount
                         
                         extended_spans += 1
-                        if debug:
+                        if self.debug:
                             logger.debug(f"[Chunking] Extended span from {current_span_length} to {new_end - new_start + 1} frames: '{text[:50]}...'")
                         
                         standardized_prompts.append({
@@ -98,31 +94,28 @@ def standardize_spans_chunking(
                         })
                     else:
                         discarded_spans += 1
-                        if debug:
+                        if self.debug:
                             logger.debug(f"[Chunking] Discarded span ({current_span_length} frames, needed {needed_frames}): '{text[:50]}...'")
-                # NOTE: discard as too much extension needed
                 else:
                     discarded_spans += 1
-                    if debug:
+                    if self.debug:
                         logger.debug(f"[Chunking] Discarded span ({current_span_length} frames, needed {needed_frames}): '{text[:50]}...'")
                 continue
             
-            # NOTE: long span, split into chunks
-            if current_span_length > target_span_length:
-                num_chunks = current_span_length // target_span_length
+            if current_span_length > self.target_span_length:
+                num_chunks = current_span_length // self.target_span_length
                 chunked_spans += num_chunks
                 
-                if debug:
+                if self.debug:
                     logger.debug(f"[Chunking] Splitting span of {current_span_length} frames into {num_chunks} chunks: '{text[:50]}...'")
                 
                 for chunk_idx in range(num_chunks):
-                    chunk_start = start_frame + (chunk_idx * target_span_length)
-                    # NOTE: for inclusive spans, chunk_end = chunk_start + target_span_length - 1
-                    chunk_end = chunk_start + target_span_length - 1
+                    chunk_start = start_frame + (chunk_idx * self.target_span_length)
+                    chunk_end = chunk_start + self.target_span_length - 1
                     
                     chunk_end = min(chunk_end, end_frame, max_frame_idx)
                     
-                    if chunk_end - chunk_start + 1 == target_span_length:
+                    if chunk_end - chunk_start + 1 == self.target_span_length:
                         standardized_prompts.append({
                             "text": text,
                             "span": [chunk_start, chunk_end],
@@ -130,54 +123,54 @@ def standardize_spans_chunking(
                             "is_sequence": is_sequence
                         })
                 
-                # NOTE: discard remainder if any
-                # TODO: maybe extend it if possible, just like we do for short spans?
-                remainder_start = start_frame + (num_chunks * target_span_length)
+                remainder_start = start_frame + (num_chunks * self.target_span_length)
                 remainder_length = end_frame - remainder_start + 1
                 
                 if remainder_length > 0:
-                    if debug:
+                    if self.debug:
                         logger.debug(f"[Chunking] Discarded remainder of {remainder_length} frames")
                     discarded_spans += 1
         
         new_sample["prompts"] = standardized_prompts
         
-        if debug:
+        if self.debug:
             final_prompt_count = len(standardized_prompts)
             logger.debug(f"[Chunking] Summary: {original_prompt_count} → {final_prompt_count} prompts "
                         f"(extended: {extended_spans}, chunked: {chunked_spans}, discarded: {discarded_spans})")
         
         return new_sample
-    
-    return standardize_spans_chunking_
 
-def standardize_spans_sliding_window(
-    target_span_length: int,
-    max_extend_frames: int,
-    stride: int = DEFAULT_STRIDE,
-    debug: bool = DEFAULT_DEBUG
-) -> typing.Callable[[dict], dict]:
+class StandardizeSpansSlidingWindow:
     """
-    Factory function to create a span standardization function using sliding window approach.
+    Callable class to standardize spans using a sliding window approach.
     
     Sliding window approach:
-    - Long spans are processed with overlapping windows of target_span_length frames
-    - Short spans are extended up to max_extend_frames if possible, otherwise discarded
-    - Each window becomes a separate prompt with the same text
-    
-    Args:
-        target_span_length: Target number of frames for each span
-        stride: Step size for sliding window (smaller = more overlap)
-        max_extend_frames: Maximum number of frames to extend short spans
-        debug: Whether to print debug information
-        
-    Returns:
-        Function that takes a sample dict and returns modified sample with standardized spans
+    - Long spans are processed with overlapping windows of a target length.
+    - Short spans are extended if possible, otherwise discarded.
+    - Each window becomes a separate prompt with the same text.
     """
-    def standardize_spans_sliding_window_(sample: dict) -> dict:
+    def __init__(
+        self,
+        target_span_length: int,
+        max_extend_frames: int,
+        stride: int = DEFAULT_STRIDE,
+        debug: bool = DEFAULT_DEBUG
+    ):
         """
-        Standardize spans using sliding window approach.
-        Works with simplified batch structure where prompts are individual records.
+        Args:
+            target_span_length: Target number of frames for each span.
+            max_extend_frames: Maximum number of frames to extend short spans.
+            stride: Step size for the sliding window.
+            debug: Whether to print debug information.
+        """
+        self.target_span_length = target_span_length
+        self.max_extend_frames = max_extend_frames
+        self.stride = stride
+        self.debug = debug
+
+    def __call__(self, sample: dict) -> dict:
+        """
+        Standardize spans for a given sample.
         """
         new_sample = {key: value for key, value in sample.items()}
         
@@ -202,19 +195,16 @@ def standardize_spans_sliding_window(
                 continue
                 
             start_frame, end_frame = span
-            # NOTE: treating spans as inclusive, so length = end - start + 1
             current_span_length = end_frame - start_frame + 1
             
-            # NOTE: exact match, no changes needed
-            if current_span_length == target_span_length:
+            if current_span_length == self.target_span_length:
                 standardized_prompts.append(prompt_data)
                 continue
             
-            # NOTE: short spans, extend if possible otherwise discard
-            if current_span_length < target_span_length:
-                needed_frames = target_span_length - current_span_length
+            if current_span_length < self.target_span_length:
+                needed_frames = self.target_span_length - current_span_length
                 
-                if needed_frames <= max_extend_frames:
+                if needed_frames <= self.max_extend_frames:
                     extend_each_side = needed_frames // 2
                     extend_remainder = needed_frames % 2
                     
@@ -222,13 +212,13 @@ def standardize_spans_sliding_window(
                     new_end = min(max_frame_idx, end_frame + extend_each_side + extend_remainder)
                     
                     achieved_length = new_end - new_start + 1
-                    if achieved_length >= target_span_length:
-                        if achieved_length > target_span_length:
-                            trim_amount = achieved_length - target_span_length
+                    if achieved_length >= self.target_span_length:
+                        if achieved_length > self.target_span_length:
+                            trim_amount = achieved_length - self.target_span_length
                             new_end -= trim_amount
                         
                         extended_spans += 1
-                        if debug:
+                        if self.debug:
                             logger.debug(f"[SlidingWindow] Extended span from {current_span_length} to {new_end - new_start + 1} frames: '{text[:50]}...'")
                         
                         standardized_prompts.append({
@@ -239,35 +229,32 @@ def standardize_spans_sliding_window(
                         })
                     else:
                         discarded_spans += 1
-                        if debug:
+                        if self.debug:
                             logger.debug(f"[SlidingWindow] Discarded span ({current_span_length} frames, needed {needed_frames}): '{text[:50]}...'")
-                # NOTE: too much extension needed, discard
                 else:
                     discarded_spans += 1
-                    if debug:
+                    if self.debug:
                         logger.debug(f"[SlidingWindow] Discarded span ({current_span_length} frames, needed {needed_frames}): '{text[:50]}...'")
                 continue
             
-            # NOTE: long spans, generate overlapping windows
-            if current_span_length > target_span_length:
+            if current_span_length > self.target_span_length:
                 window_positions = []
                 window_start = start_frame
                 
-                # NOTE: for inclusive spans, we need window_start + target_span_length - 1 <= end_frame
-                while window_start + target_span_length - 1 <= end_frame:
-                    window_end = window_start + target_span_length - 1
+                while window_start + self.target_span_length - 1 <= end_frame:
+                    window_end = window_start + self.target_span_length - 1
                     window_positions.append((window_start, window_end))
-                    window_start += stride
+                    window_start += self.stride
                 
                 windowed_spans += len(window_positions)
                 
-                if debug:
+                if self.debug:
                     logger.debug(f"[SlidingWindow] Creating {len(window_positions)} windows for span of {current_span_length} frames: '{text[:50]}...'")
                 
                 for window_start, window_end in window_positions:
                     window_end = min(window_end, max_frame_idx)
                     
-                    if window_end - window_start + 1 == target_span_length:
+                    if window_end - window_start + 1 == self.target_span_length:
                         standardized_prompts.append({
                             "text": text,
                             "span": [window_start, window_end],
@@ -277,15 +264,12 @@ def standardize_spans_sliding_window(
         
         new_sample["prompts"] = standardized_prompts
         
-        if debug:
+        if self.debug:
             final_prompt_count = len(standardized_prompts)
             logger.debug(f"[SlidingWindow] Summary: {original_prompt_count} → {final_prompt_count} prompts "
                         f"(extended: {extended_spans}, windowed: {windowed_spans}, discarded: {discarded_spans})")
         
         return new_sample
-    
-    return standardize_spans_sliding_window_
-
 
 def separate_frame_and_sequence_spans(batch: dict[str, list]) -> dict[str, list]:
     """

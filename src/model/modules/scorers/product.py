@@ -3,7 +3,7 @@ import typing
 
 from ._base import BasePairScorer
 
-class DotProductPairScorer(BasePairScorer):
+class ProductPairScorer(BasePairScorer):
     """
     A pair scorer that computes similarity as a the dot product.
     """

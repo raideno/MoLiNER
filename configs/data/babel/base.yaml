@@ -1,5 +1,6 @@
 _target_: src.data.babel.BabelDataset
 pipeline: babel
 
-defaults:
-  - motion_normalizer: generic
+motion_normalizer:
+  _target_: src.helpers.motion_normalizer.MotionNormalizer
+  stats_path: ./babel-stats.pt
