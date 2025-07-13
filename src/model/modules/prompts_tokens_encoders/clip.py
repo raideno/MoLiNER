@@ -32,10 +32,10 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
         self.tokenizer = transformers.CLIPTokenizer.from_pretrained(MODEL_NAME)
         self.text_encoder = transformers.CLIPTextModel.from_pretrained(MODEL_NAME)
         
-        self.transformer.train()
+        self.text_encoder.train()
         
         if self.frozen:
-            self.transformer.eval()
+            self.text_encoder.eval()
             for param in self.text_encoder.parameters():
                 param.requires_grad = False
 
