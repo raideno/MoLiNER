@@ -1,0 +1,7 @@
+_target_: src.model.modules.motion_frames_encoders.lstm.LSTMMotionFramesEncoder
+input_dim: 263
+hidden_dim: 256
+num_layers: 2
+dropout: 0.1
+bidirectional: true
+frozen: false
