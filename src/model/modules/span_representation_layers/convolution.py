@@ -14,12 +14,21 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
         motion_embed_dim: int,
         representation_dimension: int,
         max_span_width: int,
+        min_span_width: int = 1,
         shared_weights: bool = False
     ):
         super().__init__()
         
+        if not isinstance(max_span_width, int) or max_span_width < 1:
+            raise ValueError("max_span_width must be a positive integer.")
+        if not isinstance(min_span_width, int) or min_span_width < 1:
+            raise ValueError("min_span_width must be a positive integer.")
+        if min_span_width > max_span_width:
+            raise ValueError("min_span_width must be less than or equal to max_span_width.")
+        
         self.shared_weights = shared_weights
         self.max_span_width = max_span_width
+        self.min_span_width = min_span_width
         
         conv_output_dim = representation_dimension
 
@@ -28,7 +37,7 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
             self.convolution = torch.nn.Conv1d(motion_embed_dim, conv_output_dim, kernel_size=max_span_width, padding='same')
         else:
             self.convolutions = torch.nn.ModuleList([
-                torch.nn.Conv1d(motion_embed_dim, conv_output_dim, kernel_size=k) for k in range(1, max_span_width + 1)
+                torch.nn.Conv1d(motion_embed_dim, conv_output_dim, kernel_size=k) for k in range(min_span_width, max_span_width + 1)
             ])
         
         self.projection = torch.nn.Linear(conv_output_dim, representation_dimension)
@@ -63,7 +72,7 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
                     span_width = end - start + 1
 
                     if span_width > 0:
-                        if span_width <= self.max_span_width:
+                        if self.min_span_width <= span_width <= self.max_span_width:
                             # NOTE: (1, embed_dim, span_width)
                             span_frames = motion_features_t[i:i+1, :, start:end + 1]
 
@@ -75,10 +84,10 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
                             else:
                                 if span_width <= self.max_span_width:
                                     # (1, conv_output_dim, 1)
-                                    convolution_output = self.convolutions[span_width - 1](span_frames)
+                                    convolution_output = self.convolutions[span_width - self.min_span_width](span_frames)
                                     span_rep = convolution_output.squeeze(-1)
                         else:
-                            raise ValueError(f"Span width {span_width} exceeds max span width {self.max_span_width}")
+                            raise ValueError(f"Span width {span_width} is outside the range [{self.min_span_width}, {self.max_span_width}]")
 
                         projected_rep = self.projection(span_rep.squeeze(0))
                         
