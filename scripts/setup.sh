@@ -20,6 +20,6 @@ echo "[setup]: Installing required packages..."
 pip install -r requirements.txt
 
 echo "[setup]: Downloading pretrained models..."
-bash download-tmr-pretrained-models
+bash scripts/download-tmr-pretrained-models.sh
 
 echo "[setup]: Environment setup complete. Ready to use MoLiNER."
