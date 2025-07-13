@@ -97,7 +97,7 @@ defaults:
 
   # mlp/deberta, mlp/tmr, mlp/clip
   - prompt_representation_layer: mlp/deberta
-  # transformer, endpoints, query, lstm, convolution, pooling/min, pooling/mean, pooling/max
+  # transformer, endpoints, query, lstm, convolution, mlp, pooling/min, pooling/mean, pooling/max
   - span_representation_layer: endpoints
 
   # product
