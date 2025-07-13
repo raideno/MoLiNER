@@ -17,7 +17,7 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         super().__init__()
         
         self.frozen = frozen
-        self.pretrained = pretrained
+        self.pretrained_ = pretrained
         self.weights_path = weights_path
         
         MODEL_NAME = "distilbert-base-uncased"
@@ -227,4 +227,4 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         Indicates whether the encoder is pretrained or not.
         This is used by the model to adjust learning rates and training strategies.
         """
-        return self.pretrained
+        return self.pretrained_
