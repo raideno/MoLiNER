@@ -12,7 +12,7 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
     def __init__(
         self,
         motion_embed_dim: int,
-        representation_dimension: int,
+        representation_dim: int,
         max_span_width: int,
         min_span_width: int = 1,
         shared_weights: bool = False
@@ -30,7 +30,7 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
         self.max_span_width = max_span_width
         self.min_span_width = min_span_width
         
-        conv_output_dim = representation_dimension
+        conv_output_dim = representation_dim
 
         if shared_weights:
             # NOTE: maybe will push the model to learn features shared between spans of different sizes
@@ -40,7 +40,7 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
                 torch.nn.Conv1d(motion_embed_dim, conv_output_dim, kernel_size=k) for k in range(min_span_width, max_span_width + 1)
             ])
         
-        self.projection = torch.nn.Linear(conv_output_dim, representation_dimension)
+        self.projection = torch.nn.Linear(conv_output_dim, representation_dim)
 
     def forward(
         self,
@@ -56,10 +56,10 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
         batch_size, max_spans, _ = span_indices.shape
         
         embedding_dimension = motion_features.shape[-1]
-        representation_dimension = self.projection.out_features
+        representation_dim = self.projection.out_features
         device = motion_features.device
 
-        span_representations = torch.zeros(batch_size, max_spans, representation_dimension, device=device)
+        span_representations = torch.zeros(batch_size, max_spans, representation_dim, device=device)
 
         # (batch_size, embed_dim, seq_len)
         motion_features_t = motion_features.transpose(1, 2)
