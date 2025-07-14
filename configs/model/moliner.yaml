@@ -23,3 +23,6 @@ defaults:
 
   # greedy/flat, greedy/nested, greedy/overlap
   - decoder: greedy/overlap
+
+  # focal
+  - loss: focal
