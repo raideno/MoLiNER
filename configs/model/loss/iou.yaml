@@ -1,0 +1,13 @@
+_target_: src.model.losses.IoULoss
+
+alpha: 0.25
+gamma: 2.0
+# NOTE: 'none', 'mean', 'sum'
+reduction: "sum"
+label_smoothing: 0.0
+# NOTE: 'labels', 'global', 'span'
+negatives_type: "labels"
+negatives_probability: 1.0
+ignore_index: -100
+
+iou_threshold: 0.5 # Standard IoU threshold
