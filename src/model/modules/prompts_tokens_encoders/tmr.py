@@ -50,17 +50,17 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
                 
         if pretrained:
             if self.weights_path is not None:
-                self.tmr_encoder.load_state_dict(
+                self.tmr_text_encoder.load_state_dict(
                     torch.load(weights_path)
                 )
             else:
                 logger.warning("Pretrained weights path is not provided. Using uninitialized TMR encoder.")
                 raise ValueError("Pretrained weights path must be specified if pretrained is True.")
     
-        self.transformer.train()
+        self.tmr_text_encoder.train()
     
         if frozen:
-            self.transformer.eval()
+            self.tmr_text_encoder.eval()
             for param in self.tmr_text_encoder.parameters():
                 param.requires_grad = False
         

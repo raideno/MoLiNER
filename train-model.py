@@ -34,6 +34,9 @@ logger = logging.getLogger(__name__)
 
 @main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="train-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def train_model(cfg: DictConfig):
+    # NOTE: uncomment when warned about "float32 matmul precision to utilize, tensor cores efficiently"
+    # torch.set_float32_matmul_precision('medium')
+    
     ckpt = None
     if cfg.resume_dir is not None:
         assert cfg.ckpt is not None
