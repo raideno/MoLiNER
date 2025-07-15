@@ -6,25 +6,25 @@ lr:
 
 defaults:
   # tmr/scratch, tmr/pretrained, tmr/frozen
-  - motion_frames_encoder: tmr/frozen
+  - motion_frames_encoder: ???
   # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
-  - prompts_tokens_encoder: deberta/frozen
+  - prompts_tokens_encoder: ???
 
   #  windowed/16, windowed/8, static/1-16, static/8-32
-  - spans_generator: windowed/16
+  - spans_generator: ???
 
   # mlp/deberta, mlp/tmr, mlp/clip
-  - prompt_representation_layer: mlp/deberta
+  - prompt_representation_layer: ???
   # endpoints, pooling/min, pooling/mean, pooling/max
   # transformer, lstm, convolution
   # query, mlp/1-16, mlp/1-32
-  - span_representation_layer: endpoints
+  - span_representation_layer: ???
 
   # product
-  - scorer: product
+  - scorer: ???
 
   # greedy/flat, greedy/nested, greedy/overlap
-  - decoder: greedy/overlap
+  - decoder: ???
 
   # focal, iou
-  - loss: focal
+  - loss: ???
