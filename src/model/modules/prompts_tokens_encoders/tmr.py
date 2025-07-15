@@ -50,7 +50,7 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
                 
         if pretrained:
             if self.weights_path is not None:
-                self.tmr_encoder.load_state_dict(
+                self.tmr_text_encoder.load_state_dict(
                     torch.load(weights_path)
                 )
             else:
