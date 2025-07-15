@@ -58,7 +58,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         decoder: BaseDecoder,
         
-        loss_function: BaseLoss,
+        loss: BaseLoss,
         
         lr: LearningRateConfig,
 
@@ -78,7 +78,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         self.decoder: BaseDecoder = decoder
         
-        self.loss_function: BaseLoss = loss_function
+        self.loss: BaseLoss = loss
         
         self.lr: LearningRateConfig = lr
         
@@ -107,7 +107,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
             self.span_representation_layer,
             self.scorer,
             self.decoder,
-            self.loss_function
+            self.loss
         ]
         
         for module in non_pretrained_modules:
@@ -215,7 +215,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
-        loss, unmatched_spans_count = self.loss_function.forward(output, processed_batch)
+        loss, unmatched_spans_count = self.loss.forward(output, processed_batch)
 
         return loss, unmatched_spans_count
     
