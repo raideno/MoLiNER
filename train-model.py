@@ -16,7 +16,10 @@ import pytorch_lightning as lightning
 from hydra import main
 from omegaconf import DictConfig
 from hydra.utils import instantiate
+
+from src.auth import login_to_huggingface
 from src.config import read_config, save_config
+
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
@@ -29,11 +32,18 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0=all, 1=info, 2=warnings, 3=errors
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module='tensorflow')
 # --- --- --- --- --- --- ---
+login_to_huggingface()
+# --- --- --- --- --- --- ---
 
 logger = logging.getLogger(__name__)
 
 @main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="train-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def train_model(cfg: DictConfig):
+    # NOTE: uncomment when warned about "float32 matmul precision to utilize, tensor cores efficiently"
+    # torch.set_float32_matmul_precision('medium')
+    
+    logger.info(f"[run_dir]: {cfg.run_dir}")
+    
     ckpt = None
     if cfg.resume_dir is not None:
         assert cfg.ckpt is not None

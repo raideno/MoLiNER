@@ -19,7 +19,7 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
         super().__init__()
         
         self.frozen = frozen
-        self.pretrained = pretrained
+        self.pretrained_ = pretrained
         self.weights_path = weights_path
         
         from src.model.helpers import ACTORStyleEncoder
@@ -98,4 +98,4 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
         Indicates whether the encoder is pretrained or not.
         This is used by the model to adjust learning rates and training strategies.
         """
-        return self.pretrained
+        return self.pretrained_

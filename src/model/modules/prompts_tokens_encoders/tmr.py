@@ -17,7 +17,7 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         super().__init__()
         
         self.frozen = frozen
-        self.pretrained = pretrained
+        self.pretrained_ = pretrained
         self.weights_path = weights_path
         
         MODEL_NAME = "distilbert-base-uncased"
@@ -50,17 +50,17 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
                 
         if pretrained:
             if self.weights_path is not None:
-                self.tmr_encoder.load_state_dict(
+                self.tmr_text_encoder.load_state_dict(
                     torch.load(weights_path)
                 )
             else:
                 logger.warning("Pretrained weights path is not provided. Using uninitialized TMR encoder.")
                 raise ValueError("Pretrained weights path must be specified if pretrained is True.")
     
-        self.transformer.train()
+        self.tmr_text_encoder.train()
     
         if frozen:
-            self.transformer.eval()
+            self.tmr_text_encoder.eval()
             for param in self.tmr_text_encoder.parameters():
                 param.requires_grad = False
         
@@ -227,4 +227,4 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         Indicates whether the encoder is pretrained or not.
         This is used by the model to adjust learning rates and training strategies.
         """
-        return self.pretrained
+        return self.pretrained_

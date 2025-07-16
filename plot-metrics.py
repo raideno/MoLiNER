@@ -48,7 +48,7 @@ def plot_metrics(cfg: DictConfig):
 
             if not plot_dataframe.empty:
                 plt.figure(figsize=(10, 6))
-                plt.lineplot(data=plot_dataframe, x=x_col, y=metric)
+                plt.plot(plot_dataframe[x_col], plot_dataframe[metric], marker='o')
                 
                 title = f'{metric} vs {x_col}'
                 plt.title(title)

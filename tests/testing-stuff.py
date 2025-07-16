@@ -39,7 +39,8 @@ def main():
 
     clean_dataset = babel_dataset["validation"].map(
         babel_simplify_batch_structure,
-        load_from_cache_file=False
+        load_from_cache_file=False,
+        num_proc=8
     )
     
     pdb.set_trace()
@@ -73,7 +74,8 @@ def main():
     filtered_dataset = clean_dataset.map(
         filter_function,
         batched=True,
-        batch_size=16
+        batch_size=16,
+        num_proc=8
     )
     
     pdb.set_trace()

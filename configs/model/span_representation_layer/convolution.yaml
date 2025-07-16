@@ -2,4 +2,5 @@ _target_: src.model.modules.span_representation_layers.convolution.Convolutional
 motion_embed_dim: 256
 representation_dim: 256
 max_span_width: 16
+min_span_width: 1
 shared_weights: false

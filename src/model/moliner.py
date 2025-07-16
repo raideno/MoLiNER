@@ -24,14 +24,7 @@ from src.model.modules import (
     BaseDecoder
 )
 
-from src.model.loss import focal_loss_with_logits
-
-from src.model.helpers import (
-    reduce,
-    create_loss_mask,
-    create_target_matrix,
-    create_negatives_mask
-)
+from src.model.losses import BaseLoss
 
 class LearningRateConfig(typing_extensions.TypedDict):
     """
@@ -65,6 +58,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         decoder: BaseDecoder,
         
+        loss: BaseLoss,
+        
         lr: LearningRateConfig,
 
         **kwargs,
@@ -82,6 +77,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self.scorer: BasePairScorer = scorer
         
         self.decoder: BaseDecoder = decoder
+        
+        self.loss: BaseLoss = loss
         
         self.lr: LearningRateConfig = lr
         
@@ -109,7 +106,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
             self.prompt_representation_layer,
             self.span_representation_layer,
             self.scorer,
-            self.decoder
+            self.decoder,
+            self.loss
         ]
         
         for module in non_pretrained_modules:
@@ -132,50 +130,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
             })
         
         return torch.optim.AdamW(param_groups)
-    
-    def compute_loss(
-        self,
-        forward_output: ForwardOutput,
-        batch: ProcessedBatch
-    ) -> typing.Tuple[torch.Tensor, int]:
-        if batch.target_spans is None:
-            raise ValueError("Cannot compute loss without target spans (training data)")
-        
-        # NOTE: (batch, prompts, spans)
-        predicted_logits = forward_output.similarity_matrix
-        
-        # NOTE: (batch, prompts, spans)
-        target_logits, unmatched_spans_count = create_target_matrix(forward_output, batch)
-        
-        # NOTE: (batch, prompts, spans); indicates which pairs are not padding and should be considered for loss computation
-        loss_mask = create_loss_mask(forward_output, batch)
-        
-        all_losses = focal_loss_with_logits(
-            inputs=predicted_logits,
-            targets=target_logits,
-            alpha=0.25,
-            gamma=2,
-            reduction="none",
-            label_smoothing=0.0,
-        )
-        
-        all_losses = all_losses * loss_mask
-        
-        mask_negatives = create_negatives_mask(
-            logits=target_logits,
-            type="labels",
-            negatives=1.0
-        )
-        
-        # NOTE: apply the mask: for positive examples, some losses will be zeroed out based on the sampling
-        all_losses = all_losses * mask_negatives
-        
-        loss = reduce(
-            logits=all_losses,
-            reduction="sum"
-        )
-        
-        return loss, unmatched_spans_count
     
     def forward(
         self,
@@ -261,7 +215,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
-        loss, unmatched_spans_count = self.compute_loss(output, processed_batch)
+        loss, unmatched_spans_count = self.loss.forward(output, processed_batch)
 
         return loss, unmatched_spans_count
     

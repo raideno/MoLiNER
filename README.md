@@ -27,9 +27,9 @@ pip install -r requirements.txt
 
 3. **Hugging Face Authentication (Required):**
 
-Rename the [`.env.example`](./.env.example) file and rename it to `.env`; replace the `xxx` value with the appropriate values.
+Rename the [`.env.example`](./.env.example) to `.env` and replace the `xxx` value with the appropriate values.
 
-4. **Required Pretrained Weights:**
+1. **TMR Pretrained Weights:**
 
 ```bash
 bash scripts/download-tmr-pretrained-models.sh
@@ -56,65 +56,35 @@ The main configuration files are located in the [`configs/`](./configs/) directo
 You can override any configuration setting from the command line. For example:
 
 ```bash
-python train-model.py data=babel/20 model=moliner trainer.trainer.max_epochs=100
+python train-model.py data=<data-name> model=<model-name> trainer.max_epochs=100
 ```
 
-This command will train the `moliner` model on the `babel` dataset for 100 epochs.
+This command will train the specified model on the specified dataset for 100 epochs.
 
 ## Training
 
-To train a new model, use the `train-model.py` script. You need to specify the model and data configurations.
+To train a new model, use the `train-model.py` script.
+
+1. **Create the Model:**
+
+Duplicate the [`configs/model/moliner.yaml`](./configs/model/moliner.yaml) file and **name it as you wish**.
+
+2. **Specify the Modules:**
+
+Replace all the `???` in the `.yaml` file with one of the possible values for each module.
+
+3. **Start the Training:**
 
 ```bash
-HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<model_name> data=<dataset_name>
+HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MODEL_NAME> data=<DATASET_NAME> trainer.accelerator=cuda
 ```
 
-For example:
+**NOTEs:**
 
-```bash
-HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=moliner data=babel/20-standardized-windowing
-```
+- `<MODEL_NAME>` should be set the the name of the file you just created without the `.yaml` extension.
+- For more control on the trainer, you can change the [trainer configuration file](./configs/trainer.yaml).
 
-All the available variants of the model can be found at [`configs/model`](./configs/model/) and the different data variants can be found at [`configs/data`](./configs/data/).
-
-| **Model Variants** | **Description**                     |
-| ------------------ | ----------------------------------- |
-| `moliner`          | Default MoLiNER model architecture. |
-
-```yaml
-_target_: src.model.MoLiNER
-
-lr: 1e-4
-
-defaults:
-  # tmr/scratch, tmr/pretrained, tmr/frozen
-  - motion_frames_encoder: tmr/scratch
-  # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
-  - prompts_tokens_encoder: deberta/pretrained
-
-  #  windowed/16, windowed/8, static/16
-  - spans_generator: windowed/16
-
-  # mlp/deberta, mlp/tmr, mlp/clip
-  - prompt_representation_layer: mlp/deberta
-  # transformer, endpoints, query, lstm, convolution, pooling/min, pooling/mean, pooling/max
-  - span_representation_layer: endpoints
-
-  # product
-  - scorer: product
-
-  # greedy/flat, greedy/nested, greedy/overlap
-  - decoder: greedy/overlap
-```
-
-You can override the different components of the model with the available ones to create your own variant of the model. This can be done at CLI level or by creating your own `.yaml` file in the [`./configs/model`](./configs/model/) and using it when calling the [train-model](#training) script.
-
-```bash
-python train-model.py \
-    data=babel/20-standardized-windowing \
-    model=moliner \
-    prompts_tokens_encoder=clip
-```
+All the possible values for the data can be found at [`configs/data`](./configs/data/) and are also listed below.
 
 | **Data Variants**                 | **Description**                                 |
 | --------------------------------- | ----------------------------------------------- |
@@ -125,11 +95,7 @@ python train-model.py \
 | `hml3d/base`                      | HumanML3D dataset for 3D motion-language tasks. |
 | `kitml/base`                      | KIT-ML dataset for motion-language retrieval.   |
 
-### Hardware Configuration
-
-By default, the trainer is configured to use CUDA acceleration. You can override the accelerator and device settings in [`configs/trainer.yaml`](./configs/trainer.yaml).
-
-**Note:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
+**`RUN_DIR`:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
 
 ## Weights Extraction
 
