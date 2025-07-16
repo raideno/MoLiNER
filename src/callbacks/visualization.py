@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 
 from src.model import MoLiNER
 from pytorch_lightning.callbacks import Callback
-from src.types import RawBatch, EvaluationResult
+from src.types import RawBatch, ProcessedBatch, EvaluationResult
 from src.visualizations.spans import plot_evaluation_results
 
 logger = logging.getLogger(__name__)
@@ -154,13 +154,38 @@ class VisualizationCallback(Callback):
                     logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Motion tensor shape: {motion_tensor.shape}")
                     logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prompts: {prompt_texts[:3]}...")
                 
+                formatted_prompts = [(text, [], True) for text in prompt_texts]
+                
+                eval_raw_batch = RawBatch(
+                    sid=[0],
+                    dataset_name=["evaluation"],
+                    amass_relative_path=["none"],
+                    raw_motion=torch.zeros_like(motion_tensor.unsqueeze(0)),
+                    transformed_motion=motion_tensor.unsqueeze(0).to(model.device),
+                    motion_mask=torch.ones(1, motion_tensor.shape[0], dtype=torch.bool).to(model.device),
+                    prompts=[formatted_prompts]
+                )
+                
+                eval_processed_batch = ProcessedBatch.from_raw_batch(
+                    raw_batch=eval_raw_batch,
+                    encoder=model.prompts_tokens_encoder
+                )
+                
+                # Forward pass once
+                forward_output = model.forward(
+                    eval_processed_batch,
+                    batch_index=0
+                )
+                
+                # Decode with multiple thresholds
                 threshold_results = {}
                 for threshold in self.score_thresholds:
-                    evaluation_result = model.evaluate(
-                        motion=motion_tensor,
+                    decoded_results = model.decoder.decode(
+                        forward_output=forward_output,
                         prompts=prompt_texts,
                         score_threshold=threshold,
                     )
+                    evaluation_result = decoded_results[0]
                     threshold_results[threshold] = evaluation_result
                 
                 primary_threshold = self.score_thresholds[0]
@@ -189,11 +214,12 @@ class VisualizationCallback(Callback):
                     logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Generated {num_predictions} predictions with threshold {primary_threshold}")
                 
                 if num_predictions == 0 and self.debug and primary_threshold > 0.1:
-                    debug_result = model.evaluate(
-                        motion=motion_tensor,
+                    debug_decoded_results = model.decoder.decode(
+                        forward_output=forward_output,
                         prompts=prompt_texts,
                         score_threshold=0.1,
                     )
+                    debug_result = debug_decoded_results[0]
                     debug_predictions = len(debug_result.predictions) if debug_result.predictions else 0
                     logger.info(f"Debug: With threshold 0.1: Generated {debug_predictions} predictions")
         

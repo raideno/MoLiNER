@@ -21,7 +21,7 @@ def plot_evaluation_results(
     Each prompt is represented as a row, and predicted spans are shown as colored bars.
 
     Args:
-        result (EvaluationResult): The output from the model's `evaluate` method.
+        result (EvaluationResult): The output from the model's forward + decode methods.
         title (str): The title for the plot.
         sources (List[str], optional): List of source labels for each span in result.predictions.
             Must have the same length as result.predictions if provided.
@@ -31,10 +31,10 @@ def plot_evaluation_results(
         A Plotly Figure object, or None if there are no predictions.
     """
     data_for_dataframe = []
-    
+
     if sources is not None and len(sources) != len(result.predictions):
         raise ValueError(f"Sources list length ({len(sources)}) must match predictions length ({len(result.predictions)})")
-    
+
     if not result.predictions:
         # NOTE: empty dataframe with the required columns for a blank plot
         dataframe = pd.DataFrame({
@@ -49,14 +49,14 @@ def plot_evaluation_results(
     else:
         for i, (prompt, start, end, score) in enumerate(result.predictions):
             source = sources[i] if sources is not None else "unknown"
-            
+
             # NOTE: apply source filtering if specified
             if filter_sources is not None and source not in filter_sources:
                 continue
-                
+
             start_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=start/DEFAULT_FPS)
             end_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=end/DEFAULT_FPS)
-            
+
             data_for_dataframe.append({
                 "prompt": prompt,
                 "start": start,
@@ -66,9 +66,9 @@ def plot_evaluation_results(
                 "score": f"{score:.2f}",
                 "source": source
             })
-        
+
         dataframe = pd.DataFrame(data_for_dataframe)
-    
+
     category_orders = {"prompt": sorted(list(dataframe['prompt'].unique()))}
 
     hover_data_fields = ["score", "start", "finish"]
@@ -86,12 +86,17 @@ def plot_evaluation_results(
         category_orders=category_orders
     )
 
+    # NOTE: set x-axis range to always show full motion duration from frame 0 to motion_length
+    motion_start_time = dt.datetime(2025, 1, 1, 0, 0, 0)
+    motion_end_time = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=result.motion_length/DEFAULT_FPS)
+
     figure.update_layout(
         xaxis_title="Time",
         yaxis_title="Prompt",
-        showlegend=False
+        showlegend=False,
+        xaxis=dict(range=[motion_start_time, motion_end_time])
     )
-    
+
     figure.update_yaxes(autorange="reversed")
-    
+
     return figure

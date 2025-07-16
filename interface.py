@@ -177,6 +177,53 @@ def interface(cfg: DictConfig):
             logger.error(f"Error in show_groundtruth_and_json: {str(e)}")
             return None, f"Error: {str(e)}"
 
+    cached_forward_data = {"output": None, "prompts": None, "sample_key": None}
+    
+    def get_forward_output(motion_tensor: torch.Tensor, prompts: typing.List[str], sample_key: str):
+        """Get or compute forward output, using cache when possible"""
+        if (cached_forward_data["output"] is not None and 
+            cached_forward_data["prompts"] == prompts and 
+            cached_forward_data["sample_key"] == sample_key):
+            return cached_forward_data["output"]
+        
+        model.eval()
+        
+        formatted_prompts = [(text, [], True) for text in prompts]
+        
+        raw_batch = RawBatch(
+            sid=[0],
+            dataset_name=["evaluation"],
+            amass_relative_path=["none"],
+            # NOTE: dummy raw motion as we don't need it for evaluation
+            raw_motion=torch.zeros_like(motion_tensor.unsqueeze(0)),
+            transformed_motion=motion_tensor.unsqueeze(0).to(cfg.device),
+            motion_mask=torch.ones(1, motion_tensor.shape[0], dtype=torch.bool).to(cfg.device),
+            prompts=[formatted_prompts]
+        )
+        
+        processed_batch = ProcessedBatch.from_raw_batch(
+            raw_batch=raw_batch,
+            encoder=model.prompts_tokens_encoder
+        )
+        
+        with torch.no_grad():
+            forward_output = model.forward(
+                processed_batch,
+                batch_index=0
+            )
+        
+        cached_forward_data["output"] = forward_output
+        cached_forward_data["prompts"] = prompts.copy()
+        cached_forward_data["sample_key"] = sample_key
+        
+        return forward_output
+
+    def clear_cache():
+        """Clear the forward output cache"""
+        cached_forward_data["output"] = None
+        cached_forward_data["prompts"] = None
+        cached_forward_data["sample_key"] = None
+
     def show_prediction(prompts_text: str, threshold: float, dataset_split: str, batch_index: int, sample_in_batch: int):
         """Show model predictions when button is clicked"""
         if not prompts_text.strip():
@@ -193,14 +240,17 @@ def interface(cfg: DictConfig):
             
             motion_tensor = motion_tensor.to(cfg.device)
             
-            model.eval()
+            sample_key = f"{dataset_split}_{batch_index}_{sample_in_batch}"
+            
+            forward_output = get_forward_output(motion_tensor, prompts, sample_key)
             
             with torch.no_grad():
-                prediction_outputs = model.evaluate(
-                    motion=motion_tensor,
+                decoded_results = model.decoder.decode(
+                    forward_output=forward_output,
                     prompts=prompts,
                     score_threshold=threshold,
                 )
+                prediction_outputs = decoded_results[0]
             
             prediction_title = f"Model Predictions - {dataset_split.title()} Batch {batch_index} Sample {sample_in_batch} ({len(prompts)} prompts, threshold={threshold:.3f})"
             prediction_figure = plot_evaluation_results(prediction_outputs, title=prediction_title)
@@ -286,15 +336,32 @@ def interface(cfg: DictConfig):
         sample_json_output = gradio.Code(label="Sample Data (JSON)", language="json")
         
         # NOTE: update ground truth and JSON whenever sample parameters change
+        def on_sample_change(*args):
+            clear_cache()
+            return show_groundtruth_and_json(*args)
+            
         for input_component in [dataset_split_input, batch_index_input, sample_in_batch_input, source_filter]:
             input_component.change(
-                fn=show_groundtruth_and_json,
+                fn=on_sample_change,
                 inputs=[dataset_split_input, batch_index_input, sample_in_batch_input, source_filter],
                 outputs=[groundtruth_plot, sample_json_output]
             )
         
-        # NOTE: generate predictions only when button is clicked
+        # NOTE: clear cache when prompts change
+        def on_prompts_change(*args):
+            clear_cache()
+            
+        prompts_input.change(fn=on_prompts_change)
+        
+        # NOTE: generate predictions when button is clicked OR when threshold changes
         predict_button.click(
+            fn=show_prediction,
+            inputs=[prompts_input, threshold_slider, dataset_split_input, batch_index_input, sample_in_batch_input],
+            outputs=[prediction_plot]
+        )
+        
+        # NOTE: Auto-update predictions when threshold changes (if we already have prompts)
+        threshold_slider.change(
             fn=show_prediction,
             inputs=[prompts_input, threshold_slider, dataset_split_input, batch_index_input, sample_in_batch_input],
             outputs=[prediction_plot]

@@ -1,7 +1,7 @@
 run_dir: ???
 
 share: False
-device: cuda:1
+device: auto
 
 dataloader:
   _target_: torch.utils.data.DataLoader
@@ -12,7 +12,7 @@ defaults:
   - data: babel
   # - data: locate-babel
   # - data: standardized-chunking-locate-babel
-  - model: moliner
+  - model: moliner.base
   - trainer
   - defaults
   - _self_

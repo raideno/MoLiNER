@@ -14,13 +14,15 @@ from hydra.utils import instantiate
 
 from src.model import MoLiNER
 from src.auth import login_to_huggingface
+from src.load import load_model_from_cfg
 from src.config import read_config, save_config
 from src.visualizations.spans import plot_evaluation_results
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
     DEFAULT_HYDRA_VERSION_BASE,
-    DEFAULT_THRESHOLD
+    DEFAULT_THRESHOLD,
+    DEFAULT_DEVICE
 )
 
 # --- --- --- --- --- --- ---
@@ -36,7 +38,9 @@ logger = logging.getLogger(__name__)
 
 @main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="test", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def test(cfg: DictConfig):
+    
     threshold = cfg.test.threshold if "threshold" in cfg.test else DEFAULT_THRESHOLD
+    device = cfg.device if "device" in cfg else DEFAULT_DEVICE
     
     if cfg.test.pdb:
         logger.info("Running in PDB mode")
@@ -97,8 +101,11 @@ def test(cfg: DictConfig):
             for batch in tqdm.tqdm(iterable=val_dataloader, total=len(val_dataloader), desc="[preload-dataloader]:"):
                 pass
         
-    logger.info("[model]: loading the model & weights")
-    model: MoLiNER = instantiate(cfg.model)
+    if cfg.run_dir is not None:
+        model = load_model_from_cfg(cfg, ckpt_name="best", device=device, eval_mode=True, pretrained=True)
+        logger.info("[model]: loading the model & weights")
+    else:
+        model: MoLiNER = instantiate(cfg.model)
     
     logger.info("[model]: ready")
     
@@ -121,7 +128,7 @@ def test(cfg: DictConfig):
         preprocessed_batch
     )
     
-    loss = model.compute_loss(
+    loss = model.loss.forward(
         forward_output=outputs,
         batch=preprocessed_batch,
     )
@@ -141,11 +148,37 @@ def test(cfg: DictConfig):
             logger.warning("No prompts for this sample, skipping evaluation.")
             continue
             
-        evaluation_result = model.evaluate(
-            motion=motion_tensor,
-            prompts=prompt_texts,
-            score_threshold=threshold,
+        formatted_prompts = [(text, [], True) for text in prompt_texts]
+        
+        eval_raw_batch = RawBatch(
+            sid=[0],
+            dataset_name=["evaluation"],
+            amass_relative_path=["none"],
+            raw_motion=torch.zeros_like(motion_tensor.unsqueeze(0)),
+            transformed_motion=motion_tensor.unsqueeze(0).to(device),
+            motion_mask=torch.ones(1, motion_tensor.shape[0], dtype=torch.bool).to(device),
+            prompts=[formatted_prompts]
         )
+        
+        eval_processed_batch = ProcessedBatch.from_raw_batch(
+            raw_batch=eval_raw_batch,
+            encoder=model.prompts_tokens_encoder
+        )
+        
+        with torch.no_grad():
+            forward_output = model.forward(
+                eval_processed_batch,
+                batch_index=0
+            )
+            print("forward_output.similarity_matrix.max()", forward_output.similarity_matrix.max())
+            print("forward_output.similarity_matrix.mean()", forward_output.similarity_matrix.mean())
+            print("forward_output.similarity_matrix.min()", forward_output.similarity_matrix.min())
+            decoded_results = model.decoder.decode(
+                forward_output=forward_output,
+                prompts=prompt_texts,
+                score_threshold=threshold,
+            )
+            evaluation_result = decoded_results[0]
 
         if not evaluation_result.predictions:
             logger.info("No predictions found above the score threshold.")

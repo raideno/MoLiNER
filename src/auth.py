@@ -1,4 +1,5 @@
 import os
+import typing
 import logging
 
 from huggingface_hub import login
@@ -14,8 +15,9 @@ except ImportError:
     logger.error("[.env]: dotenv not available")
     
 from src.constants import (
-    HUGGING_FACE_TOKEN
+    __HUGGING_FACE_TOKEN_ENV_VAR
 )
 
-def login_to_huggingface(token: str=HUGGING_FACE_TOKEN):
+def login_to_huggingface(token: typing.Optional[str] = None):
+    token = token or os.getenv(__HUGGING_FACE_TOKEN_ENV_VAR)
     login(token=token)

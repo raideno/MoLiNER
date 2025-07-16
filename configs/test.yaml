@@ -14,7 +14,7 @@ dataloader:
 
 defaults:
   - data: babel
-  - model: moliner
+  - model: moliner.base
   - trainer
   - defaults
   - _self_

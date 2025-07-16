@@ -19,7 +19,6 @@ from src.auth import login_to_huggingface
 from src.data.utils.batching import babel_simplify_batch_structure
 
 from src.constants import (
-    HUGGING_FACE_TOKEN,
     BABEL_REMOTE_DATASET_NAME,
     HML3D_REMOTE_DATASET_NAME,
 )
