@@ -29,7 +29,7 @@ pip install -r requirements.txt
 
 Rename the [`.env.example`](./.env.example) to `.env` and replace the `xxx` value with the appropriate values.
 
-1. **TMR Pretrained Weights:**
+4. **TMR Pretrained Weights:**
 
 ```bash
 bash scripts/download-tmr-pretrained-models.sh
@@ -81,10 +81,9 @@ HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MOD
 
 **NOTEs:**
 
+- For more control on the trainer, you can change the [configs/trainer.yaml](./configs/trainer.yaml).
 - `<MODEL_NAME>` should be set the the name of the file you just created without the `.yaml` extension.
-- For more control on the trainer, you can change the [trainer configuration file](./configs/trainer.yaml).
-
-All the possible values for the data can be found at [`configs/data`](./configs/data/) and are also listed below.
+- `<DATASET_NAME>` possible values can be found at [`configs/data`](./configs/data/) and are also listed below.
 
 | **Data Variants**                 | **Description**                                 |
 | --------------------------------- | ----------------------------------------------- |
