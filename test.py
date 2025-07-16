@@ -43,12 +43,12 @@ def test(cfg: DictConfig):
         pdb.set_trace()
     
     ckpt = None
-    if cfg.resume_dir is not None:
+    if cfg.run_dir is not None:
         assert cfg.ckpt is not None
         ckpt = cfg.ckpt
-        cfg = read_config(cfg.resume_dir)
+        cfg = read_config(cfg.run_dir)
         logger.info("Resuming training")
-        logger.info(f"The config is loaded from: \n{cfg.resume_dir}")
+        logger.info(f"The config is loaded from: \n{cfg.run_dir}")
     else:
         config_path = save_config(cfg)
         logger.info("Training script")
@@ -109,12 +109,12 @@ def test(cfg: DictConfig):
         max_frames_per_motion=200,
         max_prompts_per_motion=4,
         max_spans_per_prompt=2,
-        device=torch.device("cpu")
+        device=torch.device(model.device)
     )
 
     preprocessed_batch = ProcessedBatch.from_raw_batch(
         raw_batch=raw_batch,
-        tokenizer=model.tokenizer
+        encoder=model.prompts_tokens_encoder
     )
     
     outputs = model.forward(

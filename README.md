@@ -27,9 +27,9 @@ pip install -r requirements.txt
 
 3. **Hugging Face Authentication (Required):**
 
-Rename the [`.env.example`](./.env.example) file and rename it to `.env`; replace the `xxx` value with the appropriate values.
+Rename the [`.env.example`](./.env.example) to `.env` and replace the `xxx` value with the appropriate values.
 
-4. **TMR Pretrained Weights:**
+1. **TMR Pretrained Weights:**
 
 ```bash
 bash scripts/download-tmr-pretrained-models.sh

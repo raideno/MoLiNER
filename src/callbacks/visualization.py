@@ -28,7 +28,9 @@ class VisualizationCallback(Callback):
         score_threshold: typing.Union[float, typing.List[float]] = 0.5,
         visualize_on_start: bool = True,
         visualize_on_end: bool = True,
-        debug: bool = False
+        debug: bool = False,
+        visualization_frequency: int = 1,
+        skip_html_generation: bool = False
     ):
         """
         Args:
@@ -39,6 +41,8 @@ class VisualizationCallback(Callback):
                 Can be a single float or a list of floats for multiple thresholds.
             visualize_on_start (bool): Whether to run visualization at the start of the epoch.
             visualize_on_end (bool): Whether to run visualization at the end of the epoch.
+            visualization_frequency (int): Run visualization every N epochs (default: 1).
+            skip_html_generation (bool): Skip HTML generation for faster execution (default: False).
         """
         super().__init__()
         
@@ -53,6 +57,8 @@ class VisualizationCallback(Callback):
         self.visualize_on_end = visualize_on_end
         self.visualization_batch: typing.Optional["RawBatch"] = None
         self.debug = debug
+        self.visualization_frequency = max(1, visualization_frequency)
+        self.skip_html_generation = skip_html_generation
         
         os.makedirs(self.dirpath, exist_ok=True)
 
@@ -109,6 +115,9 @@ class VisualizationCallback(Callback):
         """
         from src.model.moliner import MoLiNER
         
+        if self.visualization_frequency > 1 and pl_module.current_epoch % self.visualization_frequency != 0:
+            return
+            
         if not isinstance(pl_module, MoLiNER):
             logger.error(f"Expected MoLiNER model but got {type(pl_module)}")
             return
@@ -123,7 +132,10 @@ class VisualizationCallback(Callback):
             logger.info(f"Generating visualizations for epoch {model.current_epoch} ({when})...")
         
         original_mode = model.training
+        
         model.eval()
+        
+        all_results = {}
         
         with torch.no_grad():
             raw_batch = self.visualization_batch
@@ -139,97 +151,97 @@ class VisualizationCallback(Callback):
                     continue
                 
                 if self.debug:
-                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Motion tensor shape: {motion_tensor.shape}, Device: {motion_tensor.device}")
-                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Model device: {model.device}")
-                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prompts: {prompt_texts}")
+                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Motion tensor shape: {motion_tensor.shape}")
+                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prompts: {prompt_texts[:3]}...")
+                
+                threshold_results = {}
+                for threshold in self.score_thresholds:
+                    evaluation_result = model.evaluate(
+                        motion=motion_tensor,
+                        prompts=prompt_texts,
+                        score_threshold=threshold,
+                    )
+                    threshold_results[threshold] = evaluation_result
                 
                 primary_threshold = self.score_thresholds[0]
-                evaluation_result = model.evaluate(
-                    motion=motion_tensor,
-                    prompts=prompt_texts,
-                    score_threshold=primary_threshold,
-                )
+                evaluation_result = threshold_results[primary_threshold]
                 
-                result_filename = f"epoch_{model.current_epoch}_{when}_sample_{i}_evaluation_result.pt"
-                result_path = os.path.join(self.dirpath, result_filename)
-                
+                # Save lightweight result data (skip heavy torch.save for now)
                 result_data = {
                     "motion_length": int(evaluation_result.motion_length),
-                    "predictions": evaluation_result.predictions if evaluation_result.predictions else [],
+                    "num_predictions": len(evaluation_result.predictions) if evaluation_result.predictions else 0,
                     "epoch": int(model.current_epoch),
                     "when": when,
                     "sample_index": int(i),
                     "score_threshold": float(primary_threshold),
-                    "prompts": prompt_texts
+                    "num_prompts": len(prompt_texts)
                 }
                 
-                torch.save(result_data, result_path)
-                
-                if self.debug:
-                    logger.info(f"Saved evaluation result to {os.path.abspath(result_path)}")
+                all_results[i] = {
+                    'result_data': result_data,
+                    'threshold_results': threshold_results,
+                    'motion_length': motion_length,
+                    'raw_prompts': raw_batch.prompts[i]
+                }
                 
                 num_predictions = len(evaluation_result.predictions) if evaluation_result.predictions else 0
                 if self.debug:
                     logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Generated {num_predictions} predictions with threshold {primary_threshold}")
                 
-                # NOTE: if no predictions at original threshold, try with lower threshold for debugging
-                if num_predictions == 0 and self.debug:
-                    logger.info(f"No predictions found with threshold {primary_threshold}, trying with threshold 0.1 for debugging...")
+                if num_predictions == 0 and self.debug and primary_threshold > 0.1:
                     debug_result = model.evaluate(
                         motion=motion_tensor,
                         prompts=prompt_texts,
                         score_threshold=0.1,
                     )
                     debug_predictions = len(debug_result.predictions) if debug_result.predictions else 0
-                    logger.info(f"With threshold 0.1: Generated {debug_predictions} predictions")
-                    
-                    # if debug_predictions > 0:
-                    #     debug_scores = [pred[3] for pred in debug_result.predictions]
-                    #     logger.info(f"Debug prediction scores: {debug_scores}")
-                    #     logger.info(f"Max score: {max(debug_scores):.4f}, Min score: {min(debug_scores):.4f}")
+                    logger.info(f"Debug: With threshold 0.1: Generated {debug_predictions} predictions")
+        
+        model.train(original_mode)
+        
+        if not self.skip_html_generation:
+            self._save_visualizations_async(all_results, model.current_epoch, when)
+        else:
+            if self.debug:
+                logger.info(f"Skipping HTML generation for faster execution")
                 
-                if num_predictions > 0 and self.debug:
-                    scores = [pred[3] for pred in evaluation_result.predictions]
-                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prediction scores: {scores}")
+    def _save_visualizations_async(self, all_results: dict, epoch: int, when: str):
+        """
+        Save visualizations in a separate method to allow for potential async processing
+        """
+        for i, result_info in all_results.items():
+            try:
+                result_filename = f"epoch_{epoch}_{when}_sample_{i}_evaluation_result.pt"
+                result_path = os.path.join(self.dirpath, result_filename)
+                torch.save(result_info['result_data'], result_path)
                 
-                for threshold in self.score_thresholds:
-                    threshold_evaluation_result = model.evaluate(
-                        motion=motion_tensor,
-                        prompts=prompt_texts,
-                        score_threshold=threshold,
-                    )
-                    
+                for threshold, threshold_evaluation_result in result_info['threshold_results'].items():
                     prediction_figure = plot_evaluation_results(
                         threshold_evaluation_result,
-                        title=f"Epoch {model.current_epoch} ({when}) - Sample {i} (Threshold: {threshold})",
+                        title=f"Epoch {epoch} ({when}) - Sample {i} (Threshold: {threshold})",
                     )
                     if prediction_figure:
-                        filename = f"epoch_{model.current_epoch}_{when}_sample_{i}_prediction_thresh_{threshold:.3f}.html"
+                        filename = f"epoch_{epoch}_{when}_sample_{i}_prediction_thresh_{threshold:.3f}.html"
                         output_path = os.path.join(self.dirpath, filename)
                         prediction_figure.write_html(output_path)
                         if self.debug:
-                            logger.info(f"Saved visualization to {os.path.abspath(output_path)}")
-                    else:
-                        if self.debug:
-                            logger.warning(f"No predictions to visualize for sample {i} in epoch {model.current_epoch} ({when}). Score threshold: {threshold}")
+                            logger.info(f"Saved visualization to {os.path.basename(output_path)}")
                 
-                groundtruth_spans = [(p[0], s[0], s[1], 1.0) for p in raw_batch.prompts[i] for s in p[1]]
+                motion_length = result_info['motion_length']
+                groundtruth_spans = [(p[0], s[0], s[1], 1.0) for p in result_info['raw_prompts'] for s in p[1]]
                 groundtruth_result = EvaluationResult(motion_length=motion_length, predictions=groundtruth_spans)
                 groundtruth_figure = plot_evaluation_results(
                     groundtruth_result,
-                    title=f"Epoch {model.current_epoch} ({when}) - Sample {i} (Ground Truth)",
+                    title=f"Epoch {epoch} ({when}) - Sample {i} (Ground Truth)",
                 )
                 if groundtruth_figure:
-                    gt_filename = f"epoch_{model.current_epoch}_{when}_sample_{i}_groundtruth.html"
+                    gt_filename = f"epoch_{epoch}_{when}_sample_{i}_groundtruth.html"
                     gt_output_path = os.path.join(self.dirpath, gt_filename)
                     groundtruth_figure.write_html(gt_output_path)
-                    if self.debug:
-                        logger.info(f"Saved ground truth visualization to {os.path.abspath(gt_output_path)}")
-                else:
-                    if self.debug:
-                        logger.warning(f"No ground truth spans to visualize for sample {i} in epoch {model.current_epoch} ({when}).")
                     
-        model.train(original_mode)
+            except Exception as e:
+                logger.error(f"Error saving visualization for sample {i}: {e}")
+                continue
         
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if trainer.sanity_checking:
