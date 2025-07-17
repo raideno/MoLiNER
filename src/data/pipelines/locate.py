@@ -1,3 +1,5 @@
+import math
+
 from .babel import BabelPipeline
 
 from src.data.utils.filtering import (
@@ -5,6 +7,8 @@ from src.data.utils.filtering import (
     FilterFunction,
     create_locate_classes_filter_function,
 )
+
+VERY_BIG_INT = int(1e9)
 
 class LocatePipeline(BabelPipeline):
     """
@@ -15,16 +19,17 @@ class LocatePipeline(BabelPipeline):
     def __init__(self):
         super().__init__("locate")
         
+        # NOTE: only filtering is that we take act_cat only and we limit motion frames between 8 and 4096
         locate_filter_config = FilterConfig(
             min_motion_frames=8,
             max_motion_frames=4096,
-            min_prompts_per_sample=1,
-            max_prompts_per_sample=4,
+            min_prompts_per_sample=0,
+            max_prompts_per_sample=VERY_BIG_INT,
             split_max_prompts_per_sample=True,
             prompt_text_filter_function=create_locate_classes_filter_function(),
             min_span_frames=1,
-            max_span_frames=32,
-            max_spans_per_prompt=8,
+            max_span_frames=VERY_BIG_INT,
+            max_spans_per_prompt=VERY_BIG_INT,
             sources=["act_cat"],
             debug=False
         )

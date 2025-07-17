@@ -63,6 +63,7 @@ def create_babel_90_classes_filter_function():
 def create_babel_120_classes_filter_function():
     return ExactMatchFilter(allowed_classes=BABEL_120_CLASSES)
 
+# TODO: make all fields optional and don't filter based on them if not defined
 @dataclasses.dataclass
 class FilterConfig:
     """
@@ -268,9 +269,11 @@ class FilterFunction:
             samples_kept += 1
         
         samples_dropped = num_samples_in - samples_kept
-        print(f"[Filter] Processing complete:")
-        print(f"\tSamples: {samples_kept} kept, {samples_dropped} dropped (out of {num_samples_in} total)")
-        print(f"\tTotal spans filtered out: {total_spans_filtered}")
-        print(f"\tTotal prompts filtered out: {total_prompts_filtered}")
+        
+        if self.config.debug:
+            print(f"[Filter] Processing complete:")
+            print(f"\tSamples: {samples_kept} kept, {samples_dropped} dropped (out of {num_samples_in} total)")
+            print(f"\tTotal spans filtered out: {total_spans_filtered}")
+            print(f"\tTotal prompts filtered out: {total_prompts_filtered}")
         
         return new_batch
