@@ -1,0 +1,5 @@
+_target_: src.model.modules.optimizers.AdamOptimizer
+
+lr:
+  scratch: 5e-5
+  pretrained: 1e-5

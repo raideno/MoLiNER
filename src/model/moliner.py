@@ -21,24 +21,14 @@ from src.model.modules import (
     BaseSpanRepresentationLayer,
     BaseSpansGenerator,
     BasePromptsTokensEncoder,
-    BaseDecoder
+    BaseDecoder,
+    BaseOptimizer,
 )
 
 from src.model.losses import BaseLoss
 
-class LearningRateConfig(typing_extensions.TypedDict):
-    """
-    Configuration for learning rates in the MoLiNER model.
-    
-    Attributes:
-        scratch: Learning rate for non-pretrained components (trained from scratch)
-        pretrained: Learning rate for pretrained components (fine-tuned)
-    """
-    scratch: float
-    pretrained: float
-
 logger = logging.getLogger(__name__)
-        
+    
 # TODO: add a shuffler, takes in the spans and prompts representation, shuffle them and return the shuffled representations.
 # TODO: make sure we correctly have dropout everywhere
 
@@ -60,9 +50,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         loss: BaseLoss,
         
-        lr: LearningRateConfig,
-
-        **kwargs,
+        optimizer: BaseOptimizer,
     ):
         super().__init__()
                 
@@ -80,56 +68,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         self.loss: BaseLoss = loss
         
-        self.lr: LearningRateConfig = lr
-        
-        self.kwargs: dict = kwargs if kwargs is not None else {}
+        self.optimizer: BaseOptimizer = optimizer
         
     def configure_optimizers(self):
-        pretrained_lr = self.lr["pretrained"]
-        non_pretrained_lr = self.lr["scratch"]
-        
-        pretrained_parameters = []
-        non_pretrained_parameters = []
-        
-        if self.prompts_tokens_encoder.pretrained:
-            pretrained_parameters.extend(list(self.prompts_tokens_encoder.parameters()))
-        else:
-            non_pretrained_parameters.extend(list(self.prompts_tokens_encoder.parameters()))
-            
-        if self.motion_frames_encoder.pretrained:
-            pretrained_parameters.extend(list(self.motion_frames_encoder.parameters()))
-        else:
-            non_pretrained_parameters.extend(list(self.motion_frames_encoder.parameters()))
-        
-        non_pretrained_modules = [
-            self.spans_generator,
-            self.prompt_representation_layer,
-            self.span_representation_layer,
-            self.scorer,
-            self.decoder,
-            self.loss
-        ]
-        
-        for module in non_pretrained_modules:
-            non_pretrained_parameters.extend(list(module.parameters()))
-        
-        param_groups = []
-        
-        if len(pretrained_parameters) > 0:
-            param_groups.append({
-                'params': pretrained_parameters,
-                'lr': pretrained_lr,
-                'name': 'pretrained'
-            })
-        
-        if len(non_pretrained_parameters) > 0:
-            param_groups.append({
-                'params': non_pretrained_parameters,
-                'lr': non_pretrained_lr,
-                'name': 'non_pretrained'
-            })
-        
-        return torch.optim.AdamW(param_groups)
+        return self.optimizer.configure_optimizer(self)
     
     def forward(
         self,
@@ -263,4 +205,4 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self.log("test/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
         
         return loss
-    
+

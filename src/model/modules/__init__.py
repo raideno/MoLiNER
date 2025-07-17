@@ -5,3 +5,4 @@ from .prompt_representation_layers import BasePromptRepresentationLayer
 from .prompts_tokens_encoders import BasePromptsTokensEncoder
 from .span_representation_layers import BaseSpanRepresentationLayer
 from .spans_generators import BaseSpansGenerator
+from .optimizers import BaseOptimizer

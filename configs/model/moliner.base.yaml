@@ -1,9 +1,5 @@
 _target_: src.model.MoLiNER
 
-lr:
-  scratch: 5e-5
-  pretrained: 1e-5
-
 defaults:
   # tmr/scratch, tmr/pretrained, tmr/frozen
   - motion_frames_encoder: tmr/scratch
@@ -30,3 +26,6 @@ defaults:
 
   # focal
   - loss: focal
+
+  # adam
+  - optimizer: adam
