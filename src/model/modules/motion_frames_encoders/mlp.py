@@ -10,7 +10,6 @@ class MLPMotionFramesEncoder(BaseMotionFramesEncoder):
         hidden_dim: int = 256,
         num_layers: int = 3,
         dropout: float = 0.1,
-        activation: str = "relu",
         frozen: bool = False,
     ):
         super().__init__()
@@ -24,22 +23,12 @@ class MLPMotionFramesEncoder(BaseMotionFramesEncoder):
         layers = []
         
         layers.append(torch.nn.Linear(input_dim, hidden_dim))
-        if activation == "relu":
-            layers.append(torch.nn.ReLU())
-        elif activation == "gelu":
-            layers.append(torch.nn.GELU())
-        elif activation == "tanh":
-            layers.append(torch.nn.Tanh())
+        layers.append(torch.nn.ReLU())
         
         for _ in range(num_layers - 2):
             layers.append(torch.nn.Dropout(dropout))
             layers.append(torch.nn.Linear(hidden_dim, hidden_dim))
-            if activation == "relu":
-                layers.append(torch.nn.ReLU())
-            elif activation == "gelu":
-                layers.append(torch.nn.GELU())
-            elif activation == "tanh":
-                layers.append(torch.nn.Tanh())
+            layers.append(torch.nn.ReLU())
         
         if num_layers > 1:
             layers.append(torch.nn.Dropout(dropout))
