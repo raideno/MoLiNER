@@ -24,10 +24,10 @@ class EndpointsSpanRepresentationLayer(BaseSpanRepresentationLayer):
         # NOTE: operates on the concatenation of first and last frame embeddings
         input_dim = 2 * motion_embed_dim
         self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, input_dim),
-            torch.nn.GELU(),
+            torch.nn.Linear(input_dim, representation_dim * 4),
+            torch.nn.ReLU(),
             torch.nn.Dropout(dropout_rate),
-            torch.nn.Linear(input_dim, representation_dim)
+            torch.nn.Linear(representation_dim * 4, representation_dim)
         )
 
     def forward(
