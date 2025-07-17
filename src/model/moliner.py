@@ -72,7 +72,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         self.optimizer: BaseOptimizer = optimizer
         
-        self.target_matrix_monitor = Monitoring(threshold=0.5)
+        self.target_matrix_monitor = Monitoring()
         
     def configure_optimizers(self):
         return self.optimizer.configure_optimizer(self)
@@ -175,7 +175,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        self.log("train/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         self.target_matrix_monitor.log_stats(
             stats=target_matrix_stats,
@@ -195,7 +194,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        self.log("val/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         self.target_matrix_monitor.log_stats(
             stats=target_matrix_stats,
@@ -215,7 +213,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
         self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        self.log("test/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         self.target_matrix_monitor.log_stats(
             stats=target_matrix_stats,
