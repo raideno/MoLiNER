@@ -10,6 +10,11 @@ trainer:
   # NOTE: auto, [0], [1], [0,1], etc. or specific device IDs
   # devices: [1]
 
+  # NOTE: will run on only 2 batches and the same batches will be used for validation, training and testing
+  # Useful for debugging
+  # https://pytorch-lightning.readthedocs.io/en/1.0.8/debugging.html
+  # overfit_batches: 2
+
   profiler:
     _target_: pytorch_lightning.profilers.SimpleProfiler
     dirpath: ${run_dir}/logs
@@ -53,6 +58,9 @@ trainer:
       dirpath: ${run_dir}/visualizations
 
   logger:
-    _target_: src.logger.csv.CSVLogger
-    save_dir: ${run_dir}
-    name: logs
+    - _target_: src.logger.csv.CSVLogger
+      save_dir: ${run_dir}
+      name: logs
+    - _target_: pytorch_lightning.loggers.TensorBoardLogger
+      save_dir: ${run_dir}
+      name: logs

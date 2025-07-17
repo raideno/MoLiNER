@@ -33,6 +33,17 @@ class ProgressLogger(Callback):
         def is_contrastive_metrics(x):
             return "t2m" in x or "m2t" in x
 
+        # losses_to_print = [
+        #     x
+        #     for x in losses_dict.keys()
+        #     for y in [x.split("_")]
+        #     if len(y) == 3
+        #     and y[2] == "epoch"
+        #     and (
+        #         y[1] in pl_module.lmd or y[1] == "loss" or is_contrastive_metrics(y[1])
+        #     )
+        # ]
+        
         losses_to_print = [
             x
             for x in losses_dict.keys()
@@ -40,7 +51,8 @@ class ProgressLogger(Callback):
             if len(y) == 3
             and y[2] == "epoch"
             and (
-                y[1] in pl_module.lmd or y[1] == "loss" or is_contrastive_metrics(y[1])
+                # y[1] in pl_module.lmd or y[1] == "loss" or is_contrastive_metrics(y[1])
+                y[1] == "loss" or is_contrastive_metrics(y[1])
             )
         ]
 
