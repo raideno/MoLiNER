@@ -23,7 +23,7 @@ class LocatePipeline(BabelPipeline):
         locate_filter_config = FilterConfig(
             min_motion_frames=8,
             max_motion_frames=4096,
-            min_prompts_per_sample=0,
+            min_prompts_per_sample=1,
             max_prompts_per_sample=VERY_BIG_INT,
             split_max_prompts_per_sample=True,
             prompt_text_filter_function=create_locate_classes_filter_function(),
