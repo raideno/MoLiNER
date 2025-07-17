@@ -6,7 +6,7 @@ defaults:
   # deberta/frozen, deberta/pretrained, tmr/scratch, tmr/pretrained, tmr/frozen, clip/frozen, clip/pretrained
   - prompts_tokens_encoder: tmr/scratch
 
-  #  windowed/16, windowed/8, static/1-16, static/1-32, static/8-32
+  #  windowed/16, windowed/8, static/1-16, static/1-32, static/8-32, static/1-64
   - spans_generator: static/1-32
 
   # mlp/deberta, mlp/tmr, mlp/clip

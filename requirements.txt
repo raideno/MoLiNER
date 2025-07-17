@@ -1,3 +1,4 @@
+wandb
 tensorboardX
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.13

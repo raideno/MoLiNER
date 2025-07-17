@@ -174,8 +174,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
-        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("train/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        self.log("train/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         self.target_matrix_monitor.log_stats(
             stats=target_matrix_stats,
@@ -194,8 +194,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
-        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("val/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, batch_size=batch_size)
+        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        self.log("val/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         self.target_matrix_monitor.log_stats(
             stats=target_matrix_stats,
@@ -214,8 +214,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
-        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("test/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, batch_size=batch_size)
+        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        self.log("test/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         self.target_matrix_monitor.log_stats(
             stats=target_matrix_stats,

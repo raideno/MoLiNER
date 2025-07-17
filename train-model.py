@@ -87,9 +87,23 @@ def train_model(cfg: DictConfig):
     logger.info("[model]: loading the model")
     model = instantiate(cfg.model)
     
-    logger.info("[model]: loading motion encoder weights")
-    
     trainer = instantiate(cfg.trainer)
+    
+    # NOTE: find wandb logger instance and log model configuration
+    wandb_logger = None
+    for logger_instance in trainer.loggers:
+        if hasattr(logger_instance, '__class__') and 'WandBLogger' in str(logger_instance.__class__):
+            wandb_logger = logger_instance
+            break
+    
+    if wandb_logger is not None:
+        wandb_logger.log_model_config(cfg.model)
+        
+        wandb_logger.log_hyperparams(cfg)
+        
+        wandb_logger.watch_model(model, log_freq=100)
+    
+    logger.info("[model]: loading motion encoder weights")
     
     logger.info("[training]: started")    
     
@@ -99,6 +113,22 @@ def train_model(cfg: DictConfig):
         validation_dataloader,
         ckpt_path=ckpt
     )
+    
+    # NOTE: log artifacts to WandB after training
+    if wandb_logger is not None:
+        try:
+            checkpoint_dir = os.path.join(cfg.run_dir, "checkpoints")
+            if os.path.exists(checkpoint_dir):
+                wandb_logger.log_artifacts(checkpoint_dir, "checkpoints")
+            
+            viz_dir = os.path.join(cfg.run_dir, "visualizations")
+            if os.path.exists(viz_dir):
+                wandb_logger.log_artifacts(viz_dir, "visualizations")
+                
+        except Exception as exception:
+            logger.warning(f"Failed to log artifacts to WandB: {exception}")
+    
+    logger.info("[training]: completed")
 
 if __name__ == "__main__":
     # NOTE: issue was that the dataset was the one moving tensors to gpu and thus CUDA was involved before dataloader
