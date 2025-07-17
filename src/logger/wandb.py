@@ -189,6 +189,36 @@ class WandBLogger(Logger):
                 self._experiment = None
                 self._initialized = False
 
+    @rank_zero_only
+    def log_html_visualization(self, html_path: str, key: str) -> None:
+        """Log an HTML visualization to WandB."""
+        exp = self.experiment
+        if exp is None:
+            return
+            
+        try:
+            exp.log({key: wandb.Html(html_path)})
+        except Exception as e:
+            logger.warning(f"Failed to log HTML visualization {key}: {e}")
+
+    @rank_zero_only
+    def save_config_as_json(self, config_dict: Dict[str, Any], save_path: str) -> None:
+        """Save configuration as JSON file."""
+        try:
+            import json
+            from omegaconf import OmegaConf
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            
+            # Convert OmegaConf to regular dict if needed
+            if hasattr(config_dict, '__dict__') or hasattr(config_dict, '_content'):
+                config_dict = OmegaConf.to_container(config_dict, resolve=True)
+            
+            with open(save_path, 'w') as f:
+                json.dump(config_dict, f, indent=2, default=str)
+            logger.info(f"Configuration saved to {save_path}")
+        except Exception as e:
+            logger.warning(f"Failed to save config as JSON: {e}")
+
     def __del__(self):
         try:
             if self._initialized:
