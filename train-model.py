@@ -103,22 +103,7 @@ def train_model(cfg: DictConfig):
         
         wandb_logger.watch_model(model, log_freq=100)
         
-        # Save configuration as JSON file
-        config_json_path = os.path.join(cfg.run_dir, "config.json")
-        wandb_logger.save_config_as_json(cfg, config_json_path)  # type: ignore
-    else:
-        # Save config as JSON even if WandB is not available
-        config_json_path = os.path.join(cfg.run_dir, "config.json")
-        try:
-            import json
-            from omegaconf import OmegaConf
-            os.makedirs(os.path.dirname(config_json_path), exist_ok=True)
-            config_dict = OmegaConf.to_container(cfg, resolve=True)
-            with open(config_json_path, 'w') as f:
-                json.dump(config_dict, f, indent=2, default=str)
-            logger.info(f"Configuration saved to {config_json_path}")
-        except Exception as e:
-            logger.warning(f"Failed to save config as JSON: {e}")
+        wandb_logger.save_config_as_json(cfg, os.path.join(cfg.run_dir, "config.json"))
     
     logger.info("[model]: loading motion encoder weights")
     
@@ -138,9 +123,6 @@ def train_model(cfg: DictConfig):
             if os.path.exists(checkpoint_dir):
                 wandb_logger.log_artifacts(checkpoint_dir, "checkpoints")
             
-            # NOTE: Visualization artifacts are now logged during training in the callback
-            # No need to log them again here
-                
         except Exception as exception:
             logger.warning(f"Failed to log artifacts to WandB: {exception}")
     

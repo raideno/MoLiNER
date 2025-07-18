@@ -43,15 +43,16 @@ class Monitoring:
             Dict containing various statistics about the target matrix
         """
         total_valid_pairs = loss_mask.sum().item()
+        
         valid_targets = target_matrix * loss_mask
         valid_predictions = similarity_matrix * loss_mask
         
         if total_valid_pairs == 0:
             return {
-            "pred_min": 0.0,
-            "pred_max": 0.0,
-            "pred_mean": 0.0,
-            "unmatched": unmatched
+                "pred_min": 0.0,
+                "pred_max": 0.0,
+                "pred_mean": 0.0,
+                "unmatched": unmatched
             }
         
         valid_predictions = torch.sigmoid(valid_predictions)
