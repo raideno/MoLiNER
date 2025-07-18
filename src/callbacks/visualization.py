@@ -226,21 +226,33 @@ class VisualizationCallback(Callback):
         model.train(original_mode)
         
         if not self.skip_html_generation:
-            self._save_visualizations_async(all_results, model.current_epoch, when)
+            self._save_visualizations_async(all_results, model.current_epoch, when, trainer)
         else:
             if self.debug:
                 logger.info(f"Skipping HTML generation for faster execution")
                 
-    def _save_visualizations_async(self, all_results: dict, epoch: int, when: str):
+    def _save_visualizations_async(self, all_results: dict, epoch: int, when: str, trainer: pl.Trainer):
         """
         Save visualizations in a separate method to allow for potential async processing
         """
+        # Get WandB logger if available
+        wandb_logger = None
+        if trainer.logger is not None:
+            if hasattr(trainer, 'loggers') and trainer.loggers:
+                for logger_instance in trainer.loggers:
+                    if hasattr(logger_instance, '__class__') and 'WandBLogger' in str(logger_instance.__class__):
+                        wandb_logger = logger_instance
+                        break
+            elif hasattr(trainer.logger, '__class__') and 'WandBLogger' in str(trainer.logger.__class__):
+                wandb_logger = trainer.logger
+        
         for i, result_info in all_results.items():
             try:
                 result_filename = f"epoch_{epoch}_{when}_sample_{i}_evaluation_result.pt"
                 result_path = os.path.join(self.dirpath, result_filename)
                 torch.save(result_info['result_data'], result_path)
                 
+                # Log visualizations to WandB as they're created
                 for threshold, threshold_evaluation_result in result_info['threshold_results'].items():
                     prediction_figure = plot_evaluation_results(
                         threshold_evaluation_result,
@@ -252,6 +264,18 @@ class VisualizationCallback(Callback):
                         prediction_figure.write_html(output_path)
                         if self.debug:
                             logger.info(f"Saved visualization to {os.path.basename(output_path)}")
+                        
+                        # Log to WandB immediately after saving
+                        if wandb_logger is not None:
+                            try:
+                                # Cast to proper type to access our custom method
+                                wandb_logger.log_html_visualization(  # type: ignore
+                                    html_path=output_path,
+                                    key=f"visualizations/epoch_{epoch}_{when}_sample_{i}_threshold_{threshold:.3f}"
+                                )
+                            except Exception as e:
+                                if self.debug:
+                                    logger.warning(f"Failed to log visualization to WandB: {e}")
                 
                 motion_length = result_info['motion_length']
                 groundtruth_spans = [(p[0], s[0], s[1], 1.0) for p in result_info['raw_prompts'] for s in p[1]]
@@ -264,6 +288,18 @@ class VisualizationCallback(Callback):
                     gt_filename = f"epoch_{epoch}_{when}_sample_{i}_groundtruth.html"
                     gt_output_path = os.path.join(self.dirpath, gt_filename)
                     groundtruth_figure.write_html(gt_output_path)
+                    
+                    # Log ground truth to WandB immediately after saving
+                    if wandb_logger is not None:
+                        try:
+                            # Cast to proper type to access our custom method
+                            wandb_logger.log_html_visualization(  # type: ignore
+                                html_path=gt_output_path,
+                                key=f"visualizations/epoch_{epoch}_{when}_sample_{i}_groundtruth"
+                            )
+                        except Exception as e:
+                            if self.debug:
+                                logger.warning(f"Failed to log ground truth visualization to WandB: {e}")
                     
             except Exception as e:
                 logger.error(f"Error saving visualization for sample {i}: {e}")

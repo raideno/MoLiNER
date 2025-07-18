@@ -2,6 +2,10 @@ import typing
 
 from ._base import BasePipeline
 
+from src.data.utils.filtering import (
+    FilterConfig,
+    FilterFunction
+)
 from src.data.utils.batching import babel_simplify_batch_structure
 
 class BabelPipeline(BasePipeline):
@@ -9,3 +13,30 @@ class BabelPipeline(BasePipeline):
         super().__init__(name or "babel")
         
         self.add_step(babel_simplify_batch_structure, batched=False)
+        
+class __BabelFromSourcePipeline(BabelPipeline):
+    def __init__(self, source: str, name: typing.Optional[str] = None):
+        super().__init__(name or f"babel-{source}")
+        
+        # NOTE: we consider only spans from the specified source
+        filter_function = FilterFunction(FilterConfig(
+            min_motion_frames=1,
+            min_prompts_per_sample=1,
+            sources=[source],
+            min_span_frames=1,
+            annotation_types=["frames", "sequence"]
+        ))
+        
+        self.add_step(filter_function, batched=True)
+
+class BabelActionCategoryPipeline(__BabelFromSourcePipeline):
+    def __init__(self):
+        super().__init__(source="act_cat")
+        
+class BabelProcLabelPipeline(__BabelFromSourcePipeline):
+    def __init__(self):
+        super().__init__(source="proc_label")
+        
+class BabelRawLabelPipeline(__BabelFromSourcePipeline):
+    def __init__(self):
+        super().__init__(source="raw_label")

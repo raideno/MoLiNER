@@ -21,24 +21,16 @@ from src.model.modules import (
     BaseSpanRepresentationLayer,
     BaseSpansGenerator,
     BasePromptsTokensEncoder,
-    BaseDecoder
+    BaseDecoder,
+    BaseOptimizer,
 )
 
 from src.model.losses import BaseLoss
 
-class LearningRateConfig(typing_extensions.TypedDict):
-    """
-    Configuration for learning rates in the MoLiNER model.
-    
-    Attributes:
-        scratch: Learning rate for non-pretrained components (trained from scratch)
-        pretrained: Learning rate for pretrained components (fine-tuned)
-    """
-    scratch: float
-    pretrained: float
+from src.model.helpers import Monitoring
 
 logger = logging.getLogger(__name__)
-        
+    
 # TODO: add a shuffler, takes in the spans and prompts representation, shuffle them and return the shuffled representations.
 # TODO: make sure we correctly have dropout everywhere
 
@@ -60,9 +52,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         loss: BaseLoss,
         
-        lr: LearningRateConfig,
-
-        **kwargs,
+        optimizer: BaseOptimizer,
     ):
         super().__init__()
                 
@@ -80,56 +70,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         self.loss: BaseLoss = loss
         
-        self.lr: LearningRateConfig = lr
+        self.optimizer: BaseOptimizer = optimizer
         
-        self.kwargs: dict = kwargs if kwargs is not None else {}
+        self.target_matrix_monitor = Monitoring()
         
     def configure_optimizers(self):
-        pretrained_lr = self.lr["pretrained"]
-        non_pretrained_lr = self.lr["scratch"]
-        
-        pretrained_parameters = []
-        non_pretrained_parameters = []
-        
-        if self.prompts_tokens_encoder.pretrained:
-            pretrained_parameters.extend(list(self.prompts_tokens_encoder.parameters()))
-        else:
-            non_pretrained_parameters.extend(list(self.prompts_tokens_encoder.parameters()))
-            
-        if self.motion_frames_encoder.pretrained:
-            pretrained_parameters.extend(list(self.motion_frames_encoder.parameters()))
-        else:
-            non_pretrained_parameters.extend(list(self.motion_frames_encoder.parameters()))
-        
-        non_pretrained_modules = [
-            self.spans_generator,
-            self.prompt_representation_layer,
-            self.span_representation_layer,
-            self.scorer,
-            self.decoder,
-            self.loss
-        ]
-        
-        for module in non_pretrained_modules:
-            non_pretrained_parameters.extend(list(module.parameters()))
-        
-        param_groups = []
-        
-        if len(pretrained_parameters) > 0:
-            param_groups.append({
-                'params': pretrained_parameters,
-                'lr': pretrained_lr,
-                'name': 'pretrained'
-            })
-        
-        if len(non_pretrained_parameters) > 0:
-            param_groups.append({
-                'params': non_pretrained_parameters,
-                'lr': non_pretrained_lr,
-                'name': 'non_pretrained'
-            })
-        
-        return torch.optim.AdamW(param_groups)
+        return self.optimizer.configure_optimizer(self)
     
     def forward(
         self,
@@ -159,7 +105,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         )
         
         # NOTE: (batch_size, batch_max_spans_per_motion_in_batch, span_representation_dimension)
-        # The span representation layer now handles both aggregation and transformation
         spans_representation = self.span_representation_layer.forward(
             motion_features=motion_frames_embeddings,
             span_indices=spans_indices,
@@ -169,9 +114,9 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # --- --- --- NEW PROMPTS TREATMENT --- --- ---
         
         # NOTE: prompt_input_ids (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
+        # NOTE: prompt_attention_mask (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
         
         # NOTE: (batch_size, batch_max_prompts_per_motion, prompt_embedding_dimension)
-        # The prompts_tokens_encoder now returns one embedding per prompt (CLS token)
         prompts_embeddings = self.prompts_tokens_encoder.forward(
             prompt_input_ids=batch.prompt_input_ids,
             prompt_attention_mask=batch.prompt_attention_mask
@@ -210,27 +155,33 @@ class MoLiNER(pytorch_lightning.LightningModule):
             prompts_mask=prompts_mask
         )   
 
-    def step(self, raw_batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, int]:
+    def step(self, raw_batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, int, ForwardOutput, dict]:
         processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
         loss, unmatched_spans_count = self.loss.forward(output, processed_batch)
 
-        return loss, unmatched_spans_count
+        target_matrix_stats = self.target_matrix_monitor.compute_stats(output, processed_batch)
+
+        return loss, unmatched_spans_count, output, target_matrix_stats
     
     def training_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
-        raw_batch.validate_type_or_raise(name="batch")
-        
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
-        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("train/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        
+        self.target_matrix_monitor.log_stats(
+            stats=target_matrix_stats,
+            lightning_module=self,
+            prefix="train",
+            batch_size=batch_size
+        )
 
         return loss
     
@@ -238,14 +189,18 @@ class MoLiNER(pytorch_lightning.LightningModule):
         raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
-        raw_batch.validate_type_or_raise(name="batch")
-        
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
-        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("val/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
+        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        
+        self.target_matrix_monitor.log_stats(
+            stats=target_matrix_stats,
+            lightning_module=self,
+            prefix="val",
+            batch_size=batch_size
+        )
         
         return loss
         
@@ -253,14 +208,18 @@ class MoLiNER(pytorch_lightning.LightningModule):
         raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
-        raw_batch.validate_type_or_raise(name="batch")
-        
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, unmatched_spans_count = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
         
-        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size)
-        self.log("test/unmatched", float(unmatched_spans_count), on_step=True, on_epoch=True, prog_bar=False, batch_size=batch_size)
+        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
+        
+        self.target_matrix_monitor.log_stats(
+            stats=target_matrix_stats,
+            lightning_module=self,
+            prefix="test",
+            batch_size=batch_size
+        )
         
         return loss
-    
+

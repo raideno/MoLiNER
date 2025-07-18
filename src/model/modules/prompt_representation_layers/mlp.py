@@ -9,11 +9,12 @@ class MLPPromptRepresentationLayer(BasePromptRepresentationLayer):
     """
     def __init__(self, input_dim: int, representation_dim: int, dropout_rate: float = 0.1):
         super().__init__()
+        
         self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, input_dim),
-            torch.nn.GELU(),
+            torch.nn.Linear(input_dim, representation_dim * 4),
+            torch.nn.ReLU(),
             torch.nn.Dropout(dropout_rate),
-            torch.nn.Linear(input_dim, representation_dim)
+            torch.nn.Linear(representation_dim * 4, representation_dim),
         )
 
     def forward(

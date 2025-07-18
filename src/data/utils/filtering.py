@@ -17,24 +17,13 @@ from src.constants import (
 logger = logging.getLogger(__name__)
 
 class NoTransitionFilter:
-    """
-    Callable class that keeps a prompt if it does NOT contain any transition keywords.
-    This is picklable and safe for multiprocessing.
-    """
     def __init__(self):
         self.transition_keywords = {"transition"}
 
     def __call__(self, text: str) -> bool:
-        """
-        Returns True if the text does not contain transition keywords.
-        """
         return not any(keyword in text for keyword in self.transition_keywords)
 
 class ExactMatchFilter:
-    """
-    Callable class that filters prompts for an exact match from a list of allowed classes.
-    This is picklable and safe for multiprocessing.
-    """
     def __init__(self, allowed_classes: typing.List[str]):
         """
         Args:
@@ -66,21 +55,30 @@ def create_babel_120_classes_filter_function():
 @dataclasses.dataclass
 class FilterConfig:
     """
-    Configuration for Babel filtering function.
+    Configuration for filtering function.
+    All fields are optional - filtering is only applied when values are specified.
+    
+    Args:
+        annotation_types: List of annotation types to keep. Can contain "frames", "sequence", or both.
+            - ["frames"]: Keep only frame annotations (is_sequence=False)
+            - ["sequence"]: Keep only sequence annotations (is_sequence=True)  
+            - ["frames", "sequence"]: Keep both types (default behavior)
+            - None: Keep both types (default behavior)
     """
-    seed: int = DEFAULT_SEED
-    fps: int = DEFAULT_FPS
-    min_motion_frames: int = 1
-    max_motion_frames: int = 10000
-    min_prompts_per_sample: int = 0
-    max_prompts_per_sample: int = 100
+    seed: typing.Optional[int] = DEFAULT_SEED
+    fps: typing.Optional[int] = DEFAULT_FPS
+    min_motion_frames: typing.Optional[int] = None
+    max_motion_frames: typing.Optional[int] = None
+    min_prompts_per_sample: typing.Optional[int] = None
+    max_prompts_per_sample: typing.Optional[int] = None
     split_max_prompts_per_sample: bool = False
     prompt_text_filter_function: typing.Optional[typing.Callable[[str], bool]] = None
-    min_span_frames: int = 1
-    max_span_frames: int = 10000
-    max_spans_per_prompt: int = 10
+    min_span_frames: typing.Optional[int] = None
+    max_span_frames: typing.Optional[int] = None
+    max_spans_per_prompt: typing.Optional[int] = None
     debug: bool = False
-    sources: list[str] = dataclasses.field(default_factory=lambda: ["proc_label"])
+    sources: typing.Optional[list[str]] = None
+    annotation_types: typing.Optional[list[str]] = None
 
 class FilterFunction:
     """
@@ -96,7 +94,8 @@ class FilterFunction:
         self.config = config
         # Seed in __init__ so that if the object is created once and passed to workers,
         # the main process's random state is set. Workers will inherit or have their own.
-        random.seed(self.config.seed)
+        if self.config.seed is not None:
+            random.seed(self.config.seed)
 
     def __call__(self, batch: dict[str, list]) -> dict[str, list]:
         """
@@ -115,9 +114,10 @@ class FilterFunction:
             
             # --- --- --- MOTION LENGTH FILTERING --- --- ---
             motion_length = len(batch["motion"][i]["new_joints"])
-            if not (self.config.min_motion_frames <= motion_length <= self.config.max_motion_frames):
+            if (self.config.min_motion_frames is not None and motion_length < self.config.min_motion_frames) or \
+               (self.config.max_motion_frames is not None and motion_length > self.config.max_motion_frames):
                 if self.config.debug:
-                    logger.debug(f"[Filter] SID {sample_sid}: Dropping sample, motion duration {motion_length} is outside [{self.config.min_motion_frames}, {self.config.max_motion_frames}].")
+                    logger.debug(f"[Filter] SID {sample_sid}: Dropping sample, motion duration {motion_length} is outside limits.")
                 continue
             
             # --- --- --- SPAN AND PROMPT FILTERING --- --- ---
@@ -129,17 +129,48 @@ class FilterFunction:
                 prompt_text = prompt_data.get("text", "")
                 span = prompt_data.get("span", [])
                 source = prompt_data.get("source", "")
-                is_sequence = prompt_data.get("is_sequence", True)
+                # TODO: careful about the default value in here
+                is_sequence = prompt_data.get("is_sequence", None)
+                
+                if is_sequence is None:
+                    logger.warning(f"[Filter] SID {sample_sid}: Prompt '{prompt_text}' has no 'is_sequence' field, defaulting to True.")
+                    is_sequence = True
                 
                 if not span or not prompt_text or not source:
                     continue
                 
                 # Apply source filtering
-                if source not in self.config.sources:
+                if self.config.sources is not None and source not in self.config.sources:
                     spans_dropped_this_sample += 1
                     if self.config.debug:
                         logger.debug(f"[Filter] SID {sample_sid}: Dropping prompt '{prompt_text}' from source '{source}' (not in allowed sources: {self.config.sources}).")
                     continue
+                
+                # Apply annotation type filtering
+                if self.config.annotation_types is not None:
+                    # If annotation_types contains only "frames", keep only frame annotations (is_sequence=False)
+                    # If annotation_types contains only "sequence", keep only sequence annotations (is_sequence=True)
+                    # If annotation_types contains both "frames" and "sequence", keep both (current behavior)
+                    allowed_types = set(self.config.annotation_types)
+                    if "frames" in allowed_types and "sequence" in allowed_types:
+                        # NOTE: keep both types - no filtering needed
+                        pass
+                    elif "frames" in allowed_types and is_sequence:
+                        # NOTE: only keeping frames but this is a sequence annotation - drop it
+                        spans_dropped_this_sample += 1
+                        if self.config.debug:
+                            logger.debug(f"[Filter] SID {sample_sid}: Dropping sequence annotation '{prompt_text}' (only frames allowed).")
+                        continue
+                    elif "sequence" in allowed_types and not is_sequence:
+                        # NOTE: only keeping sequences but this is a frame annotation - drop it
+                        spans_dropped_this_sample += 1
+                        if self.config.debug:
+                            logger.debug(f"[Filter] SID {sample_sid}: Dropping frame annotation '{prompt_text}' (only sequences allowed).")
+                        continue
+                    elif len(allowed_types) == 0 or not (allowed_types.intersection({"frames", "sequence"})):
+                        # Invalid annotation_types specified - log warning but continue
+                        if self.config.debug:
+                            logger.warning(f"[Filter] Invalid annotation_types specified: {self.config.annotation_types}. Should contain 'frames' and/or 'sequence'.")
                 
                 # Apply prompt text filtering
                 if self.config.prompt_text_filter_function and not self.config.prompt_text_filter_function(prompt_text):
@@ -151,10 +182,11 @@ class FilterFunction:
                 # Filter spans by duration
                 start_frame, end_frame = span
                 duration = end_frame - start_frame
-                if not (self.config.min_span_frames <= duration <= self.config.max_span_frames):
+                if (self.config.min_span_frames is not None and duration < self.config.min_span_frames) or \
+                   (self.config.max_span_frames is not None and duration > self.config.max_span_frames):
                     spans_dropped_this_sample += 1
                     if self.config.debug:
-                        logger.debug(f"[Filter] SID {sample_sid}: Dropping span for '{prompt_text}', duration {duration} is outside [{self.config.min_span_frames}, {self.config.max_span_frames}].")
+                        logger.debug(f"[Filter] SID {sample_sid}: Dropping span for '{prompt_text}', duration {duration} is outside limits.")
                     continue
                 
                 # Keep this prompt
@@ -172,12 +204,13 @@ class FilterFunction:
             # Apply max_spans_per_prompt limit
             final_prompts_list = []
             for text, text_prompts in prompts_by_text.items():
-                if len(text_prompts) > self.config.max_spans_per_prompt:
-                    spans_dropped_this_sample += len(text_prompts) - self.config.max_spans_per_prompt
+                if self.config.max_spans_per_prompt is not None and len(text_prompts) > self.config.max_spans_per_prompt:
+                    max_spans = self.config.max_spans_per_prompt
+                    spans_dropped_this_sample += len(text_prompts) - max_spans
                     if self.config.debug:
-                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {self.config.max_spans_per_prompt} from {len(text_prompts)} spans for prompt '{text}'.")
+                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {max_spans} from {len(text_prompts)} spans for prompt '{text}'.")
                     # Randomly sample spans
-                    text_prompts = random.sample(text_prompts, self.config.max_spans_per_prompt)
+                    text_prompts = random.sample(text_prompts, max_spans)
                 final_prompts_list.extend(text_prompts)
             
             # --- --- --- SAMPLE-LEVEL FILTERING --- --- ---
@@ -185,7 +218,7 @@ class FilterFunction:
             unique_prompts = set(prompt_data["text"] for prompt_data in final_prompts_list)
             num_unique_prompts = len(unique_prompts)
             
-            if num_unique_prompts < self.config.min_prompts_per_sample:
+            if self.config.min_prompts_per_sample is not None and num_unique_prompts < self.config.min_prompts_per_sample:
                 total_spans_filtered += spans_dropped_this_sample
                 total_prompts_filtered += len(final_prompts_list)  # All prompts in this sample are dropped
                 if self.config.debug:
@@ -193,7 +226,7 @@ class FilterFunction:
                 continue
             
             # Handle too many prompts
-            if num_unique_prompts > self.config.max_prompts_per_sample:
+            if self.config.max_prompts_per_sample is not None and num_unique_prompts > self.config.max_prompts_per_sample:
                 if self.config.split_max_prompts_per_sample:
                     # Split the sample: create multiple samples instead of discarding prompts
                     # Group prompts by text and then split groups
@@ -210,8 +243,10 @@ class FilterFunction:
                     
                     # Split unique texts into chunks
                     text_chunks = []
-                    for chunk_start in range(0, len(unique_texts), self.config.max_prompts_per_sample):
-                        chunk_end = min(chunk_start + self.config.max_prompts_per_sample, len(unique_texts))
+                    max_prompts = self.config.max_prompts_per_sample
+                    assert max_prompts is not None
+                    for chunk_start in range(0, len(unique_texts), max_prompts):
+                        chunk_end = min(chunk_start + max_prompts, len(unique_texts))
                         text_chunks.append(unique_texts[chunk_start:chunk_end])
                     
                     if self.config.debug:
@@ -236,9 +271,11 @@ class FilterFunction:
                     continue  # Skip the normal single sample processing
                 else:
                     # Original behavior: randomly sample and discard excess prompts
-                    total_prompts_filtered += num_unique_prompts - self.config.max_prompts_per_sample
+                    max_prompts = self.config.max_prompts_per_sample
+                    assert max_prompts is not None
+                    total_prompts_filtered += num_unique_prompts - max_prompts
                     if self.config.debug:
-                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {self.config.max_spans_per_prompt} from {num_unique_prompts} unique prompts.")
+                        logger.debug(f"[Filter] SID {sample_sid}: Sampling {max_prompts} from {num_unique_prompts} unique prompts.")
                     
                     # Group prompts by text and randomly sample texts
                     prompts_by_text_final = {}
@@ -250,7 +287,9 @@ class FilterFunction:
                     
                     # Randomly sample unique texts
                     unique_texts = list(prompts_by_text_final.keys())
-                    sampled_texts = random.sample(unique_texts, self.config.max_prompts_per_sample)
+                    max_prompts = self.config.max_prompts_per_sample
+                    assert max_prompts is not None
+                    sampled_texts = random.sample(unique_texts, max_prompts)
                     
                     # Collect all prompts for sampled texts
                     final_prompts_list = []
@@ -268,9 +307,11 @@ class FilterFunction:
             samples_kept += 1
         
         samples_dropped = num_samples_in - samples_kept
-        print(f"[Filter] Processing complete:")
-        print(f"\tSamples: {samples_kept} kept, {samples_dropped} dropped (out of {num_samples_in} total)")
-        print(f"\tTotal spans filtered out: {total_spans_filtered}")
-        print(f"\tTotal prompts filtered out: {total_prompts_filtered}")
+        
+        if self.config.debug:
+            print(f"[Filter] Processing complete:")
+            print(f"\tSamples: {samples_kept} kept, {samples_dropped} dropped (out of {num_samples_in} total)")
+            print(f"\tTotal spans filtered out: {total_spans_filtered}")
+            print(f"\tTotal prompts filtered out: {total_prompts_filtered}")
         
         return new_batch

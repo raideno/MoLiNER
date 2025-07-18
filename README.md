@@ -85,14 +85,14 @@ HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MOD
 - `<MODEL_NAME>` should be set the the name of the file you just created without the `.yaml` extension.
 - `<DATASET_NAME>` possible values can be found at [`configs/data`](./configs/data/) and are also listed below.
 
-| **Data Variants**                 | **Description**                                 |
-| --------------------------------- | ----------------------------------------------- |
-| `babel/base`                      | Babel dataset for motion-language segmentation. |
-| `babel/20`                        | Babel dataset with sequence-level annotations.  |
-| `babel/20-standardized-chunking`  | Babel dataset with chunk-based annotations.     |
-| `babel/20-standardized-windowing` | Babel dataset with window-based annotations.    |
-| `hml3d/base`                      | HumanML3D dataset for 3D motion-language tasks. |
-| `kitml/base`                      | KIT-ML dataset for motion-language retrieval.   |
+| **Data Variants**                    | **Description**                                                  |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| `babel/base`                         | Babel dataset for motion-language segmentation.                  |
+| `babel/20/base`                      | Babel dataset with sequence-level annotations.                   |
+| `babel/20/standardized/chunking/16`  | Babel dataset with chunk-based annotations. 16 Frames per span.  |
+| `babel/20/standardized/windowing/16` | Babel dataset with window-based annotations. 16 Frames per span. |
+| `hml3d/base`                         | HumanML3D dataset for 3D motion-language tasks.                  |
+| `kitml/base`                         | KIT-ML dataset for motion-language retrieval.                    |
 
 **`RUN_DIR`:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
 
