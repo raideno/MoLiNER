@@ -1,15 +1,19 @@
 import torch
+import typing
 import warnings
 
 def reduce(
     logits: torch.Tensor,
     reduction: str = "mean",
+    valid_mask: typing.Optional[torch.Tensor] = None
 ):
     if reduction == "none":
         loss = logits
     elif reduction == "mean":
-        # loss = loss.sum() / valid_mask.sum()  # Normalize by the number of valid (non-ignored) elements
-        loss = logits.mean()
+        if valid_mask is not None:
+            loss = logits.sum() / valid_mask.sum()  # Normalize by the number of valid (non-ignored) elements
+        else:
+            raise ValueError("valid_mask must be provided for 'mean' reduction.")
     elif reduction == 'sum':
         loss = logits.sum()
     else:

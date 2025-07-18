@@ -20,8 +20,10 @@ class __BabelFromSourcePipeline(BabelPipeline):
         
         # NOTE: we consider only spans from the specified source
         filter_function = FilterFunction(FilterConfig(
+            min_motion_frames=1,
             min_prompts_per_sample=1,
             sources=[source],
+            min_span_frames=1,
             annotation_types=["frames", "sequence"]
         ))
         
