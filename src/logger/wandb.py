@@ -1,10 +1,11 @@
+import re
 import os
 import torch
 import wandb
+import typing
 import logging
 
 from argparse import Namespace
-from typing import Any, Dict, Optional, Union
 
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers.logger import Logger
@@ -13,11 +14,7 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_only
 logger = logging.getLogger(__name__)
 
 class WandBLogger(Logger):
-    """WandB Logger for PyTorch Lightning.
-    
-    This logger saves model configuration, hyperparameters, and training metrics
-    to Weights & Biases (WandB) for experiment tracking and visualization.
-    
+    """
     Args:
         project: WandB project name
         name: Experiment name (run name in WandB)
@@ -32,13 +29,13 @@ class WandBLogger(Logger):
     def __init__(
         self,
         project: str,
-        name: Optional[str] = None,
-        entity: Optional[str] = None,
-        tags: Optional[list] = None,
-        notes: Optional[str] = None,
-        save_dir: Optional[str] = None,
+        name: typing.Optional[str] = None,
+        entity: typing.Optional[str] = None,
+        tags: typing.Optional[list] = None,
+        notes: typing.Optional[str] = None,
+        save_dir: typing.Optional[str] = None,
         offline: bool = False,
-        config: Optional[Dict[str, Any]] = None,
+        config: typing.Optional[typing.Dict[str, typing.Any]] = None,
     ):
         super().__init__()
         
@@ -55,17 +52,17 @@ class WandBLogger(Logger):
         self._initialized = False
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> typing.Optional[str]:
         return self._name
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> typing.Optional[str]:
         if self._experiment is not None:
             return self._experiment.id
         return None
 
     @property
-    def experiment(self) -> Optional[Any]:
+    def experiment(self) -> typing.Optional[typing.Any]:
         if self._experiment is not None:
             return self._experiment
         
@@ -84,21 +81,21 @@ class WandBLogger(Logger):
         )
         
         self._initialized = True
+        
         return self._experiment
 
+    # NOTE: ensures the method only runs on the main process, in case of a distributed setup
     @rank_zero_only
-    def log_hyperparams(self, params: Union[Dict[str, Any], Namespace, DictConfig], *args: Any, **kwargs: Any) -> None:
-        """
-        Log hyperparameters to WandB.
-        """
-        processed_params: Dict[str, Any] = {}
+    def log_hyperparams(self, params: typing.Union[typing.Dict[str, typing.Any], Namespace, DictConfig], *args: typing.Any, **kwargs: typing.Any) -> None:
+        processed_params: typing.Dict[str, typing.Any] = {}
         
         if isinstance(params, Namespace):
             processed_params = vars(params)
         elif isinstance(params, DictConfig):
             container = OmegaConf.to_container(params, resolve=True)
             if isinstance(container, dict):
-                processed_params = container
+                # processed_params = container
+                processed_params = {str(k): v for k, v in container.items()}
         elif isinstance(params, dict):
             processed_params = params
         
@@ -109,15 +106,13 @@ class WandBLogger(Logger):
             exp.config.update(processed_params)
 
     @rank_zero_only
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
-        """
-        Log metrics to WandB.
-        """
+    def log_metrics(self, metrics: typing.Dict[str, float], step: typing.Optional[int] = None) -> None:
         exp = self.experiment
         if exp is None:
             return
         
-        processed_metrics: Dict[str, float] = {}
+        processed_metrics: typing.Dict[str, float] = {}
+        # pyrefly: ignore
         for key, value in metrics.items():
             if isinstance(value, torch.Tensor):
                 processed_metrics[key] = float(value.item())
@@ -130,24 +125,21 @@ class WandBLogger(Logger):
                     logger.warning(f"Could not convert metric {key} to float: {value}")
                     continue
         
-        # Log without step parameter to avoid step synchronization issues
-        # Let WandB handle step management automatically
         exp.log(processed_metrics)
-
+        # NOTE: commented to let W&B manage steps & thus avoid step synchronization issues
+        # exp.log(processed_metrics, step=step)
 
     @rank_zero_only
-    def log_model_config(self, config: Dict[str, Any]) -> None:
+    def log_model_config(self, config: typing.Dict[str, typing.Any]) -> None:
         self.log_hyperparams({"model_config": config})
 
     @rank_zero_only
     def log_artifacts(self, artifact_path: str, artifact_type: str = "model") -> None:
-        """Log artifacts to WandB."""
         exp = self.experiment
         if exp is None:
             return
             
         try:
-            # Sanitize artifact name to only contain valid characters
             sanitized_name = self._sanitize_artifact_name(f"{self._name}_{artifact_type}")
             
             artifact = wandb.Artifact(name=sanitized_name, type=artifact_type)
@@ -157,14 +149,10 @@ class WandBLogger(Logger):
             logger.warning(f"Failed to log artifact {artifact_path}: {e}")
 
     def _sanitize_artifact_name(self, name: str) -> str:
-        """Sanitize artifact name to only contain valid characters."""
-        import re
-        # Replace invalid characters with underscores
         sanitized = re.sub(r'[^a-zA-Z0-9._-]', '_', name)
-        # Remove consecutive underscores
         sanitized = re.sub(r'_+', '_', sanitized)
-        # Remove leading/trailing underscores
         sanitized = sanitized.strip('_')
+        
         return sanitized
 
     @rank_zero_only
@@ -191,7 +179,6 @@ class WandBLogger(Logger):
 
     @rank_zero_only
     def log_html_visualization(self, html_path: str, key: str) -> None:
-        """Log an HTML visualization to WandB."""
         exp = self.experiment
         if exp is None:
             return
@@ -202,8 +189,7 @@ class WandBLogger(Logger):
             logger.warning(f"Failed to log HTML visualization {key}: {e}")
 
     @rank_zero_only
-    def save_config_as_json(self, config_dict: Dict[str, Any], save_path: str) -> None:
-        """Save configuration as JSON file."""
+    def save_config_as_json(self, config_dict: typing.Dict[str, typing.Any], save_path: str) -> None:
         try:
             import json
             from omegaconf import OmegaConf
@@ -224,5 +210,4 @@ class WandBLogger(Logger):
             if self._initialized:
                 self.finish()
         except Exception:
-            # Ignore errors during cleanup
             pass
