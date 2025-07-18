@@ -24,6 +24,7 @@ FILTER_CONFIG = FilterConfig(
     # min_span_frames,
     # max_span_frames,
     sources=["act_cat"],
+    annotation_types=["frames"]
 )
 
 class LocatePipeline(BabelPipeline):

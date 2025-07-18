@@ -22,6 +22,7 @@ class __BabelFromSourcePipeline(BabelPipeline):
         filter_function = FilterFunction(FilterConfig(
             min_prompts_per_sample=1,
             sources=[source],
+            annotation_types=["frames", "sequence"]
         ))
         
         self.add_step(filter_function, batched=True)

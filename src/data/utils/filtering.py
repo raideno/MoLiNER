@@ -57,6 +57,13 @@ class FilterConfig:
     """
     Configuration for filtering function.
     All fields are optional - filtering is only applied when values are specified.
+    
+    Args:
+        annotation_types: List of annotation types to keep. Can contain "frames", "sequence", or both.
+            - ["frames"]: Keep only frame annotations (is_sequence=False)
+            - ["sequence"]: Keep only sequence annotations (is_sequence=True)  
+            - ["frames", "sequence"]: Keep both types (default behavior)
+            - None: Keep both types (default behavior)
     """
     seed: typing.Optional[int] = DEFAULT_SEED
     fps: typing.Optional[int] = DEFAULT_FPS
@@ -71,6 +78,7 @@ class FilterConfig:
     max_spans_per_prompt: typing.Optional[int] = None
     debug: bool = False
     sources: typing.Optional[list[str]] = None
+    annotation_types: typing.Optional[list[str]] = None
 
 class FilterFunction:
     """
@@ -121,7 +129,12 @@ class FilterFunction:
                 prompt_text = prompt_data.get("text", "")
                 span = prompt_data.get("span", [])
                 source = prompt_data.get("source", "")
-                is_sequence = prompt_data.get("is_sequence", True)
+                # TODO: careful about the default value in here
+                is_sequence = prompt_data.get("is_sequence", None)
+                
+                if is_sequence is None:
+                    logger.warning(f"[Filter] SID {sample_sid}: Prompt '{prompt_text}' has no 'is_sequence' field, defaulting to True.")
+                    is_sequence = True
                 
                 if not span or not prompt_text or not source:
                     continue
@@ -132,6 +145,32 @@ class FilterFunction:
                     if self.config.debug:
                         logger.debug(f"[Filter] SID {sample_sid}: Dropping prompt '{prompt_text}' from source '{source}' (not in allowed sources: {self.config.sources}).")
                     continue
+                
+                # Apply annotation type filtering
+                if self.config.annotation_types is not None:
+                    # If annotation_types contains only "frames", keep only frame annotations (is_sequence=False)
+                    # If annotation_types contains only "sequence", keep only sequence annotations (is_sequence=True)
+                    # If annotation_types contains both "frames" and "sequence", keep both (current behavior)
+                    allowed_types = set(self.config.annotation_types)
+                    if "frames" in allowed_types and "sequence" in allowed_types:
+                        # NOTE: keep both types - no filtering needed
+                        pass
+                    elif "frames" in allowed_types and is_sequence:
+                        # NOTE: only keeping frames but this is a sequence annotation - drop it
+                        spans_dropped_this_sample += 1
+                        if self.config.debug:
+                            logger.debug(f"[Filter] SID {sample_sid}: Dropping sequence annotation '{prompt_text}' (only frames allowed).")
+                        continue
+                    elif "sequence" in allowed_types and not is_sequence:
+                        # NOTE: only keeping sequences but this is a frame annotation - drop it
+                        spans_dropped_this_sample += 1
+                        if self.config.debug:
+                            logger.debug(f"[Filter] SID {sample_sid}: Dropping frame annotation '{prompt_text}' (only sequences allowed).")
+                        continue
+                    elif len(allowed_types) == 0 or not (allowed_types.intersection({"frames", "sequence"})):
+                        # Invalid annotation_types specified - log warning but continue
+                        if self.config.debug:
+                            logger.warning(f"[Filter] Invalid annotation_types specified: {self.config.annotation_types}. Should contain 'frames' and/or 'sequence'.")
                 
                 # Apply prompt text filtering
                 if self.config.prompt_text_filter_function and not self.config.prompt_text_filter_function(prompt_text):
