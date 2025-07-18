@@ -7,8 +7,11 @@ from .babel import (
     BabelProcLabelPipeline,
     BabelRawLabelPipeline
 )
-from .locate import LocatePipeline
-from .standardized_locate import WindowingStandardizedLocatePipeline, ChunkingStandardizedLocatePipeline
+from .locate import (
+    LocatePipeline,
+    ChunkingStandardizedLocatePipeline,
+    WindowingStandardizedLocatePipeline,
+)
     
 PIPELINE_REGISTRY: dict[type[BasePipeline], list[str]] = {
     LocatePipeline: ["20", "locate"],

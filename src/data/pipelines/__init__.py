@@ -9,8 +9,8 @@ from .babel import (
     BabelRawLabelPipeline
 )
 from .hml3d import HML3DPipeline
-from .locate import LocatePipeline
-from .standardized_locate import (
+from .locate import (
+    LocatePipeline,
     WindowingStandardizedLocatePipeline,
     ChunkingStandardizedLocatePipeline
 )
