@@ -18,7 +18,7 @@ def create_loss_mask(
         raise ValueError("Batch must contain target spans mask to create the loss mask.")
     
     # NOTE: (B, P); valid and non padding prompts
-    prompt_mask = batch.target_spans_mask
+    prompt_mask = forward_output.prompts_mask
     
     # NOTE: (B, S); valid and non padding candidate spans  
     candidate_mask = forward_output.candidate_spans_mask

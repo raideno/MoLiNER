@@ -2,7 +2,8 @@ trainer:
   _target_: pytorch_lightning.Trainer
 
   max_epochs: 256
-  log_every_n_steps: 1  # Log every training step
+  # NOTE: log every training step
+  log_every_n_steps: 1
   num_sanity_val_steps: 2
   check_val_every_n_epoch: 1
   # NOTE: options: cuda, cpu, mps (for Apple Silicon), auto
@@ -10,8 +11,7 @@ trainer:
   # NOTE: auto, [0], [1], [0,1], etc. or specific device IDs
   # devices: [1]
 
-  # NOTE: will run on only 2 batches and the same batches will be used for validation, training and testing
-  # Useful for debugging
+  # NOTE: will run on only 2 batches and the same batches will be used for validation, training and testing. Useful for debugging
   # https://pytorch-lightning.readthedocs.io/en/1.0.8/debugging.html
   # overfit_batches: 2
 
@@ -27,13 +27,12 @@ trainer:
       mode: min
       save_top_k: 4
       save_last: true
-    # NOTE: save every one epoch
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
       filename: latest-{epoch}
       every_n_epochs: 1
       # NOTE: keep only the best checkpoint based on the monitored metric (val_los)
       save_top_k: 1
-      save_last: true
+    #   save_last: true
     - _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
       monitor: val/loss
       patience: 32
@@ -50,7 +49,7 @@ trainer:
       # NOTE: can be a single value or list of thresholds
       score_threshold: [0.3, 0.5, 0.7]
       debug: false
-      visualize_on_start: false # Disable start visualization for speed
+      visualize_on_start: false
       visualize_on_end: true
       # NOTE: run every 5 epochs instead of every epoch
       visualization_frequency: 5
@@ -61,9 +60,9 @@ trainer:
     - _target_: src.logger.csv.CSVLogger
       save_dir: ${run_dir}
       name: logs
-    # - _target_: pytorch_lightning.loggers.TensorBoardLogger
-    #   save_dir: ${run_dir}
-    #   name: logs
+    - _target_: pytorch_lightning.loggers.TensorBoardLogger
+      save_dir: ${run_dir}
+      name: logs
     # NOTE: uncomment the following lines to enable WandB logging
     - _target_: src.logger.wandb.WandBLogger
       project: moliner

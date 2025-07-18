@@ -123,7 +123,8 @@ class FocalLoss(BaseLoss):
         
         loss = reduce(
             logits=all_losses,
-            reduction=self.reduction
+            reduction=self.reduction,
+            valid_mask=loss_mask
         )
         
         return loss, unmatched_spans_count
