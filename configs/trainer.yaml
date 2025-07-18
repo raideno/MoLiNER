@@ -52,7 +52,7 @@ trainer:
       visualize_on_start: false
       visualize_on_end: true
       # NOTE: run every 5 epochs instead of every epoch
-      visualization_frequency: 5
+      visualization_frequency: 1
       skip_html_generation: false
       dirpath: ${run_dir}/visualizations
 

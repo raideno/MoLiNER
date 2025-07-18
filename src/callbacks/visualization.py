@@ -171,13 +171,11 @@ class VisualizationCallback(Callback):
                     encoder=model.prompts_tokens_encoder
                 )
                 
-                # Forward pass once
                 forward_output = model.forward(
                     eval_processed_batch,
                     batch_index=0
                 )
                 
-                # Decode with multiple thresholds
                 threshold_results = {}
                 for threshold in self.score_thresholds:
                     decoded_results = model.decoder.decode(
@@ -191,7 +189,6 @@ class VisualizationCallback(Callback):
                 primary_threshold = self.score_thresholds[0]
                 evaluation_result = threshold_results[primary_threshold]
                 
-                # Save lightweight result data (skip heavy torch.save for now)
                 result_data = {
                     "motion_length": int(evaluation_result.motion_length),
                     "num_predictions": len(evaluation_result.predictions) if evaluation_result.predictions else 0,
@@ -232,10 +229,6 @@ class VisualizationCallback(Callback):
                 logger.info(f"Skipping HTML generation for faster execution")
                 
     def _save_visualizations_async(self, all_results: dict, epoch: int, when: str, trainer: pl.Trainer):
-        """
-        Save visualizations in a separate method to allow for potential async processing
-        """
-        # Get WandB logger if available
         wandb_logger = None
         if trainer.logger is not None:
             if hasattr(trainer, 'loggers') and trainer.loggers:
@@ -246,60 +239,51 @@ class VisualizationCallback(Callback):
             elif hasattr(trainer.logger, '__class__') and 'WandBLogger' in str(trainer.logger.__class__):
                 wandb_logger = trainer.logger
         
+        epoch_dir = os.path.join(self.dirpath, f"epoch_{epoch:03d}")
+        os.makedirs(epoch_dir, exist_ok=True)
+        
         for i, result_info in all_results.items():
             try:
-                result_filename = f"epoch_{epoch}_{when}_sample_{i}_evaluation_result.pt"
-                result_path = os.path.join(self.dirpath, result_filename)
+                result_filename = f"{when}_sample_{i}_evaluation_result.pt"
+                result_path = os.path.join(epoch_dir, result_filename)
                 torch.save(result_info['result_data'], result_path)
                 
-                # Log visualizations to WandB as they're created
+                motion_length = result_info['motion_length']
+                groundtruth_spans = [(f"GT: {p[0]}", s[0], s[1], 1.0) for p in result_info['raw_prompts'] for s in p[1]]
+                
                 for threshold, threshold_evaluation_result in result_info['threshold_results'].items():
-                    prediction_figure = plot_evaluation_results(
-                        threshold_evaluation_result,
-                        title=f"Epoch {epoch} ({when}) - Sample {i} (Threshold: {threshold})",
+                    # NOTE: prefix predicted spans with "PRED: "
+                    predicted_spans = [(f"PRED: {pred[0]}", pred[1], pred[2], pred[3]) for pred in threshold_evaluation_result.predictions]
+                    
+                    combined_predictions = groundtruth_spans + predicted_spans
+                    combined_result = EvaluationResult(motion_length=motion_length, predictions=combined_predictions)
+                    
+                    all_gt_prompts = [f"GT: {p[0]}" for p in result_info['raw_prompts']]
+                    all_pred_prompts = [f"PRED: {p[0]}" for p in result_info['raw_prompts']]
+                    all_prompts_to_show = all_gt_prompts + all_pred_prompts
+                    
+                    combined_figure = plot_evaluation_results(
+                        combined_result,
+                        title=f"Epoch {epoch} ({when}) - Sample {i} (Threshold: {threshold}) - Combined GT & Predictions",
+                        all_prompts=all_prompts_to_show,
                     )
-                    if prediction_figure:
-                        filename = f"epoch_{epoch}_{when}_sample_{i}_prediction_thresh_{threshold:.3f}.html"
-                        output_path = os.path.join(self.dirpath, filename)
-                        prediction_figure.write_html(output_path)
+                    if combined_figure:
+                        filename = f"{when}_sample_{i}_combined_thresh_{threshold:.3f}.html"
+                        output_path = os.path.join(epoch_dir, filename)
+                        combined_figure.write_html(output_path)
                         if self.debug:
-                            logger.info(f"Saved visualization to {os.path.basename(output_path)}")
+                            logger.info(f"Saved combined visualization to epoch_{epoch:03d}/{os.path.basename(output_path)}")
                         
-                        # Log to WandB immediately after saving
                         if wandb_logger is not None:
                             try:
-                                # Cast to proper type to access our custom method
-                                wandb_logger.log_html_visualization(  # type: ignore
+                                # type: ignore
+                                wandb_logger.log_html_visualization(
                                     html_path=output_path,
-                                    key=f"visualizations/epoch_{epoch}_{when}_sample_{i}_threshold_{threshold:.3f}"
+                                    key=f"visualizations/epoch_{epoch:03d}/{when}_sample_{i}_threshold_{threshold:.3f}_combined"
                                 )
                             except Exception as e:
                                 if self.debug:
-                                    logger.warning(f"Failed to log visualization to WandB: {e}")
-                
-                motion_length = result_info['motion_length']
-                groundtruth_spans = [(p[0], s[0], s[1], 1.0) for p in result_info['raw_prompts'] for s in p[1]]
-                groundtruth_result = EvaluationResult(motion_length=motion_length, predictions=groundtruth_spans)
-                groundtruth_figure = plot_evaluation_results(
-                    groundtruth_result,
-                    title=f"Epoch {epoch} ({when}) - Sample {i} (Ground Truth)",
-                )
-                if groundtruth_figure:
-                    gt_filename = f"epoch_{epoch}_{when}_sample_{i}_groundtruth.html"
-                    gt_output_path = os.path.join(self.dirpath, gt_filename)
-                    groundtruth_figure.write_html(gt_output_path)
-                    
-                    # Log ground truth to WandB immediately after saving
-                    if wandb_logger is not None:
-                        try:
-                            # Cast to proper type to access our custom method
-                            wandb_logger.log_html_visualization(  # type: ignore
-                                html_path=gt_output_path,
-                                key=f"visualizations/epoch_{epoch}_{when}_sample_{i}_groundtruth"
-                            )
-                        except Exception as e:
-                            if self.debug:
-                                logger.warning(f"Failed to log ground truth visualization to WandB: {e}")
+                                    logger.warning(f"Failed to log combined visualization to WandB: {e}")
                     
             except Exception as e:
                 logger.error(f"Error saving visualization for sample {i}: {e}")
