@@ -181,7 +181,8 @@ Standardize span lengths using windowing or chunking approaches:
 ```python
 from src.data.utils.augmentation import (
     StandardizeSpansSlidingWindow,
-    StandardizeSpansChunking
+    StandardizeSpansChunking,
+    SeparateFrameAndSequenceSpans
 )
 
 # Sliding window approach (overlapping spans)
@@ -197,8 +198,14 @@ chunk_function = StandardizeSpansChunking(
     max_extend_frames=4        # Maximum frames to extend short spans
 )
 
+# Separate frame and sequence spans into distinct samples
+separate_function = SeparateFrameAndSequenceSpans(
+    debug=False                # Enable debug output
+)
+
 # Add to pipeline
 self.add_step(window_function, batched=False)
+self.add_step(separate_function, batched=True)
 ```
 
 ### Batch Structure Simplification
