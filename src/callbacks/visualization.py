@@ -8,8 +8,8 @@ import pytorch_lightning as pl
 
 from src.model import MoLiNER
 from pytorch_lightning.callbacks import Callback
-from src.types import RawBatch, ProcessedBatch, EvaluationResult
-from src.visualizations.spans import plot_evaluation_results
+from src.types import RawBatch
+from src.visualizations.generator import VisualizationGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,9 @@ class VisualizationCallback(Callback):
     def __init__(
         self,
         dirpath: str,
-        batch_index: int = 0,
-        num_samples: int = 2,
-        score_threshold: typing.Union[float, typing.List[float]] = 0.5,
-        visualize_on_start: bool = True,
-        visualize_on_end: bool = True,
+        batch_index: int,
+        num_samples: int,
+        score_threshold: typing.Union[float, typing.List[float]],
         debug: bool = False,
         visualization_frequency: int = 1,
         skip_html_generation: bool = False
@@ -39,8 +37,6 @@ class VisualizationCallback(Callback):
             num_samples (int): The number of samples from the batch to visualize.
             score_threshold (float or List[float]): The confidence threshold(s) for predictions.
                 Can be a single float or a list of floats for multiple thresholds.
-            visualize_on_start (bool): Whether to run visualization at the start of the epoch.
-            visualize_on_end (bool): Whether to run visualization at the end of the epoch.
             visualization_frequency (int): Run visualization every N epochs (default: 1).
             skip_html_generation (bool): Skip HTML generation for faster execution (default: False).
         """
@@ -50,11 +46,15 @@ class VisualizationCallback(Callback):
         self.batch_index = batch_index
         self.num_samples = num_samples
         if isinstance(score_threshold, (int, float)):
-            self.score_thresholds = [float(score_threshold)]
+            score_thresholds = [float(score_threshold)]
         else:
-            self.score_thresholds = [float(t) for t in score_threshold]
-        self.visualize_on_start = visualize_on_start
-        self.visualize_on_end = visualize_on_end
+            score_thresholds = [float(t) for t in score_threshold]
+        
+        self.visualization_generator = VisualizationGenerator(
+            score_thresholds=score_thresholds,
+            debug=debug
+        )
+        
         self.visualization_batch: typing.Optional["RawBatch"] = None
         self.debug = debug
         self.visualization_frequency = max(1, visualization_frequency)
@@ -66,9 +66,6 @@ class VisualizationCallback(Callback):
         """
         Fetches and stores the validation batch for later use.
         """
-        if not (self.visualize_on_start or self.visualize_on_end):
-            return
-
         if self.debug:
             logger.info(f"Setting up visualization: fetching validation batch index {self.batch_index}.")
         
@@ -96,9 +93,6 @@ class VisualizationCallback(Callback):
                 break
                 
     def _move_batch_to_cpu(self, batch: "RawBatch") -> "RawBatch":
-        """
-        Move batch tensors to CPU for storage.
-        """
         return RawBatch(
             sid=batch.sid,
             dataset_name=batch.dataset_name,
@@ -109,10 +103,7 @@ class VisualizationCallback(Callback):
             prompts=batch.prompts
         )
 
-    def _run_and_log_visualizations(self, trainer: pl.Trainer, pl_module: pl.LightningModule, when: str):
-        """
-        Helper function to run evaluation and save plots.
-        """
+    def _run_and_log_visualizations(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         from src.model.moliner import MoLiNER
         
         if self.visualization_frequency > 1 and pl_module.current_epoch % self.visualization_frequency != 0:
@@ -129,106 +120,25 @@ class VisualizationCallback(Callback):
             return
 
         if self.debug:
-            logger.info(f"Generating visualizations for epoch {model.current_epoch} ({when})...")
+            logger.info(f"Generating visualizations for epoch {model.current_epoch}")
         
-        original_mode = model.training
-        
-        model.eval()
-        
-        all_results = {}
-        
-        with torch.no_grad():
-            raw_batch = self.visualization_batch
-            num_to_visualize = min(self.num_samples, len(raw_batch.sid))
 
-            for i in range(num_to_visualize):
-                motion_length = int(raw_batch.motion_mask[i].sum())
-                motion_tensor = raw_batch.transformed_motion[i, :motion_length, :].to(model.device)
-                prompt_texts = [prompt[0] for prompt in raw_batch.prompts[i]]
-
-                if not prompt_texts:
-                    logger.warning(f"Sample {i} in visualization batch has no prompts. Skipping.")
-                    continue
-                
-                if self.debug:
-                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Motion tensor shape: {motion_tensor.shape}")
-                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Prompts: {prompt_texts[:3]}...")
-                
-                formatted_prompts = [(text, [], True) for text in prompt_texts]
-                
-                eval_raw_batch = RawBatch(
-                    sid=[0],
-                    dataset_name=["evaluation"],
-                    amass_relative_path=["none"],
-                    raw_motion=torch.zeros_like(motion_tensor.unsqueeze(0)),
-                    transformed_motion=motion_tensor.unsqueeze(0).to(model.device),
-                    motion_mask=torch.ones(1, motion_tensor.shape[0], dtype=torch.bool).to(model.device),
-                    prompts=[formatted_prompts]
-                )
-                
-                eval_processed_batch = ProcessedBatch.from_raw_batch(
-                    raw_batch=eval_raw_batch,
-                    encoder=model.prompts_tokens_encoder
-                )
-                
-                forward_output = model.forward(
-                    eval_processed_batch,
-                    batch_index=0
-                )
-                
-                threshold_results = {}
-                for threshold in self.score_thresholds:
-                    decoded_results = model.decoder.decode(
-                        forward_output=forward_output,
-                        prompts=prompt_texts,
-                        score_threshold=threshold,
-                    )
-                    evaluation_result = decoded_results[0]
-                    threshold_results[threshold] = evaluation_result
-                
-                primary_threshold = self.score_thresholds[0]
-                evaluation_result = threshold_results[primary_threshold]
-                
-                result_data = {
-                    "motion_length": int(evaluation_result.motion_length),
-                    "num_predictions": len(evaluation_result.predictions) if evaluation_result.predictions else 0,
-                    "epoch": int(model.current_epoch),
-                    "when": when,
-                    "sample_index": int(i),
-                    "score_threshold": float(primary_threshold),
-                    "num_prompts": len(prompt_texts)
-                }
-                
-                all_results[i] = {
-                    'result_data': result_data,
-                    'threshold_results': threshold_results,
-                    'motion_length': motion_length,
-                    'raw_prompts': raw_batch.prompts[i]
-                }
-                
-                num_predictions = len(evaluation_result.predictions) if evaluation_result.predictions else 0
-                if self.debug:
-                    logger.info(f"Epoch {model.current_epoch} ({when}) - Sample {i}: Generated {num_predictions} predictions with threshold {primary_threshold}")
-                
-                if num_predictions == 0 and self.debug and primary_threshold > 0.1:
-                    debug_decoded_results = model.decoder.decode(
-                        forward_output=forward_output,
-                        prompts=prompt_texts,
-                        score_threshold=0.1,
-                    )
-                    debug_result = debug_decoded_results[0]
-                    debug_predictions = len(debug_result.predictions) if debug_result.predictions else 0
-                    logger.info(f"Debug: With threshold 0.1: Generated {debug_predictions} predictions")
+        num_to_visualize = min(self.num_samples, len(self.visualization_batch.sid))
+        subset_batch = self._create_subset_batch(self.visualization_batch, num_to_visualize)
         
-        model.train(original_mode)
+        visualization_results = self.visualization_generator.generate_visualization_data(
+            model=model,
+            raw_batch=subset_batch,
+            epoch=model.current_epoch
+        )
         
         if not self.skip_html_generation:
-            self._save_visualizations_async(all_results, model.current_epoch, when, trainer)
+            self._save_visualizations_async(visualization_results, trainer)
         else:
             if self.debug:
                 logger.info(f"Skipping HTML generation for faster execution")
                 
-    def _save_visualizations_async(self, all_results: dict, epoch: int, when: str, trainer: pl.Trainer):
+    def _save_visualizations_async(self, visualization_results, trainer: pl.Trainer):
         wandb_logger = None
         if trainer.logger is not None:
             if hasattr(trainer, 'loggers') and trainer.loggers:
@@ -239,64 +149,50 @@ class VisualizationCallback(Callback):
             elif hasattr(trainer.logger, '__class__') and 'WandBLogger' in str(trainer.logger.__class__):
                 wandb_logger = trainer.logger
         
+        epoch = visualization_results.epoch
         epoch_dir = os.path.join(self.dirpath, f"epoch_{epoch:03d}")
         os.makedirs(epoch_dir, exist_ok=True)
         
-        for i, result_info in all_results.items():
+        for i, sample in visualization_results.samples.items():
             try:
-                result_filename = f"{when}_sample_{i}_evaluation_result.pt"
-                result_path = os.path.join(epoch_dir, result_filename)
-                torch.save(result_info['result_data'], result_path)
+                filename = f"sample_{i}.html"
+                output_path = os.path.join(epoch_dir, filename)
                 
-                motion_length = result_info['motion_length']
-                groundtruth_spans = [(f"GT: {p[0]}", s[0], s[1], 1.0) for p in result_info['raw_prompts'] for s in p[1]]
+                title = f"Epoch {epoch} - Sample {i} - Combined GT & All Threshold Predictions"
                 
-                for threshold, threshold_evaluation_result in result_info['threshold_results'].items():
-                    # NOTE: prefix predicted spans with "PRED: "
-                    predicted_spans = [(f"PRED: {pred[0]}", pred[1], pred[2], pred[3]) for pred in threshold_evaluation_result.predictions]
-                    
-                    combined_predictions = groundtruth_spans + predicted_spans
-                    combined_result = EvaluationResult(motion_length=motion_length, predictions=combined_predictions)
-                    
-                    all_gt_prompts = [f"GT: {p[0]}" for p in result_info['raw_prompts']]
-                    all_pred_prompts = [f"PRED: {p[0]}" for p in result_info['raw_prompts']]
-                    all_prompts_to_show = all_gt_prompts + all_pred_prompts
-                    
-                    combined_figure = plot_evaluation_results(
-                        combined_result,
-                        title=f"Epoch {epoch} ({when}) - Sample {i} (Threshold: {threshold}) - Combined GT & Predictions",
-                        all_prompts=all_prompts_to_show,
-                    )
-                    if combined_figure:
-                        filename = f"{when}_sample_{i}_combined_thresh_{threshold:.3f}.html"
-                        output_path = os.path.join(epoch_dir, filename)
-                        combined_figure.write_html(output_path)
+                combined_figure = self.visualization_generator.create_combined_visualization(
+                    sample=sample,
+                    title=title,
+                    output_path=output_path
+                )
+                
+                if combined_figure and wandb_logger is not None:
+                    try:
+                        # type: ignore
+                        wandb_logger.log_html_visualization(
+                            html_path=output_path,
+                            key=f"visualizations/epoch_{epoch:03d}/sample_{i}"
+                        )
+                    except Exception as e:
                         if self.debug:
-                            logger.info(f"Saved combined visualization to epoch_{epoch:03d}/{os.path.basename(output_path)}")
-                        
-                        if wandb_logger is not None:
-                            try:
-                                # type: ignore
-                                wandb_logger.log_html_visualization(
-                                    html_path=output_path,
-                                    key=f"visualizations/epoch_{epoch:03d}/{when}_sample_{i}_threshold_{threshold:.3f}_combined"
-                                )
-                            except Exception as e:
-                                if self.debug:
-                                    logger.warning(f"Failed to log combined visualization to WandB: {e}")
+                            logger.warning(f"Failed to log combined visualization to WandB: {e}")
                     
             except Exception as e:
                 logger.error(f"Error saving visualization for sample {i}: {e}")
                 continue
         
-    def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        if trainer.sanity_checking:
-            return
-        if self.visualize_on_start:
-            self._run_and_log_visualizations(trainer, pl_module, when="start")
-
     def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if trainer.sanity_checking:
             return
-        if self.visualize_on_end:
-            self._run_and_log_visualizations(trainer, pl_module, when="end")
+        self._run_and_log_visualizations(trainer, pl_module)
+    
+    def _create_subset_batch(self, batch: "RawBatch", num_samples: int) -> "RawBatch":
+        return RawBatch(
+            sid=batch.sid[:num_samples],
+            dataset_name=batch.dataset_name[:num_samples],
+            amass_relative_path=batch.amass_relative_path[:num_samples],
+            raw_motion=batch.raw_motion[:num_samples] if batch.raw_motion is not None else None,
+            transformed_motion=batch.transformed_motion[:num_samples],
+            motion_mask=batch.motion_mask[:num_samples],
+            prompts=batch.prompts[:num_samples]
+        )
