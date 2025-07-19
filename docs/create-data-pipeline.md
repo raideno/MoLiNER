@@ -134,7 +134,8 @@ filter_config = FilterConfig(
     max_span_frames=None,           # Maximum span length
 
     # NOTE: prompt spans constraints
-    max_spans_per_prompt=None,                      # Maximum spans per prompt
+    min_spans_per_prompt=None,           # Maximum spans per prompt
+    max_spans_per_prompt=None,           # Maximum spans per prompt           
 
     # NOTE: source filtering
     sources=["act_cat", "proc_label", "raw_label"],  # Allowed annotation sources
