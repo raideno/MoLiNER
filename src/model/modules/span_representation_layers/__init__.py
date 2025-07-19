@@ -1,8 +1,4 @@
 from ._base import BaseSpanRepresentationLayer
 
-from .convolution import ConvolutionalSpanRepresentationLayer
 from .endpoints import EndpointsSpanRepresentationLayer
-from .lstm import LSTMSpanRepresentationLayer
-from .mlp import MLPSpanRepresentationLayer
-from .pooling import MaxPoolingSpanRepresentationLayer, MeanPoolingSpanRepresentationLayer, MinPoolingSpanRepresentationLayer
-from .transformer import TransformerSpanRepresentationLayer
+from .convolution import ConvolutionalSpanRepresentationLayer

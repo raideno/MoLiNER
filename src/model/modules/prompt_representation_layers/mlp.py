@@ -3,19 +3,13 @@ import typing
 
 from ._base import BasePromptRepresentationLayer
 
+from src.model.modules._helpers import create_projection_layer
+
 class MLPPromptRepresentationLayer(BasePromptRepresentationLayer):
-    """
-    A prompt representation layer that uses a two-layer MLP.
-    """
-    def __init__(self, input_dim: int, representation_dim: int, dropout_rate: float = 0.1):
+    def __init__(self, input_dim: int, representation_dim: int, dropout: float):
         super().__init__()
         
-        self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, representation_dim * 4),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(dropout_rate),
-            torch.nn.Linear(representation_dim * 4, representation_dim),
-        )
+        self.prompt_rep_layer = create_projection_layer(input_dim, dropout, representation_dim)
 
     def forward(
         self,
@@ -23,7 +17,7 @@ class MLPPromptRepresentationLayer(BasePromptRepresentationLayer):
         prompts_mask: torch.Tensor,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:
-        representations = self.mlp(aggregated_prompts)
+        representations = self.prompt_rep_layer(aggregated_prompts)
         
         # NOTE: (Batch Size, #Prompts)
         # A prompt is valid if it has at least one non-padding token

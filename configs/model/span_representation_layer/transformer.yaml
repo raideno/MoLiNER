@@ -1,6 +1,0 @@
-_target_: src.model.modules.span_representation_layers.transformer.TransformerSpanRepresentationLayer
-motion_embed_dim: 256
-representation_dim: 256
-num_heads: 4
-num_layers: 2
-dropout: 0.1

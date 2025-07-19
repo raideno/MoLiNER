@@ -1,9 +1,0 @@
-_target_: src.model.modules.span_representation_layers.mlp.MLPSpanRepresentationLayer
-motion_embed_dim: 256
-representation_dim: 256
-min_span_width: 1
-max_span_width: 16
-shared_weights: false
-hidden_dim: 512
-dropout_rate: 0.1
-num_layers: 2

@@ -12,10 +12,7 @@ defaults:
   # mlp/deberta, mlp/tmr, mlp/clip
   - prompt_representation_layer: mlp/tmr
   # endpoints
-  # pooling/min, pooling/mean, pooling/max
-  # transformer, lstm
-  # convolution/1-16, convolution/1-32
-  # mlp/1-16, mlp/1-32
+  # convolution/base/16-16, convolution/max/16-16, convolution/sum/16-16, convolution/mean/16-16
   - span_representation_layer: endpoints
 
   # product

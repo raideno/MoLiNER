@@ -1,6 +1,0 @@
-_target_: src.model.modules.span_representation_layers.lstm.LSTMSpanRepresentationLayer
-motion_embed_dim: 256
-representation_dim: 256
-num_layers: 1
-dropout: 0.1
-bidirectional: true
