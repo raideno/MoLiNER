@@ -39,27 +39,9 @@ bash scripts/download-tmr-pretrained-models.sh
 
 This project supports multiple datasets: **Babel**, **HumanML3D**, and **KIT-ML** (upcoming). All data downloading, preprocessing, etc is done automatically. The only required thing is to specify the `HUGGING_FACE_TOKEN` inside of the `.env` as instructed in the previous step, this is required as the raw data is hosted on hugging face in a private repository.
 
-All data related code is available inside of [`src/data`](./src/data/).
+All data related code is available inside of [`src/data`](./src/data/) and the associated configuration inside of [`configs/data`](./configs/data/).
 
-## Configuration
-
-This project uses [Hydra](https://hydra.cc/) for configuration management. This allows for a flexible and composable way to configure experiments.
-
-The main configuration files are located in the [`configs/`](./configs/) directory.
-
-- [`defaults.yaml`](./configs/defaults.yaml): Contains global default settings.
-- [`train-model.yaml`](./configs/train-model.yaml), [`test-model.yaml`](./configs/test-model.yaml), etc.: Main configuration files for different scripts.
-- [`configs/model/moliner.yaml`](./configs/model/moliner.yaml): Configuration for the model architecture (e.g., encoders, decoders).
-- [`configs/data/`](./configs/data/): Configuration for datasets.
-- [`configs/trainer.yaml`](./configs/trainer.yaml): Configuration for the PyTorch Lightning trainer.
-
-You can override any configuration setting from the command line. For example:
-
-```bash
-python train-model.py data=<data-name> model=<model-name> trainer.max_epochs=100
-```
-
-This command will train the specified model on the specified dataset for 100 epochs.
+A set of predefined data pipelines with filtering are already available and listed in [**# Data Pipelines**](#data-pipelines). It is also possible to create your custom data pipeline with your custom filtering, instructions are available at [docs/create-data-pipeline.md](./docs/create-data-pipeline.md).
 
 ## Training
 
@@ -85,6 +67,8 @@ HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MOD
 - `<MODEL_NAME>` should be set the the name of the file you just created without the `.yaml` extension.
 - `<DATASET_NAME>` possible values can be found at [`configs/data`](./configs/data/) and are also listed below.
 
+### Data Pipelines
+
 | **Data Variants**                    | **Description**                                                  |
 | ------------------------------------ | ---------------------------------------------------------------- |
 | `babel/base`                         | Babel dataset for motion-language segmentation.                  |
@@ -95,6 +79,26 @@ HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MOD
 | `kitml/base`                         | KIT-ML dataset for motion-language retrieval.                    |
 
 **`RUN_DIR`:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
+
+## Configurations
+
+This project uses [Hydra](https://hydra.cc/) for configuration management. This allows for a flexible and composable way to configure experiments.
+
+The main configuration files are located in the [`configs/`](./configs/) directory.
+
+- [`defaults.yaml`](./configs/defaults.yaml): Contains global default settings.
+- [`train-model.yaml`](./configs/train-model.yaml), [`test-model.yaml`](./configs/test-model.yaml), etc.: Main configuration files for different scripts.
+- [`configs/model/moliner.yaml`](./configs/model/moliner.yaml): Configuration for the model architecture (e.g., encoders, decoders).
+- [`configs/data/`](./configs/data/): Configuration for datasets.
+- [`configs/trainer.yaml`](./configs/trainer.yaml): Configuration for the PyTorch Lightning trainer.
+
+You can override any configuration setting from the command line. For example:
+
+```bash
+python train-model.py data=<data-name> model=<model-name> trainer.max_epochs=100
+```
+
+This command will train the specified model on the specified dataset for 100 epochs.
 
 ## Weights Extraction
 

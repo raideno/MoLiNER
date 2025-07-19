@@ -67,6 +67,7 @@ class FilterConfig:
     """
     seed: typing.Optional[int] = DEFAULT_SEED
     fps: typing.Optional[int] = DEFAULT_FPS
+    
     min_motion_frames: typing.Optional[int] = None
     max_motion_frames: typing.Optional[int] = None
     min_prompts_per_sample: typing.Optional[int] = None
