@@ -31,7 +31,7 @@ def create_target_matrix(
     Args:
         forward_output: Model forward output containing candidate spans
         batch: Processed batch containing ground truth spans
-        iou_threshold: Minimum IoU threshold to consider a match (default: 0.5)
+        threshold: Minimum IoU threshold to consider a match (default: 0.5)
     
     Returns:
         torch.Tensor: (Batch Size, #Prompts, #Spans) target matrix with IoU values
@@ -67,7 +67,7 @@ def create_target_matrix(
     # Take maximum IoU across all ground truth spans for each candidate span, like the one have the best match
     target_matrix, _ = torch.max(iou_matrix, dim=2)
     
-    target_matrix = torch.where(target_matrix >= iou_threshold, target_matrix, torch.zeros_like(target_matrix))
+    target_matrix = torch.where(target_matrix >= threshold, target_matrix, torch.zeros_like(target_matrix))
     
     # --- --- --- xxx --- --- ---
     unmatched_spans_count = -1
