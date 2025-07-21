@@ -9,3 +9,4 @@ label_smoothing: 0.0
 negatives_type: "labels"
 negatives_probability: 1.0
 ignore_index: -100
+threshold: 0.00

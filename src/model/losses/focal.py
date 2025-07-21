@@ -15,26 +15,29 @@ from .helpers import (
 class FocalLoss(BaseLoss):
     def __init__(
         self,
-        alpha: float = 0.25,
-        gamma: float = 2.0,
-        reduction: str = "sum",
-        label_smoothing: float = 0.0,
-        negatives_type: str = "labels",
-        negatives_probability: float = 1.0,
-        ignore_index: int = -100
+        alpha: float,
+        gamma: float,
+        reduction: str,
+        label_smoothing: float,
+        negatives_type: str,
+        negatives_probability: float,
+        ignore_index: int,
+        threshold: float
     ):
         """
         Initialize Focal Loss.
         
         Args:
-            alpha (float): Weighting factor for positive examples (0-1)
+            alpha (float): Weighting factor for positive examples.
             gamma (float): Focusing parameter to down-weight easy examples
             reduction (str): Reduction method ('none', 'mean', 'sum')
-            label_smoothing (float): Label smoothing factor (0-1)
+            label_smoothing (float): Label smoothing factor.
             negatives_type (str): Type of negative sampling ('labels', 'global', 'span')
             negatives_probability (float): Probability of keeping negative examples
+            threshold (float): IoU threshold for target matrix creation
         """
         super().__init__()
+        
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
@@ -44,6 +47,8 @@ class FocalLoss(BaseLoss):
         self.negatives_probability = negatives_probability
         
         self.ignore_index = ignore_index
+        
+        self.threshold = threshold
     
     def _focal_loss_with_logits(
         self,
@@ -99,7 +104,11 @@ class FocalLoss(BaseLoss):
         
         predicted_logits = forward_output.similarity_matrix
         
-        target_logits, unmatched_spans_count = create_target_matrix(forward_output, batch, 1.0)
+        target_logits, unmatched_spans_count = create_target_matrix(
+            forward_output=forward_output,
+            batch=batch,
+            threshold=self.threshold
+        )
         
         # NOTE: (batch, prompts, spans)
         # Indicates which pairs are not padding and should be considered for loss computation

@@ -21,8 +21,8 @@ defaults:
   # greedy/flat, greedy/nested, greedy/overlap
   - decoder: greedy/overlap
 
-  # focal
-  - loss: focal
+  # focal/1.00, focal/0.75, focal/0.50, focal/0.25, focal/0.00
+  - loss: focal/0.50
 
   # adam
   - optimizer: adam
