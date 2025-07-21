@@ -99,7 +99,7 @@ class FocalLoss(BaseLoss):
         
         predicted_logits = forward_output.similarity_matrix
         
-        target_logits, unmatched_spans_count = create_target_matrix(forward_output, batch)
+        target_logits, unmatched_spans_count = create_target_matrix(forward_output, batch, 1.0)
         
         # NOTE: (batch, prompts, spans)
         # Indicates which pairs are not padding and should be considered for loss computation

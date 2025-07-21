@@ -13,7 +13,7 @@ class Monitoring:
         if batch.target_spans is None:
             return {}
         
-        target_matrix, unmatched = create_target_matrix(forward_output, batch)
+        target_matrix, unmatched = create_target_matrix(forward_output, batch, 1.0)
         loss_mask = create_loss_mask(forward_output, batch)
         
         return self._compute_target_matrix_stats(
