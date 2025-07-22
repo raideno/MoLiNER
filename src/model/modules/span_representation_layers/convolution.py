@@ -111,12 +111,12 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
         # NOTE: stacked_features: (batch_size, seq_len, num_widths, embed_dim)
         stacked_features = torch.stack(span_reps, dim=2)
         
-        span_representations = _extract_span_representations(
+        span_representations = self._extract_span_representations(
             stacked_features,
             span_indices,
             spans_masks,
-            self.min_span_width,
-            self.max_span_width
+            # self.min_span_width,
+            # self.max_span_width
         )
         
         output = self.output_projection(span_representations)
