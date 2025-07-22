@@ -217,10 +217,10 @@ class MoLiNER(pytorch_lightning.LightningModule):
         metrics = self.train_iou_metric.compute()
         
         for key, val in metrics.items():
-            self.log(f"train_{key}", val, prog_bar=False, on_epoch=True)
+            self.log(f"train_{key}", val, on_epoch=True, prog_bar=False)
 
     def on_validation_epoch_end(self):
         metrics = self.val_iou_metric.compute()
         
         for key, val in metrics.items():
-            self.log(f"val_{key}", val, prog_bar=True, on_epoch=True)
+            self.log(f"val_{key}", val, on_epoch=True, prog_bar=False)
