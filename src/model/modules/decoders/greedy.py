@@ -18,7 +18,7 @@ class GreedyDecoder(BaseDecoder):
     def decode(
         self,
         forward_output: ForwardOutput,
-        prompts: typing.List[str],
+        prompts: typing.List[typing.List[str]],
         score_threshold: float,
     ) -> typing.List[EvaluationResult]:
         """
@@ -26,7 +26,7 @@ class GreedyDecoder(BaseDecoder):
 
         Args:
             forward_output (ForwardOutput): The raw output from the model's forward pass.
-            prompts (typing.List[str]): The original list of prompt texts for one motion.
+            prompts (typing.List[typing.List[str]]): List of prompt texts for each sample in the batch.
             score_threshold (float): The minimum similarity score to consider a span as a potential match.
 
         Returns:
@@ -99,13 +99,15 @@ class GreedyDecoder(BaseDecoder):
             
             motion_length = forward_output.candidate_spans_mask.shape[1]
             results_for_sample = []
+            batch_prompts = prompts[batch_index] if batch_index < len(prompts) else []
             for prediction in final_predictions:
-                results_for_sample.append((
-                    prompts[prediction["prompt_idx"]],
-                    prediction["span"][0],
-                    prediction["span"][1],
-                    prediction["score"]
-                ))
+                if prediction["prompt_idx"] < len(batch_prompts):
+                    results_for_sample.append((
+                        batch_prompts[prediction["prompt_idx"]],
+                        prediction["span"][0],
+                        prediction["span"][1],
+                        prediction["score"]
+                    ))
 
             batch_results.append(EvaluationResult(
                 motion_length=motion_length,

@@ -20,7 +20,7 @@ class BaseDecoder(torch.nn.Module, ABC):
     def decode(
         self,
         forward_output: ForwardOutput,
-        prompts: typing.List[str],
+        prompts: typing.List[typing.List[str]],
         score_threshold: float,
     ) -> typing.List[EvaluationResult]:
         """
@@ -28,9 +28,9 @@ class BaseDecoder(torch.nn.Module, ABC):
 
         Args:
             forward_output (ForwardOutput): The raw output from the model's forward pass.
-            prompts (typing.List[str]): The original list of prompt texts for one motion.
+            prompts (typing.List[typing.List[str]]): List of prompt texts for each sample in the batch.
             score_threshold (float): The minimum similarity score to consider a span as a potential match.
-Œ
+
         Returns:
             typing.List[EvaluationResult]: A list of EvaluationResult objects, one for each item in the batch.
         """

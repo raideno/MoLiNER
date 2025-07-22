@@ -122,6 +122,17 @@ class RawBatch:
             prompts=prompts
         )
 
+    def to(self, device: torch.device) -> "RawBatch":
+        return RawBatch(
+            sid=self.sid,
+            dataset_name=self.dataset_name,
+            amass_relative_path=self.amass_relative_path,
+            raw_motion=self.raw_motion.to(device),
+            transformed_motion=self.transformed_motion.to(device),
+            motion_mask=self.motion_mask.to(device),
+            prompts=self.prompts
+        )
+
 # TODO: we could have multiple prompts of the same type in a single motion, so when encoding them we should only encode one of them and not all of them.
 @dataclasses.dataclass
 class ProcessedBatch:
@@ -327,7 +338,22 @@ class ProcessedBatch:
             target_spans_per_prompt_mask=torch.stack(all_target_spans_per_prompt_masks).to(device),
             is_sequence_prompt=torch.stack(all_is_sequence_prompt_flags).to(device)
         )
-        
+    
+    def to(self, device: torch.device) -> "ProcessedBatch":
+        return ProcessedBatch(
+            sid=self.sid,
+            dataset_name=self.dataset_name,
+            amass_relative_path=self.amass_relative_path,
+            motion_features=self.motion_features.to(device),
+            motion_mask=self.motion_mask.to(device),
+            prompt_input_ids=self.prompt_input_ids.to(device),
+            prompt_attention_mask=self.prompt_attention_mask.to(device),
+            target_spans=self.target_spans.to(device) if self.target_spans is not None else None,
+            target_spans_mask=self.target_spans_mask.to(device) if self.target_spans_mask is not None else None,
+            target_spans_per_prompt_mask=self.target_spans_per_prompt_mask.to(device) if self.target_spans_per_prompt_mask is not None else None,
+            is_sequence_prompt=self.is_sequence_prompt.to(device) if self.is_sequence_prompt is not None else None
+        )
+
 @dataclasses.dataclass
 class ForwardOutput:
     # The core output matrix from the pair scorer.

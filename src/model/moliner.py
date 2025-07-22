@@ -26,12 +26,11 @@ from src.model.modules import (
 
 from src.model.losses import BaseLoss
 
-from src.model.helpers import Monitoring
+from src.model.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
 
 logger = logging.getLogger(__name__)
     
 # TODO: add a shuffler, takes in the spans and prompts representation, shuffle them and return the shuffled representations.
-# TODO: make sure we correctly have dropout everywhere
 
 class MoLiNER(pytorch_lightning.LightningModule):
     def __init__(
@@ -54,7 +53,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         optimizer: BaseOptimizer,
     ):
         super().__init__()
-                
+        
         self.motion_frames_encoder: BaseMotionFramesEncoder = motion_frames_encoder
         self.prompts_tokens_encoder: BasePromptsTokensEncoder = prompts_tokens_encoder
         
@@ -71,8 +70,15 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         self.optimizer: BaseOptimizer = optimizer
         
-        self.target_matrix_monitor = Monitoring()
-        
+        self.val_iou_metric = IntervalDetectionMetric(
+            thresholds=IOU_THRESHOLDS,
+            score_threshold=0.5
+        )
+        self.train_iou_metric = IntervalDetectionMetric(
+            IOU_THRESHOLDS,
+            score_threshold=0.5
+        )
+
     def configure_optimizers(self):
         return self.optimizer.configure_optimizer(self)
     
@@ -135,8 +141,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         # NOTE: prompts_representation: (batch_size, batch_max_prompts_per_motion, prompt_representation_dimension)
         # NOTE: spans_representation: (batch_size, batch_max_spans_per_motion_in_batch, span_representation_dimension)
         
-        # assert span_representation_dimension == span_representation_dimension
-        
         # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_motion_in_batch)
         similarity_matrix = self.scorer.forward(
             prompts_representation=prompts_representation,
@@ -154,16 +158,14 @@ class MoLiNER(pytorch_lightning.LightningModule):
             prompts_mask=prompts_mask
         )   
 
-    def step(self, raw_batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, int, ForwardOutput, dict]:
+    def step(self, raw_batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, int, ForwardOutput, ProcessedBatch]:
         processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
         
         output = self.forward(processed_batch, batch_index=batch_index)
         
         loss, unmatched_spans_count = self.loss.forward(output, processed_batch)
 
-        target_matrix_stats = self.target_matrix_monitor.compute_stats(output, processed_batch)
-
-        return loss, unmatched_spans_count, output, target_matrix_stats
+        return loss, unmatched_spans_count, output, processed_batch
     
     def training_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
@@ -171,54 +173,54 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count, output, processed_batch = self.step(raw_batch, batch_index)
         
+        self.train_iou_metric.update_from_model_outputs(output, raw_batch, self.decoder)
+      
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
-        self.target_matrix_monitor.log_stats(
-            stats=target_matrix_stats,
-            lightning_module=self,
-            prefix="train",
-            batch_size=batch_size
-        )
+        return {
+            "loss": loss,
+            "forward_output": output,
+            "processed_batch": processed_batch,
+            "batch_size": batch_size,
+            "unmatched_spans_count": unmatched_spans_count
+        }
 
-        return loss
-    
     def validation_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
+        loss, unmatched_spans_count, output, processed_batch = self.step(raw_batch, batch_index)
+        
+        self.val_iou_metric.update_from_model_outputs(output, raw_batch, self.decoder)
         
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
-        self.target_matrix_monitor.log_stats(
-            stats=target_matrix_stats,
-            lightning_module=self,
-            prefix="val",
-            batch_size=batch_size
-        )
-        
-        return loss
-        
-    def test_step(self, *args, **kwargs):
-        raw_batch: "RawBatch" = args[0]
-        batch_index: int = kwargs.get("batch_index", 0)
-        
-        batch_size = raw_batch.motion_mask.size(0)
-        
-        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
-        
-        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        
-        self.target_matrix_monitor.log_stats(
-            stats=target_matrix_stats,
-            lightning_module=self,
-            prefix="test",
-            batch_size=batch_size
-        )
-        
-        return loss
+        return {
+            "loss": loss,
+            "forward_output": output,
+            "processed_batch": processed_batch,
+            "batch_size": batch_size,
+            "unmatched_spans_count": unmatched_spans_count
+        }
 
+    def on_train_epoch_start(self):
+        self.train_iou_metric.reset()
+
+    def on_validation_epoch_start(self):
+        self.val_iou_metric.reset()
+
+    def on_train_epoch_end(self):
+        metrics = self.train_iou_metric.compute()
+        
+        for key, val in metrics.items():
+            self.log(f"train_{key}", val, prog_bar=False, on_epoch=True)
+
+    def on_validation_epoch_end(self):
+        metrics = self.val_iou_metric.compute()
+        
+        for key, val in metrics.items():
+            self.log(f"val_{key}", val, prog_bar=True, on_epoch=True)

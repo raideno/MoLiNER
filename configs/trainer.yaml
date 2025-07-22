@@ -42,6 +42,8 @@ trainer:
     - _target_: src.callbacks.progress.ProgressLogger
       precision: 3
     - _target_: src.callbacks.tqdmbar.TQDMProgressBar
+    # NOTE: custom callback for monitoring target matrix statistics
+    - _target_: src.callbacks.monitoring.MonitoringCallback
     # NOTE: custom callback for visualization every epoch
     - _target_: src.callbacks.visualization.VisualizationCallback
       batch_index: 0

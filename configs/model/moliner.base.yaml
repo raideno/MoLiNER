@@ -1,5 +1,7 @@
 _target_: src.model.MoLiNER
 
+threshold: 0.3
+
 defaults:
   # tmr/scratch, tmr/pretrained, tmr/frozen
   - motion_frames_encoder: tmr/scratch
