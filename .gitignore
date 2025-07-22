@@ -9,6 +9,16 @@ ignore/
 *.txt.ignore
 *.ignore*
 
+local/
+*.local.sh
+*.local
+*.local.txt
+*.local.py
+*.txt.local
+*.local*
+
+*_local*
+
 out/
 out
 out/*

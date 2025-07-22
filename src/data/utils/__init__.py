@@ -22,7 +22,7 @@ from .filtering import (
 from .augmentation import (
     StandardizeSpansChunking,
     StandardizeSpansSlidingWindow,
-    separate_frame_and_sequence_spans
+    SeparateFrameAndSequenceSpans,
 )
 
 from .collator import (

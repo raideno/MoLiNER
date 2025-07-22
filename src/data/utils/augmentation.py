@@ -34,9 +34,6 @@ class StandardizeSpansChunking:
         self.debug = debug
 
     def __call__(self, sample: dict) -> dict:
-        """
-        Standardize spans for a given sample.
-        """
         new_sample = {key: value for key, value in sample.items()}
         
         motion_length = len(sample["motion"]["new_joints"])
@@ -169,9 +166,6 @@ class StandardizeSpansSlidingWindow:
         self.debug = debug
 
     def __call__(self, sample: dict) -> dict:
-        """
-        Standardize spans for a given sample.
-        """
         new_sample = {key: value for key, value in sample.items()}
         
         motion_length = len(sample["motion"]["new_joints"])
@@ -271,41 +265,51 @@ class StandardizeSpansSlidingWindow:
         
         return new_sample
 
-def separate_frame_and_sequence_spans(batch: dict[str, list]) -> dict[str, list]:
+class SeparateFrameAndSequenceSpans:
     """
-    A function for `datasets.map(batched=True)` to augment the Babel dataset.
-    Will split samples with both sequence and frame annotations into two distinct samples.
-    Works with the simplified prompt structure where prompts are individual records.
+    Callable class to split samples with both sequence and frame annotations into two distinct samples.
+    
+    Split approach:
+    - Samples containing both frame and sequence annotations are duplicated.
+    - One copy contains only sequence annotations, the other only frame annotations.
+    - Samples with only one type of annotation remain unchanged.
     """
-    new_batch = {key: [] for key in batch.keys()}
-    
-    num_samples = len(batch[next(iter(batch.keys()))])
-    
-    for i in range(num_samples):
-        prompts_list = batch["prompts"][i]
+    def __init__(self, debug: bool = DEFAULT_DEBUG):
+        """
+        Args:
+            debug: Whether to print debug information.
+        """
+        self.debug = debug
+
+    def __call__(self, batch: dict[str, list]) -> dict[str, list]:
+        new_batch = {key: [] for key in batch.keys()}
         
-        has_seq_prompts = any(prompt_data.get("is_sequence", True) for prompt_data in prompts_list)
-        has_frame_prompts = any(not prompt_data.get("is_sequence", True) for prompt_data in prompts_list)
+        num_samples = len(batch[next(iter(batch.keys()))])
         
-        if has_seq_prompts and has_frame_prompts:
-            sequence_prompts = [prompt_data for prompt_data in prompts_list if prompt_data.get("is_sequence", True)]
+        for i in range(num_samples):
+            prompts_list = batch["prompts"][i]
             
-            for key in batch.keys():
-                if key == "prompts":
-                    new_batch[key].append(sequence_prompts)
-                else:
+            has_seq_prompts = any(prompt_data.get("is_sequence", True) for prompt_data in prompts_list)
+            has_frame_prompts = any(not prompt_data.get("is_sequence", True) for prompt_data in prompts_list)
+            
+            if has_seq_prompts and has_frame_prompts:
+                sequence_prompts = [prompt_data for prompt_data in prompts_list if prompt_data.get("is_sequence", True)]
+                
+                for key in batch.keys():
+                    if key == "prompts":
+                        new_batch[key].append(sequence_prompts)
+                    else:
+                        new_batch[key].append(batch[key][i])
+                
+                frame_prompts = [prompt_data for prompt_data in prompts_list if not prompt_data.get("is_sequence", True)]
+                
+                for key in batch.keys():
+                    if key == "prompts":
+                        new_batch[key].append(frame_prompts)
+                    else:
+                        new_batch[key].append(batch[key][i])
+            else:
+                for key in batch.keys():
                     new_batch[key].append(batch[key][i])
-            
-            frame_prompts = [prompt_data for prompt_data in prompts_list if not prompt_data.get("is_sequence", True)]
-            
-            for key in batch.keys():
-                if key == "prompts":
-                    new_batch[key].append(frame_prompts)
-                else:
-                    new_batch[key].append(batch[key][i])
-        else:
-            # NOTE: if sample has only one type of prompts (or no prompts), we keept it as is
-            for key in batch.keys():
-                new_batch[key].append(batch[key][i])
-    
-    return new_batch
+        
+        return new_batch

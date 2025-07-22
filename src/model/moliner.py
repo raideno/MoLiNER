@@ -11,7 +11,6 @@ import pytorch_lightning
 from src.types import (
     RawBatch, ProcessedBatch,
     ForwardOutput,
-    EvaluationResult
 )
 
 from src.model.modules import (

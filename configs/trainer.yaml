@@ -49,10 +49,8 @@ trainer:
       # NOTE: can be a single value or list of thresholds
       score_threshold: [0.3, 0.5, 0.7]
       debug: false
-      visualize_on_start: false
-      visualize_on_end: true
       # NOTE: run every 5 epochs instead of every epoch
-      visualization_frequency: 5
+      visualization_frequency: 1
       skip_html_generation: false
       dirpath: ${run_dir}/visualizations
 
@@ -60,16 +58,16 @@ trainer:
     - _target_: src.logger.csv.CSVLogger
       save_dir: ${run_dir}
       name: logs
-    - _target_: pytorch_lightning.loggers.TensorBoardLogger
-      save_dir: ${run_dir}
-      name: logs
+    # - _target_: pytorch_lightning.loggers.TensorBoardLogger
+    #   save_dir: ${run_dir}
+    #   name: logs
     # NOTE: uncomment the following lines to enable WandB logging
-    - _target_: src.logger.wandb.WandBLogger
-      project: moliner
-      name: ${run_dir}
-      save_dir: ${run_dir}
-      offline: false
-      tags: []
-      notes: "MoLiNER training run"
-      # NOTE: set to your WandB username or team
-      entity: nadirkichou-university-of-lille
+    # - _target_: src.logger.wandb.WandBLogger
+    #   project: moliner
+    #   name: ${run_dir}
+    #   save_dir: ${run_dir}
+    #   offline: false
+    #   tags: []
+    #   notes: "MoLiNER training run"
+    #   # NOTE: set to your WandB username or team
+    #   entity: nadirkichou-university-of-lille

@@ -3,9 +3,10 @@ _target_: src.model.losses.FocalLoss
 alpha: 0.25
 gamma: 2.0
 # NOTE: 'none', 'mean', 'sum'
-reduction: "mean"
+reduction: "sum"
 label_smoothing: 0.0
 # NOTE: 'labels', 'global', 'span'
 negatives_type: "labels"
 negatives_probability: 1.0
 ignore_index: -100
+threshold: 0.00

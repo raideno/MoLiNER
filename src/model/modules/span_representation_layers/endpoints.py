@@ -1,34 +1,30 @@
 import torch
 import typing
 
+from src.model.modules._helpers import create_projection_layer
+
 from ._base import BaseSpanRepresentationLayer
 
 class EndpointsSpanRepresentationLayer(BaseSpanRepresentationLayer):
     """
     A span representation layer that aggregates span frames by concatenating
-    the first and last frame embeddings, then uses a two-layer MLP to transform
+    the first and last frame embeddings, then uses an MLP to transform
     them into their final representation.
     """
-    def __init__(self, motion_embed_dim: int, representation_dim: int, dropout_rate: float = 0.1):
+    def __init__(self, motion_embed_dim: int, representation_dim: int, dropout: float):
         """
         Args:
             motion_embed_dim (int): The dimension of the motion frame embeddings.
             representation_dim (int): The dimension of the final output representation.
-            dropout_rate (float): The dropout rate to apply for regularization.
+            dropout (float): The dropout rate to apply for regularization.
         """
         super().__init__()
         
-        self.start_proj = torch.nn.Linear(motion_embed_dim, motion_embed_dim)
-        self.end_proj = torch.nn.Linear(motion_embed_dim, motion_embed_dim)
-
+        self.start_proj = create_projection_layer(motion_embed_dim, dropout)
+        self.end_proj = create_projection_layer(motion_embed_dim, dropout)
+        
         # NOTE: operates on the concatenation of first and last frame embeddings
-        input_dim = 2 * motion_embed_dim
-        self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, representation_dim * 4),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(dropout_rate),
-            torch.nn.Linear(representation_dim * 4, representation_dim)
-        )
+        self.out_project = create_projection_layer(motion_embed_dim * 2, dropout, representation_dim)
 
     def forward(
         self,
@@ -49,7 +45,7 @@ class EndpointsSpanRepresentationLayer(BaseSpanRepresentationLayer):
         # TODO: check if this is necessary and if it is badly impacting the model's performance
         masked_aggregated_spans = aggregated_spans * spans_masks.unsqueeze(-1)
         
-        representations = self.mlp(masked_aggregated_spans)
+        representations = self.out_project(masked_aggregated_spans)
         
         masked_representations = representations * spans_masks.unsqueeze(-1)
         
