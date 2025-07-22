@@ -1,0 +1,2 @@
+_target_: src.callbacks.progress.ProgressLogger
+precision: 3
