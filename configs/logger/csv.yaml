@@ -1,3 +1,0 @@
-_target_: src.logger.csv.CSVLogger
-save_dir: ${run_dir}
-name: logs

@@ -1,19 +1,18 @@
-# WandB Integration for MoLiNER
 
-This document explains how to use Weights & Biases (WandB) for experiment tracking in the MoLiNER project.
+# Tensorboard Integration for MoLiNER
+
+This document explains how to use Tensorboard for experiment tracking in the MoLiNER project.
 
 ## Setup
 
-**1. Login to WandB**:
+**1. Uncomment Tensorboard code:**
 
-```bash
-wandb login
-```
+Inside of [configs/trainer.yaml](../configs/trainer.yaml), uncomment the code corresponding to the wandb logger (`- ${loggers.tensorboard}`), and fill in the required values.
 
-**2. Uncomment WandB code:**
+**2. Start Tensorboard:**
 
-Inside of [configs/trainer.yaml](../configs/trainer.yaml), uncomment the code corresponding to the wandb logger (located below `- _target_: src.logger.wandb.WandBLogger`), and fill in the required values.
+Run the [scripts/tensorboard.sh](../scripts/tensorboard.sh) script.
 
-**3. You are all done:**
+**3. Visit the Tensorboard Dashboard:**
 
-Now you can login to your WandB dashboard in order to monitor the trainings in real time.
+You can now visit the dashboard using the address printed in the terminal.

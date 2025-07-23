@@ -21,52 +21,13 @@ trainer:
     filename: profiling.txt
 
   callbacks:
-    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      filename: best-{epoch}
-      monitor: val/loss
-      mode: min
-      save_top_k: 4
-      save_last: true
-    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      filename: latest-{epoch}
-      every_n_epochs: 1
-      # NOTE: keep only the best checkpoint based on the monitored metric (val_los)
-      save_top_k: 1
-    #   save_last: true
-    - _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
-      monitor: val/loss
-      patience: 64
-      mode: min
-      min_delta: 0.001
-      verbose: true
-    # NOTE: custom callback for monitoring target matrix statistics
-    - _target_: src.callbacks.monitoring.MonitoringCallback
-    # NOTE: custom callback for visualization every epoch
-    - _target_: src.callbacks.visualization.VisualizationCallback
-      batch_index: 0
-      num_samples: 2
-      # NOTE: can be a single value or list of thresholds
-      score_threshold: [0.3, 0.5, 0.7]
-      debug: false
-      # NOTE: run every 5 epochs instead of every epoch
-      visualization_frequency: 1
-      skip_html_generation: false
-      dirpath: ${run_dir}/visualizations
+    - ${callbacks.model_checkpoint_best}
+    - ${callbacks.model_checkpoint_lastest}
+    - ${callbacks.early_stopping}
+    - ${callbacks.monitoring}
+    - ${callbacks.visualization}
 
   logger:
-    - _target_: src.logger.csv.CSVLogger
-      save_dir: ${run_dir}
-      name: logs
-    # - _target_: pytorch_lightning.loggers.TensorBoardLogger
-    #   save_dir: ${run_dir}
-    #   name: logs
-    # NOTE: uncomment the following lines to enable WandB logging
-    # - _target_: src.logger.wandb.WandBLogger
-    #   project: moliner
-    #   name: ${run_dir}
-    #   save_dir: ${run_dir}
-    #   offline: false
-    #   tags: []
-    #   notes: "MoLiNER training run"
-    #   # NOTE: set to your WandB username or team
-    #   entity: nadirkichou-university-of-lille
+    - ${loggers.csv}
+    # - ${loggers.tensorboard}
+    # - ${loggers.wandb}

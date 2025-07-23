@@ -43,6 +43,8 @@ def train_model(cfg: DictConfig):
     # torch.set_float32_matmul_precision('medium')
     # torch.set_float32_matmul_precision('high')
     
+    logger.debug(f"[cfg]: {cfg}")
+    
     logger.info(f"[run_dir]: {cfg.run_dir}")
     
     ckpt = None
