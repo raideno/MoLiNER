@@ -135,7 +135,7 @@ class VisualizationGenerator:
         for threshold in self.score_thresholds:
             decoded_results = model.decoder.decode(
                 forward_output=forward_output,
-                prompts=prompt_texts,
+                prompts=[prompt_texts],
                 score_threshold=threshold,
             )
             threshold_results[threshold] = decoded_results[0]
@@ -196,7 +196,7 @@ class VisualizationGenerator:
             
             debug_decoded_results = model.decoder.decode(
                 forward_output=forward_output,
-                prompts=prompt_texts,
+                prompts=[prompt_texts],  # Wrap in list for batch compatibility
                 score_threshold=0.1,
             )
             debug_result = debug_decoded_results[0]

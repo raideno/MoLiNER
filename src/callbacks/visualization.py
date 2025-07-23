@@ -97,9 +97,9 @@ class VisualizationCallback(Callback):
             sid=batch.sid,
             dataset_name=batch.dataset_name,
             amass_relative_path=batch.amass_relative_path,
-            raw_motion=batch.raw_motion.cpu() if batch.raw_motion is not None else torch.empty(0),
-            transformed_motion=batch.transformed_motion.cpu(),
-            motion_mask=batch.motion_mask.cpu(),
+            raw_motion=batch.raw_motion.detach().cpu() if batch.raw_motion is not None else torch.empty(0),
+            transformed_motion=batch.transformed_motion.detach().cpu(),
+            motion_mask=batch.motion_mask.detach().cpu(),
             prompts=batch.prompts
         )
 
