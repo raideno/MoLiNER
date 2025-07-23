@@ -1,4 +1,10 @@
-output_path: statistics/babel-stats.pt
+# output_path: statistics/babel.pt
+# output_path: statistics/hml3d.pt
+
+output_path: ???
 
 defaults:
-  - data: babel
+  - data: ???
+  - defaults
+  - _self_
+  - override hydra/launcher: basic
