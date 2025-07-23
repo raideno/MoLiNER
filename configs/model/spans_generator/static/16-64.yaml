@@ -1,0 +1,3 @@
+_target_: src.model.modules.spans_generators.static.StaticSpansGenerator
+min_width: 16
+max_width: 64
