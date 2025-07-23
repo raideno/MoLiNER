@@ -1,0 +1,11 @@
+defaults:
+  - defaults
+  - _self_
+
+max_workers: null
+
+pipelines:
+  - babel-act-cat
+  - babel-proc-label
+  - babel
+  - locate
