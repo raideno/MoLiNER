@@ -56,13 +56,15 @@ class HML3DDataset:
     
     @property
     def dataset(self):
-        """Get the processed dataset for the specified split."""
         return self._dataset
     
     @property
     def collate_function(self):
-        """Get the collate function."""
         return self._collate_function
+    
+    @property
+    def fingerprint(self):
+        return self._dataset._fingerprint
     
     def __getitem__(self, index):
         item = self.dataset[index]

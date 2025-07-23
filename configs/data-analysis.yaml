@@ -4,8 +4,9 @@ defaults:
 
 max_workers: null
 
-pipelines:
-  - babel-act-cat
-  - babel-proc-label
-  - babel
-  - locate
+configurations:
+  - [babel, babel-act-cat]
+  - [babel, babel-proc-label]
+  - [babel, babel]
+  - [babel, locate]
+  - [hml3d, hml3d]

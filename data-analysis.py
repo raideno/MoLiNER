@@ -20,19 +20,24 @@ ANALYSIS_NOTEBOOK_NAME = 'template.analysis.ipynb'
 
 logger = logging.getLogger(__name__)
 
-def run_notebook_for_pipeline(pipeline):
-    logger.info(f"[data-analysis]: running analysis for pipeline '{pipeline}'...")
+def run_notebook_for_pipeline(configuration: list[str, str]):
+    dataset_name, pipeline_name = configuration
+    
+    logger.info(f"[data-analysis]: running analysis for '{dataset_name}({pipeline_name})'...")
     
     template_ipynb_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, ANALYSIS_NOTEBOOK_NAME)
-    output_ipynb_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, f'{pipeline}.analysis.ipynb')
+    output_ipynb_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, f'{dataset_name}.{pipeline_name}.analysis.ipynb')
     
     papermill.execute_notebook(
         template_ipynb_path,
         output_ipynb_path,
-        parameters=dict(pipeline_name=pipeline),
+        parameters=dict(
+            dataset_name=dataset_name,
+            pipeline_name=pipeline_name,
+        ),
     )
     
-    logger.info(f"[data-analysis]: analysis for pipeline '{pipeline}' completed.")
+    logger.info(f"[data-analysis]: analysis for pipeline '{dataset_name}({pipeline_name})' completed.")
 
     logger.info(f"[data-analysis]: exporting '{output_ipynb_path}' to HTML...")
     
@@ -41,36 +46,36 @@ def run_notebook_for_pipeline(pipeline):
         
     (body, resources) = HTMLExporter().from_notebook_node(nb_node)
     
-    html_output_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, f'{pipeline}.analysis.html')
+    html_output_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, f'{dataset_name}.{pipeline_name}.analysis.html')
     
     with open(html_output_path, 'w', encoding='utf-8') as file:
         file.write(body)
     
-    logger.info(f"[data-analysis]: HTML export for pipeline '{pipeline}' completed.")
+    logger.info(f"[data-analysis]: HTML export for pipeline '{dataset_name}({pipeline_name})' completed.")
     
-    return pipeline
+    return configuration
 
 @main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="data-analysis", version_base=DEFAULT_HYDRA_VERSION_BASE)
 def data_analysis(cfg: DictConfig):
-    pipelines = cfg.pipelines
+    configurations = cfg.configurations
     max_workers = getattr(cfg, 'max_workers', None)
     
     logger.info("[data-analysis]: starting data analysis...")
     
-    logger.info(f"[data-analysis]: max_workers: {max_workers}; pipelines to analyze: {pipelines}")
+    logger.info(f"[data-analysis]: max_workers: {max_workers}; configurations to analyze: {configurations}")
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        future_to_pipeline = {executor.submit(run_notebook_for_pipeline, pipeline): pipeline for pipeline in pipelines}
+        future_to_configuration = {executor.submit(run_notebook_for_pipeline, configuration): configuration for configuration in configurations}
         
-        for future in as_completed(future_to_pipeline):
-            pipeline = future_to_pipeline[future]
+        for future in as_completed(future_to_configuration):
+            configuration = future_to_configuration[future]
             
             try:
                 future.result()
             except Exception as exception:
-                logger.error(f"[data-analysis]: pipeline '{pipeline}' generated an exception: {exception}")
+                logger.error(f"[data-analysis]: configuration '{configuration}' generated an exception: {exception}")
             else:
-                logger.info(f"[data-analysis]: pipeline '{pipeline}' completed successfully.")
+                logger.info(f"[data-analysis]: configuration '{configuration}' completed successfully.")
 
     logger.info("[data-analysis]: all analyses completed.")
         
