@@ -8,14 +8,14 @@ from src.constants import (
 )
 
 class StaticSpansGenerator(BaseSpansGenerator):
-    def __init__(self, max_width: int, min_width: int = 1, padding_value: int = int(DEFAULT_PADDING_VALUE)):
+    def __init__(self, min_width: int, max_width: int, padding_value: int = int(DEFAULT_PADDING_VALUE)):
         """
         Initializes the StaticSpansGenerator.
 
         Args:
             max_width (int): The maximum length of a span to generate. Spans of all lengths from min_width to max_width will be generated.
-            min_width (int): The minimum length of a span to generate. Defaults to 1.
-            padding_value (int): The value to use for padding the span indices tensor. Defaults to -1.
+            min_width (int): The minimum length of a span to generate.
+            padding_value (int): The value to use for padding the span indices tensor. Defaults to src/constants.py:DEFAULT_PADDING_VALUE.
         """
         super().__init__()
         
