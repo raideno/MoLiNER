@@ -35,7 +35,7 @@ trainer:
     #   save_last: true
     - _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
       monitor: val/loss
-      patience: 32
+      patience: 64
       mode: min
       min_delta: 0.001
       verbose: true

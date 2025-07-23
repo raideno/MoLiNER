@@ -1,18 +1,18 @@
 import torch
 import typing
-import itertools
 
-from ._base import BaseDecoder
+import numpy as np
 
 from src.types import ForwardOutput, DecodingStrategy, EvaluationResult
+
+from ._base import BaseDecoder
 
 class GreedyDecoder(BaseDecoder):
     def __init__(
         self,
-        strategy: DecodingStrategy = DecodingStrategy.FLAT,
+        strategy: DecodingStrategy
     ):
         super().__init__()
-        
         self.strategy = strategy
 
     def decode(
@@ -21,92 +21,65 @@ class GreedyDecoder(BaseDecoder):
         prompts: typing.List[typing.List[str]],
         score_threshold: float,
     ) -> typing.List[EvaluationResult]:
-        """
-        Decodes the model's forward pass output into a list of predicted spans.
-
-        Args:
-            forward_output (ForwardOutput): The raw output from the model's forward pass.
-            prompts (typing.List[typing.List[str]]): List of prompt texts for each sample in the batch.
-            score_threshold (float): The minimum similarity score to consider a span as a potential match.
-
-        Returns:
-            typing.List[EvaluationResult]: A list of EvaluationResult objects, one for each item in the batch.
-        """
-        # (Batch Size, Prompts, Spans)
         similarity_scores = torch.sigmoid(forward_output.similarity_matrix)
         
-        # (Batch Size, Spans, 2)
-        candidate_spans = forward_output.candidate_spans_indices.cpu().numpy()
+        prompts_mask = forward_output.prompts_mask.detach().cpu().numpy()
+        spans_mask = forward_output.candidate_spans_mask.detach().cpu().numpy()
+        candidate_spans = forward_output.candidate_spans_indices.detach().cpu().numpy()
         
-        # (Batch Size, Prompts)
-        prompts_mask = forward_output.prompts_mask.cpu().numpy()
-        # (Batch Size, Spans)
-        spans_mask = forward_output.candidate_spans_mask.cpu().numpy()
-
         batch_size = similarity_scores.shape[0]
         batch_results = []
 
         for batch_index in range(batch_size):
-            # NOTE: get all predictions above the threshold
-            potential_predictions = []
+            batch_scores = similarity_scores[batch_index].detach().cpu().numpy()
             num_prompts = int(prompts_mask[batch_index].sum())
             num_spans = int(spans_mask[batch_index].sum())
-
-            for prompt_index, span_index in itertools.product(range(num_prompts), range(num_spans)):
-                score = similarity_scores[batch_index, prompt_index, span_index].item()
-                if score > score_threshold:
-                    start, end = candidate_spans[batch_index, span_index]
-                    potential_predictions.append({
-                        "score": score,
-                        "prompt_idx": prompt_index,
-                        "span": (start, end),
-                    })
-
-            # NOTE: sort predictions by score (descending) for greedy selection
-            potential_predictions.sort(key=lambda x: x["score"], reverse=True)
-
-            final_predictions = []
-            if self.strategy == DecodingStrategy.OVERLAP:
-                final_predictions = potential_predictions
-            else:
-                selected_spans = []
-                for prediction in potential_predictions:
-                    current_span = prediction["span"]
-                    is_valid = True
-                    for other_span in selected_spans:
-                        # NOTE: we check for overlap
-                        start_1, end_1 = current_span
-                        start_2, end_2 = other_span
-                        
-                        # NOTE: partial overlap condition: one starts before the other ends, but they are not perfectly nested.
-                        is_overlapping = max(start_1, start_2) <= min(end_1, end_2)
-                        is_fully_nested = (start_1 >= start_2 and end_1 <= end_2) or (start_2 >= start_1 and end_2 <= end_1)
-                        
-                        if is_overlapping:
-                            # NOTE: reject as no overlap is allowed on FLAT version
-                            if self.strategy == DecodingStrategy.FLAT:
-                                is_valid = False
-                                break
-                            # NOTE: for NESTER we only allow fully nested spans
-                            elif self.strategy == DecodingStrategy.NESTED:
-                                if not is_fully_nested:
-                                    is_valid = False
-                                    break
-                    
-                    if is_valid:
-                        final_predictions.append(prediction)
-                        selected_spans.append(current_span)
+            
+            valid_scores = batch_scores[:num_prompts, :num_spans]
+            valid_spans = candidate_spans[batch_index, :num_spans]
+            
+            above_threshold = valid_scores > score_threshold
+            
+            prompt_indices, span_indices = np.where(above_threshold)
+            
+            if len(prompt_indices) == 0:
+                motion_length = forward_output.candidate_spans_mask.shape[1]
+                batch_results.append(EvaluationResult(
+                    motion_length=motion_length,
+                    predictions=[]
+                ))
+                continue
+            
+            scores = valid_scores[prompt_indices, span_indices]
+            
+            predictions = np.empty(len(scores), dtype=[
+                ('score', 'f4'),
+                ('prompt_idx', 'i4'), 
+                ('span_start', 'i4'),
+                ('span_end', 'i4')
+            ])
+            
+            predictions['score'] = scores
+            predictions['prompt_idx'] = prompt_indices
+            predictions['span_start'] = valid_spans[span_indices, 0]
+            predictions['span_end'] = valid_spans[span_indices, 1]
+            
+            predictions = np.sort(predictions, order='score')[::-1]
+            
+            final_predictions = self._apply_strategy(predictions)
             
             motion_length = forward_output.candidate_spans_mask.shape[1]
             results_for_sample = []
             batch_prompts = prompts[batch_index] if batch_index < len(prompts) else []
-            for prediction in final_predictions:
-                if prediction["prompt_idx"] < len(batch_prompts):
+            
+            for pred in final_predictions:
+                prompt_idx = int(pred['prompt_idx'])
+                if prompt_idx < len(batch_prompts):
                     results_for_sample.append((
-                        batch_prompts[prediction["prompt_idx"]],
-                        prediction["span"][0],
-                        prediction["span"][1],
-                        prediction["score"]
+                        batch_prompts[prompt_idx],
+                        int(pred['span_start']),
+                        int(pred['span_end']),
+                        float(pred['score'])
                     ))
 
             batch_results.append(EvaluationResult(
@@ -115,3 +88,79 @@ class GreedyDecoder(BaseDecoder):
             ))
 
         return batch_results
+    
+    def _apply_strategy(self, predictions):
+        if self.strategy == DecodingStrategy.OVERLAP:
+            return predictions
+        
+        if len(predictions) <= 1:
+            return predictions
+        
+        spans = np.column_stack([predictions['span_start'], predictions['span_end']])
+        
+        if self.strategy == DecodingStrategy.FLAT:
+            return self._apply_flat_strategy(predictions, spans)
+        elif self.strategy == DecodingStrategy.NESTED:
+            return self._apply_nested_strategy(predictions, spans)
+        
+        return predictions
+    
+    def _apply_flat_strategy(self, predictions, spans):
+        if len(predictions) <= 1:
+            return predictions
+            
+        selected_mask = np.zeros(len(predictions), dtype=bool)
+        selected_mask[0] = True
+        selected_spans = [spans[0]]
+        
+        for i in range(1, len(predictions)):
+            current_span = spans[i]
+            
+            selected_spans_array = np.array(selected_spans)
+            
+            # NOTE: check overlap: max(start1, start2) <= min(end1, end2)
+            max_starts = np.maximum(current_span[0], selected_spans_array[:, 0])
+            min_ends = np.minimum(current_span[1], selected_spans_array[:, 1])
+            overlaps = max_starts <= min_ends
+            
+            if not np.any(overlaps):
+                selected_mask[i] = True
+                selected_spans.append(current_span)
+        
+        return predictions[selected_mask]
+    
+    def _apply_nested_strategy(self, predictions, spans):
+        if len(predictions) <= 1:
+            return predictions
+            
+        selected_mask = np.zeros(len(predictions), dtype=bool)
+        selected_mask[0] = True
+        selected_spans = [spans[0]]
+        
+        for i in range(1, len(predictions)):
+            current_span = spans[i]
+            is_valid = True
+            
+            for selected_span in selected_spans:
+                start_1, end_1 = current_span
+                start_2, end_2 = selected_span
+                
+                # NOTE: check for overlap
+                is_overlapping = max(start_1, start_2) <= min(end_1, end_2)
+                
+                if is_overlapping:
+                    # NOTE: check if fully nested
+                    is_fully_nested = (
+                        (start_1 >= start_2 and end_1 <= end_2) or 
+                        (start_2 >= start_1 and end_2 <= end_1)
+                    )
+                    
+                    if not is_fully_nested:
+                        is_valid = False
+                        break
+            
+            if is_valid:
+                selected_mask[i] = True
+                selected_spans.append(current_span)
+        
+        return predictions[selected_mask]

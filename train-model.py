@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 def train_model(cfg: DictConfig):
     # NOTE: uncomment when warned about "float32 matmul precision to utilize, tensor cores efficiently"
     # torch.set_float32_matmul_precision('medium')
+    # torch.set_float32_matmul_precision('high')
     
     logger.info(f"[run_dir]: {cfg.run_dir}")
     
