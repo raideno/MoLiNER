@@ -52,6 +52,8 @@ def create_babel_90_classes_filter_function():
 def create_babel_120_classes_filter_function():
     return ExactMatchFilter(allowed_classes=BABEL_120_CLASSES)
 
+# TODO: the "min_prompts_per_sample" property should be used to filter on the unique prompts level rather than the total. 
+# TODO: for some filtering properties, we should have the option to either drop the sample if it doesn't meet the criteria, or modify it to meet the criteria.
 @dataclasses.dataclass
 class FilterConfig:
     """

@@ -11,9 +11,11 @@ from .locate import (
     LocatePipeline,
     ChunkingStandardizedLocatePipeline,
     WindowingStandardizedLocatePipeline,
+    FilteredLocatePipeline
 )
     
 PIPELINE_REGISTRY: dict[type[BasePipeline], list[str]] = {
+    FilteredLocatePipeline: ["filtered-locate", "filtered_locate"],
     LocatePipeline: ["20", "locate"],
     BabelPipeline: ["babel"],
     HML3DPipeline: ["hml3d"],

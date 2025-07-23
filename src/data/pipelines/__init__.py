@@ -12,5 +12,6 @@ from .hml3d import HML3DPipeline
 from .locate import (
     LocatePipeline,
     WindowingStandardizedLocatePipeline,
-    ChunkingStandardizedLocatePipeline
+    ChunkingStandardizedLocatePipeline,
+    FilteredLocatePipeline
 )

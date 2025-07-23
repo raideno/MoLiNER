@@ -13,6 +13,30 @@ from src.data.utils.augmentation import (
     StandardizeSpansChunking
 )
 
+class FilteredLocatePipeline(BabelPipeline):
+    def __init__(self):
+        super().__init__("locate")
+        
+        filter_function = FilterFunction(FilterConfig(
+            # seed: typing.Optional[int] = DEFAULT_SEED
+            # fps: typing.Optional[int] = DEFAULT_FPS
+            min_motion_frames=1,
+            max_motion_frames=1024,
+            min_prompts_per_sample=1,
+            max_prompts_per_sample=16,
+            # split_max_prompts_per_sample: bool = False
+            prompt_text_filter_function=create_locate_classes_filter_function(),
+            min_span_frames=1,
+            max_span_frames=64,
+            # min_spans_per_prompt: typing.Optional[int] = None
+            # max_spans_per_prompt: typing.Optional[int] = None
+            sources=["act_cat"],
+            annotation_types=["frames"]
+            # debug: bool = False
+        ))
+        
+        self.add_step(filter_function, batched=True)
+        
 SPAN_LENGTH = 16
 MAX_EXTEND_FRAMES = 4
 # NOTE: only filtering is that we take act_cat only and we limit motion frames between 8 and 4096

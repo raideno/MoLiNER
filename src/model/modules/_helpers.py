@@ -1,7 +1,7 @@
 import torch
 import typing
 
-def create_projection_layer(hidden_size: int, dropout: float, out_dim: int = None) -> torch.nn.Sequential:
+def create_projection_layer(hidden_size: int, dropout: float, out_dim: typing.Optional[int] = None) -> torch.nn.Sequential:
     """
     Creates a projection layer with specified configurations.
     """

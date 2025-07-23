@@ -175,7 +175,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         loss, unmatched_spans_count, output, processed_batch = self.step(raw_batch, batch_index)
         
-        self.train_iou_metric.update_from_model_outputs(output, raw_batch, self.decoder)
+        # self.train_iou_metric.update_from_model_outputs(output, raw_batch, self.decoder)
       
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
@@ -195,7 +195,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         loss, unmatched_spans_count, output, processed_batch = self.step(raw_batch, batch_index)
         
-        self.val_iou_metric.update_from_model_outputs(output, raw_batch, self.decoder)
+        # self.val_iou_metric.update_from_model_outputs(output, raw_batch, self.decoder)
         
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
@@ -207,20 +207,20 @@ class MoLiNER(pytorch_lightning.LightningModule):
             "unmatched_spans_count": unmatched_spans_count
         }
 
-    def on_train_epoch_start(self):
-        self.train_iou_metric.reset()
+    # def on_train_epoch_start(self):
+    #     self.train_iou_metric.reset()
 
-    def on_validation_epoch_start(self):
-        self.val_iou_metric.reset()
+    # def on_validation_epoch_start(self):
+    #     self.val_iou_metric.reset()
 
-    def on_train_epoch_end(self):
-        metrics = self.train_iou_metric.compute()
+    # def on_train_epoch_end(self):
+    #     metrics = self.train_iou_metric.compute()
         
-        for key, val in metrics.items():
-            self.log(f"train/{key}", val, on_epoch=True, prog_bar=False)
+    #     for key, val in metrics.items():
+    #         self.log(f"train/{key}", val, on_epoch=True, prog_bar=False)
 
-    def on_validation_epoch_end(self):
-        metrics = self.val_iou_metric.compute()
+    # def on_validation_epoch_end(self):
+    #     metrics = self.val_iou_metric.compute()
         
-        for key, val in metrics.items():
-            self.log(f"val/{key}", val, on_epoch=True, prog_bar=False)
+    #     for key, val in metrics.items():
+    #         self.log(f"val/{key}", val, on_epoch=True, prog_bar=False)

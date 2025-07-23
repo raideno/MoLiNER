@@ -25,6 +25,10 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
         """
         super().__init__()
         
+        
+        # MODEL_NAME = "openai/clip-vit-large-patch14"
+        # MODEL_NAME = "openai/clip-vit-large-patch14-336"
+        # MODEL_NAME = "openai/clip-vit-base-patch16"
         MODEL_NAME = "openai/clip-vit-base-patch32"
         
         self.frozen = frozen

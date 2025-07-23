@@ -62,6 +62,10 @@ class BabelDataset:
     def collate_function(self):
         return self._collate_function
     
+    @property
+    def fingerprint(self):
+        return self._dataset._fingerprint
+    
     def __getitem__(self, index):
         item = self.dataset[index]
         if self.motion_normalizer and isinstance(item, dict):
