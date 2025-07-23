@@ -39,9 +39,6 @@ trainer:
       mode: min
       min_delta: 0.001
       verbose: true
-    - _target_: src.callbacks.progress.ProgressLogger
-      precision: 3
-    - _target_: src.callbacks.tqdmbar.TQDMProgressBar
     # NOTE: custom callback for monitoring target matrix statistics
     - _target_: src.callbacks.monitoring.MonitoringCallback
     # NOTE: custom callback for visualization every epoch
