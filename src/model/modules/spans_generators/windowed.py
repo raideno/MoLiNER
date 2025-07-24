@@ -4,7 +4,7 @@ import typing
 from ._base import BaseSpansGenerator
 
 class WindowedSpansGenerator(BaseSpansGenerator):
-    def __init__(self, K: int, stride: int = 1, padding_value: int = -1):
+    def __init__(self, size: int, stride: int = 1, padding_value: int = -1):
         """
         Initializes the WindowedSpansGenerator.
         
@@ -14,18 +14,18 @@ class WindowedSpansGenerator(BaseSpansGenerator):
         Total Number of Spans = max(0, (N - K + stride) // stride) where N is sequence length
         
         Args:
-            K (int): The fixed size of each window (number of frames per span).
+            size (int): The fixed size of each window (number of frames per span).
             stride (int): The step size between consecutive windows. Defaults to 1.
             padding_value (int): The value to use for padding the span indices tensor. Defaults to -1.
         """
         super().__init__()
         
-        if not isinstance(K, int) or K < 1:
+        if not isinstance(size, int) or size < 1:
             raise ValueError("K must be a positive integer.")
         if not isinstance(stride, int) or stride < 1:
             raise ValueError("stride must be a positive integer.")
         
-        self.K = K
+        self.size = size
         self.stride = stride
         self.padding_value = padding_value
         
@@ -61,10 +61,10 @@ class WindowedSpansGenerator(BaseSpansGenerator):
             current_length = int(motion_masks[i].sum().item())
             sample_spans_positions = []
             
-            if current_length >= self.K:
+            if current_length >= self.size:
                 # NOTE: generate sliding windows of size K
-                for start_idx in range(0, current_length - self.K + 1, self.stride):
-                    end_idx = start_idx + self.K - 1  # end_idx is inclusive
+                for start_idx in range(0, current_length - self.size + 1, self.stride):
+                    end_idx = start_idx + self.size - 1  # end_idx is inclusive
                     
                     if end_idx < current_length:
                         sample_spans_positions.append([start_idx, end_idx])

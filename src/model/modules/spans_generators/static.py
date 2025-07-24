@@ -8,13 +8,14 @@ from src.constants import (
 )
 
 class StaticSpansGenerator(BaseSpansGenerator):
-    def __init__(self, min_width: int, max_width: int, padding_value: int = int(DEFAULT_PADDING_VALUE)):
+    def __init__(self, min_width: int, max_width: int, step: int, padding_value: int = int(DEFAULT_PADDING_VALUE)):
         """
         Initializes the StaticSpansGenerator.
 
         Args:
-            max_width (int): The maximum length of a span to generate. Spans of all lengths from min_width to max_width will be generated.
             min_width (int): The minimum length of a span to generate.
+            max_width (int): The maximum length of a span to generate. Spans of lengths from min_width to max_width (inclusive) will be generated with the given step.
+            step (int): The increment between consecutive span lengths. Defaults to 1.
             padding_value (int): The value to use for padding the span indices tensor. Defaults to src/constants.py:DEFAULT_PADDING_VALUE.
         """
         super().__init__()
@@ -25,9 +26,12 @@ class StaticSpansGenerator(BaseSpansGenerator):
             raise ValueError("min_width must be a positive integer.")
         if min_width > max_width:
             raise ValueError("min_width must be less than or equal to max_width.")
+        if not isinstance(step, int) or step < 1:
+            raise ValueError("step must be a positive integer.")
         
         self.max_width = max_width
         self.min_width = min_width
+        self.step = step
         self.padding_value = padding_value
         
     def forward(
@@ -39,7 +43,7 @@ class StaticSpansGenerator(BaseSpansGenerator):
         batch_index: typing.Optional[int] = None,
     ) -> typing.Tuple[torch.Tensor, torch.Tensor]:
         """
-        Generates all possible contiguous spans from min_width to max_width and returns them as padded tensors.
+        Generates all possible contiguous spans from min_width to max_width (with step increment) and returns them as padded tensors.
 
         Returns:
             A tuple containing two tensors:
@@ -64,7 +68,7 @@ class StaticSpansGenerator(BaseSpansGenerator):
             
             if current_length > 0:
                 for start_idx in range(current_length):
-                    for length in range(self.min_width, self.max_width + 1):
+                    for length in range(self.min_width, self.max_width + 1, self.step):
                         end_idx = start_idx + length - 1
                         if end_idx >= current_length:
                             break
