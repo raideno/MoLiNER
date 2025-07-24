@@ -17,12 +17,4 @@ class MLPPromptRepresentationLayer(BasePromptRepresentationLayer):
         prompts_mask: torch.Tensor,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:
-        representations = self.prompt_rep_layer(aggregated_prompts)
-        
-        # NOTE: (Batch Size, #Prompts)
-        # A prompt is valid if it has at least one non-padding token
-        prompt_level_mask = prompts_mask.any(dim=-1)
-        
-        masked_representations = representations * prompt_level_mask.unsqueeze(-1)
-        
-        return masked_representations
+        return self.prompt_rep_layer(aggregated_prompts) * prompts_mask.any(dim=-1).unsqueeze(-1)

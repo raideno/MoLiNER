@@ -1,0 +1,7 @@
+_target_: src.data.mixed.MixedDataset
+hml3d_pipeline: short-length-hml3d
+babel_pipeline: locate
+
+motion_normalizer:
+  _target_: src.helpers.motion_normalizer.MotionNormalizer
+  stats_path: ./statistics/babel.pt

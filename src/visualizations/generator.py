@@ -1,7 +1,9 @@
 import os
 import torch
-import logging
 import typing
+import logging
+import traceback
+
 from dataclasses import dataclass
 
 from src.model import MoLiNER
@@ -10,11 +12,10 @@ from src.visualizations.spans import plot_evaluation_results
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class VisualizationSample:
     sample_index: int
-    threshold_results: typing.Dict[float, EvaluationResult]
+    threshold_results: typing.Dict[float, typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int, float]]]]]
     motion_length: int
     raw_prompts: typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]
 
@@ -47,7 +48,7 @@ class VisualizationGenerator:
         epoch: typing.Optional[int] = None
     ) -> VisualizationResults:
         """
-        Generate visualization data for a batch of samples.
+        Generate visualization data for a batch of samples using the model's predict function.
         
         Args:
             model: The MoLiNER model to evaluate.
@@ -65,25 +66,41 @@ class VisualizationGenerator:
         
         try:
             with torch.no_grad():
+                # Get predictions for all thresholds using the model's predict function
+                threshold_results_batch = {}
+                for threshold in self.score_thresholds:
+                    evaluation_result = model.predict(
+                        raw_batch=raw_batch.to(model.device),
+                        threshold=threshold
+                    )
+                    threshold_results_batch[threshold] = evaluation_result.predictions
+                
+                # Extract results for each sample
                 for i in range(len(raw_batch.sid)):
-                    sample_data = self._process_single_sample(
-                        model=model,
-                        raw_batch=raw_batch,
+                    sample_threshold_results = {}
+                    for threshold in self.score_thresholds:
+                        # Get predictions for this sample
+                        sample_predictions = (
+                            threshold_results_batch[threshold][i] 
+                            if i < len(threshold_results_batch[threshold])
+                            else []
+                        )
+                        sample_threshold_results[threshold] = sample_predictions
+                    
+                    motion_length = int(raw_batch.motion_mask[i].sum())
+                    
+                    samples[i] = VisualizationSample(
                         sample_index=i,
-                        epoch=epoch
+                        threshold_results=sample_threshold_results,
+                        motion_length=motion_length,
+                        raw_prompts=raw_batch.prompts[i]
                     )
                     
-                    if sample_data is not None:
-                        samples[i] = sample_data
-                        
-                        if self.debug and debug_info is not None:
-                            debug_info[i] = self._generate_debug_info(
-                                model=model,
-                                sample_data=sample_data,
-                                raw_batch=raw_batch,
-                                sample_index=i,
-                                epoch=epoch
-                            )
+                    if self.debug and debug_info is not None:
+                        debug_info[i] = self._generate_debug_info(
+                            sample_data=samples[i],
+                            epoch=epoch
+                        )
         
         finally:
             model.train(original_mode)
@@ -94,118 +111,33 @@ class VisualizationGenerator:
             debug_info=debug_info
         )
     
-    def _process_single_sample(
-        self,
-        model: MoLiNER,
-        raw_batch: RawBatch,
-        sample_index: int,
-        epoch: typing.Optional[int] = None
-    ) -> typing.Optional[VisualizationSample]:
-        motion_length = int(raw_batch.motion_mask[sample_index].sum())
-        motion_tensor = raw_batch.transformed_motion[sample_index, :motion_length, :].to(model.device)
-        prompt_texts = [prompt[0] for prompt in raw_batch.prompts[sample_index]]
-        
-        if not prompt_texts:
-            logger.warning(f"Sample {sample_index} has no prompts. Skipping.")
-            return None
-        
-        if self.debug and epoch is not None:
-            logger.info(f"Epoch {epoch} - Sample {sample_index}: Motion tensor shape: {motion_tensor.shape}")
-            logger.info(f"Epoch {epoch} - Sample {sample_index}: Prompts: {prompt_texts[:3]}...")
-        
-        formatted_prompts = [(text, [], True) for text in prompt_texts]
-        eval_raw_batch = RawBatch(
-            sid=[0],
-            dataset_name=["evaluation"],
-            amass_relative_path=["none"],
-            raw_motion=torch.zeros_like(motion_tensor.unsqueeze(0)),
-            transformed_motion=motion_tensor.unsqueeze(0).to(model.device),
-            motion_mask=torch.ones(1, motion_tensor.shape[0], dtype=torch.bool).to(model.device),
-            prompts=[formatted_prompts]
-        )
-        
-        eval_processed_batch = ProcessedBatch.from_raw_batch(
-            raw_batch=eval_raw_batch,
-            encoder=model.prompts_tokens_encoder
-        )
-        
-        forward_output = model.forward(eval_processed_batch, batch_index=0)
-        
-        threshold_results = {}
-        for threshold in self.score_thresholds:
-            decoded_results = model.decoder.decode(
-                forward_output=forward_output,
-                prompts=[prompt_texts],
-                score_threshold=threshold,
-            )
-            threshold_results[threshold] = decoded_results[0]
-        
-        return VisualizationSample(
-            sample_index=sample_index,
-            threshold_results=threshold_results,
-            motion_length=motion_length,
-            raw_prompts=raw_batch.prompts[sample_index]
-        )
-    
     def _generate_debug_info(
         self,
-        model: MoLiNER,
         sample_data: VisualizationSample,
-        raw_batch: RawBatch,
-        sample_index: int,
         epoch: typing.Optional[int] = None
     ) -> typing.Dict:
         """Generate debug information for a sample."""
         primary_threshold = self.score_thresholds[0]
-        evaluation_result = sample_data.threshold_results[primary_threshold]
-        num_predictions = len(evaluation_result.predictions) if evaluation_result.predictions else 0
+        predictions = sample_data.threshold_results[primary_threshold]
+        num_predictions = len(predictions) if predictions else 0
         
         debug_info = {
             "num_predictions": num_predictions,
             "primary_threshold": primary_threshold,
             "motion_length": sample_data.motion_length,
-            "num_prompts": len([prompt[0] for prompt in raw_batch.prompts[sample_index]])
+            "num_prompts": len(sample_data.raw_prompts)
         }
         
         if epoch is not None:
-            logger.info(f"Epoch {epoch} - Sample {sample_index}: Generated {num_predictions} predictions with threshold {primary_threshold}")
+            logger.info(f"Epoch {epoch} - Sample {sample_data.sample_index}: Generated {num_predictions} predictions with threshold {primary_threshold}")
         
         if num_predictions == 0 and primary_threshold > 0.1:
-            prompt_texts = [prompt[0] for prompt in raw_batch.prompts[sample_index]]
-            
-            motion_length = int(raw_batch.motion_mask[sample_index].sum())
-            motion_tensor = raw_batch.transformed_motion[sample_index, :motion_length, :].to(model.device)
-            formatted_prompts = [(text, [], True) for text in prompt_texts]
-            
-            eval_raw_batch = RawBatch(
-                sid=[0],
-                dataset_name=["evaluation"],
-                amass_relative_path=["none"],
-                raw_motion=torch.zeros_like(motion_tensor.unsqueeze(0)),
-                transformed_motion=motion_tensor.unsqueeze(0).to(model.device),
-                motion_mask=torch.ones(1, motion_tensor.shape[0], dtype=torch.bool).to(model.device),
-                prompts=[formatted_prompts]
-            )
-            
-            eval_processed_batch = ProcessedBatch.from_raw_batch(
-                raw_batch=eval_raw_batch,
-                encoder=model.prompts_tokens_encoder
-            )
-            
-            forward_output = model.forward(eval_processed_batch, batch_index=0)
-            
-            debug_decoded_results = model.decoder.decode(
-                forward_output=forward_output,
-                prompts=[prompt_texts],  # Wrap in list for batch compatibility
-                score_threshold=0.1,
-            )
-            debug_result = debug_decoded_results[0]
-            debug_predictions = len(debug_result.predictions) if debug_result.predictions else 0
-            
-            debug_info["debug_threshold_0.1_predictions"] = debug_predictions
+            debug_predictions = sample_data.threshold_results.get(0.1, [])
+            debug_predictions_count = len(debug_predictions)
+            debug_info["debug_threshold_0.1_predictions"] = debug_predictions_count
             
             if epoch is not None:
-                logger.info(f"Debug: With threshold 0.1: Generated {debug_predictions} predictions")
+                logger.info(f"Debug: With threshold 0.1: Generated {debug_predictions_count} predictions")
         
         return debug_info
     
@@ -216,7 +148,7 @@ class VisualizationGenerator:
         output_path: str
     ) -> typing.Optional[typing.Any]:
         """
-        Create a combined visualization showing GT and all threshold predictions.
+        Create a combined visualization showing GT and all threshold predictions using the correct format.
         
         Args:
             sample: The sample data to visualize.
@@ -227,51 +159,86 @@ class VisualizationGenerator:
             The plotly figure object if successful, None otherwise.
         """
         try:
-            groundtruth_spans = [
-                (f"GT: {p[0]}", s[0], s[1], 1.0) 
-                for p in sample.raw_prompts 
-                for s in p[1]
-            ]
+            # Convert ground truth spans to the correct format
+            # Format: List[Tuple[str, List[Tuple[int, int, float]]]]
+            groundtruth_spans = []
+            for prompt_text, spans, _ in sample.raw_prompts:
+                if spans:  # Only add if there are actual spans
+                    # Convert spans to include score (1.0 for GT)
+                    span_list_with_scores = [(start, end, 1.0) for start, end in spans]
+                    groundtruth_spans.append((f"GT: {prompt_text}", span_list_with_scores))
+                else:
+                    # Add empty span list for prompts without spans
+                    groundtruth_spans.append((f"GT: {prompt_text}", []))
             
+            # Collect predictions from all thresholds in the correct format
             all_predicted_spans = []
-            all_pred_prompts = []
-            
-            for threshold, threshold_evaluation_result in sample.threshold_results.items():
-                # NOTE: refix predicted spans with "PRED(<threshold>): "
-                predicted_spans = [
-                    (f"PRED({threshold}): {pred[0]}", pred[1], pred[2], pred[3]) 
-                    for pred in threshold_evaluation_result.predictions
-                ]
-                all_predicted_spans.extend(predicted_spans)
+            for threshold, threshold_predictions in sample.threshold_results.items():
+                # Group predictions by prompt text
+                prompt_predictions_dict = {}
                 
+                for prompt_text, span_list in threshold_predictions:
+                    pred_prompt_key = f"PRED({threshold}): {prompt_text}"
+                    if pred_prompt_key not in prompt_predictions_dict:
+                        prompt_predictions_dict[pred_prompt_key] = []
+                    prompt_predictions_dict[pred_prompt_key].extend(span_list)
+                
+                # Convert to the required format
+                for pred_prompt_key, span_list in prompt_predictions_dict.items():
+                    all_predicted_spans.append((pred_prompt_key, span_list))
+                
+                # Also add empty entries for prompts that have no predictions
+                for prompt_text, _, _ in sample.raw_prompts:
+                    pred_prompt_key = f"PRED({threshold}): {prompt_text}"
+                    if pred_prompt_key not in prompt_predictions_dict:
+                        all_predicted_spans.append((pred_prompt_key, []))
+            
+            # Combine all predictions for this single sample
+            combined_predictions = groundtruth_spans + all_predicted_spans
+            
+            # Create EvaluationResult in the correct batch format (single sample)
+            combined_result = EvaluationResult(
+                motion_length=[sample.motion_length],
+                predictions=[combined_predictions]
+            )
+            
+            # Prepare prompt names for display (ensure all prompts are shown)
+            all_gt_prompts = [f"GT: {p[0]}" for p in sample.raw_prompts]
+            all_pred_prompts = []
+            for threshold in self.score_thresholds:
                 threshold_pred_prompts = [
                     f"PRED({threshold}): {p[0]}" 
                     for p in sample.raw_prompts
                 ]
                 all_pred_prompts.extend(threshold_pred_prompts)
             
-            combined_predictions = groundtruth_spans + all_predicted_spans
-            combined_result = EvaluationResult(
-                motion_length=sample.motion_length, 
-                predictions=combined_predictions
-            )
-            
-            all_gt_prompts = [f"GT: {p[0]}" for p in sample.raw_prompts]
             all_prompts_to_show = all_gt_prompts + all_pred_prompts
             
-            combined_figure = plot_evaluation_results(
+            if self.debug:
+                logger.info(f"Creating visualization with {len(combined_predictions)} prediction groups")
+                logger.info(f"Motion length: {sample.motion_length}")
+                logger.info(f"All prompts to show: {len(all_prompts_to_show)}")
+            
+            # Create visualization - plot_evaluation_results returns a list of figures
+            figures = plot_evaluation_results(
                 combined_result,
                 title=title,
                 all_prompts=all_prompts_to_show,
             )
             
+            # Get the first (and only) figure since we have a single sample
+            combined_figure = figures[0] if figures and figures[0] is not None else None
+            
             if combined_figure:
                 combined_figure.write_html(output_path)
                 if self.debug:
                     logger.info(f"Saved visualization to {os.path.basename(output_path)}")
+            else:
+                logger.warning(f"No figure generated for sample {sample.sample_index}")
             
             return combined_figure
             
-        except Exception as e:
-            logger.error(f"Error creating visualization: {e}")
+        except Exception as exception:
+            logger.error(f"Error creating visualization: {exception}")
+            traceback.print_exc()
             return None

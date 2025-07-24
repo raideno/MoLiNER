@@ -370,8 +370,6 @@ class ForwardOutput:
     
     # --- --- --- xxx --- --- ---
     
-    prompts_representation: torch.Tensor
-    spans_representation: torch.Tensor
     prompts_mask: torch.Tensor
             
     # --- --- --- xxx --- --- ---
@@ -407,6 +405,12 @@ class EvaluationResult:
     """
     Holds the results of a single motion evaluation.
     """
-    motion_length: int
-    # NOTE: list[(prompt_text, start_frame, end_frame, score)]
-    predictions: typing.List[typing.Tuple[str, int, int, float]]
+    motion_length: typing.List[int]
+    predictions: typing.List[
+        typing.List[ 
+            typing.Tuple[
+                # NOTE: prompt text and a list of associated spans with their scores
+                str, typing.List[typing.Tuple[int, int, float]]
+            ]
+        ]
+    ]

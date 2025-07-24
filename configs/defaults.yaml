@@ -47,17 +47,14 @@ callbacks:
     mode: min
     save_top_k: 4
     save_last: true
-  model_checkpoint_lastest:
+  model_checkpoint_latest:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
     filename: latest-{epoch}
     every_n_epochs: 1
     save_top_k: 1
-  monitoring:
-    _target_: src.callbacks.monitoring.MonitoringCallback
   visualization:
     _target_: src.callbacks.visualization.VisualizationCallback
     batch_index: 0
-    num_samples: 2
     # NOTE: can be a single value or list of thresholds
     score_threshold: [0.3, 0.5, 0.7]
     debug: false

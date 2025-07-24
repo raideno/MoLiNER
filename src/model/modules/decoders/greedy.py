@@ -1,9 +1,14 @@
 import torch
 import typing
-
 import numpy as np
 
-from src.types import ForwardOutput, DecodingStrategy, EvaluationResult
+from src.types import (
+    ForwardOutput,
+    DecodingStrategy,
+    EvaluationResult,
+    RawBatch,
+    ProcessedBatch
+)
 
 from ._base import BaseDecoder
 
@@ -18,9 +23,22 @@ class GreedyDecoder(BaseDecoder):
     def decode(
         self,
         forward_output: ForwardOutput,
-        prompts: typing.List[typing.List[str]],
+        raw_batch: RawBatch,
+        processed_batch: ProcessedBatch,
         score_threshold: float,
     ) -> typing.List[EvaluationResult]:
+        """
+        Decode the forward output to produce evaluation results.
+        
+        Args:
+            forward_output: The output from the model's forward pass
+            raw_batch: The raw batch containing original prompts information
+            processed_batch: The processed batch (for consistency with interface)
+            score_threshold: Minimum score threshold for predictions
+            
+        Returns:
+            List of EvaluationResult objects, one per motion in the batch
+        """
         similarity_scores = torch.sigmoid(forward_output.similarity_matrix)
         
         prompts_mask = forward_output.prompts_mask.detach().cpu().numpy()
@@ -28,26 +46,26 @@ class GreedyDecoder(BaseDecoder):
         candidate_spans = forward_output.candidate_spans_indices.detach().cpu().numpy()
         
         batch_size = similarity_scores.shape[0]
-        batch_results = []
+        batch_motion_lengths = []
+        batch_predictions = []
 
         for batch_index in range(batch_size):
             batch_scores = similarity_scores[batch_index].detach().cpu().numpy()
             num_prompts = int(prompts_mask[batch_index].sum())
             num_spans = int(spans_mask[batch_index].sum())
             
+            motion_length = int(raw_batch.motion_mask[batch_index].sum().item())
+            batch_motion_lengths.append(motion_length)
+            
             valid_scores = batch_scores[:num_prompts, :num_spans]
             valid_spans = candidate_spans[batch_index, :num_spans]
             
+            # NOTE: keep only above threshold predictions
             above_threshold = valid_scores > score_threshold
-            
             prompt_indices, span_indices = np.where(above_threshold)
             
             if len(prompt_indices) == 0:
-                motion_length = forward_output.candidate_spans_mask.shape[1]
-                batch_results.append(EvaluationResult(
-                    motion_length=motion_length,
-                    predictions=[]
-                ))
+                batch_predictions.append([])
                 continue
             
             scores = valid_scores[prompt_indices, span_indices]
@@ -68,26 +86,39 @@ class GreedyDecoder(BaseDecoder):
             
             final_predictions = self._apply_strategy(predictions)
             
-            motion_length = forward_output.candidate_spans_mask.shape[1]
-            results_for_sample = []
-            batch_prompts = prompts[batch_index] if batch_index < len(prompts) else []
+            motion_predictions = []
+            batch_prompts = raw_batch.prompts[batch_index] if batch_index < len(raw_batch.prompts) else []
             
             for pred in final_predictions:
                 prompt_idx = int(pred['prompt_idx'])
                 if prompt_idx < len(batch_prompts):
-                    results_for_sample.append((
-                        batch_prompts[prompt_idx],
-                        int(pred['span_start']),
-                        int(pred['span_end']),
-                        float(pred['score'])
-                    ))
+                    # NOTE: extract text from tuple
+                    prompt_text = batch_prompts[prompt_idx][0]
+                    span_tuple = (int(pred['span_start']), int(pred['span_end']))
+                    score = float(pred['score'])
+                    
+                    motion_predictions.append((prompt_text, span_tuple, score))
+            
+            batch_predictions.append(motion_predictions)
+            
+        # NOTE: group predictions by prompt text for each motion
+        grouped_batch_predictions = []
+        for motion_predictions in batch_predictions:
+            prompt_dict = {}
+            for prompt_text, span_tuple, score in motion_predictions:
+                if prompt_text not in prompt_dict:
+                    prompt_dict[prompt_text] = []
+                prompt_dict[prompt_text].append((span_tuple[0], span_tuple[1], score))
+            grouped_predictions = [
+                (prompt, spans_scores)
+                for prompt, spans_scores in prompt_dict.items()
+            ]
+            grouped_batch_predictions.append(grouped_predictions)
 
-            batch_results.append(EvaluationResult(
-                motion_length=motion_length,
-                predictions=results_for_sample
-            ))
-
-        return batch_results
+        return EvaluationResult(
+            motion_length=batch_motion_lengths,
+            predictions=grouped_batch_predictions
+        )
     
     def _apply_strategy(self, predictions):
         if self.strategy == DecodingStrategy.OVERLAP:
@@ -106,6 +137,9 @@ class GreedyDecoder(BaseDecoder):
         return predictions
     
     def _apply_flat_strategy(self, predictions, spans):
+        """
+        No overlaps allowed.
+        """
         if len(predictions) <= 1:
             return predictions
             
@@ -130,6 +164,9 @@ class GreedyDecoder(BaseDecoder):
         return predictions[selected_mask]
     
     def _apply_nested_strategy(self, predictions, spans):
+        """
+        Fully nested spans are allowed.
+        """
         if len(predictions) <= 1:
             return predictions
             

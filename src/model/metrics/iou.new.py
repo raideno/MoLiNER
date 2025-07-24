@@ -133,13 +133,6 @@ class IntervalDetectionMetric(torchmetrics.Metric):
         self.add_state("all_ground_truth", default=[], dist_reduce_fx=None)
         self.add_state("all_predictions", default=[], dist_reduce_fx=None)
     
-    def update(self, *args, **kwargs):
-        """
-        Required abstract method from torchmetrics.Metric.
-        This is a placeholder - use update_from_model_outputs for actual updates.
-        """
-        pass
-    
     def update_from_model_outputs(
         self, 
         output: ForwardOutput, 
@@ -148,7 +141,7 @@ class IntervalDetectionMetric(torchmetrics.Metric):
         decoder
     ):
         """
-        Update metrics from model outputs using the new batch-based EvaluationResult format.
+        Update metrics from model outputs, properly matching prompts to their spans.
         
         Args:
             output: Model forward output
@@ -156,7 +149,7 @@ class IntervalDetectionMetric(torchmetrics.Metric):
             processed_batch: ProcessedBatch containing processed data
             decoder: Decoder that produces EvaluationResult objects
         """
-        # Get evaluation results from decoder (now returns batch results)
+        # Get evaluation results from decoder
         evaluation_result = decoder.decode(
             output, 
             raw_batch, 
@@ -164,35 +157,16 @@ class IntervalDetectionMetric(torchmetrics.Metric):
             self.score_threshold
         )
         
-        # Process the entire batch at once
-        self._update_batch(raw_batch, evaluation_result)
-    
-    def _update_batch(
-        self, 
-        raw_batch: RawBatch,
-        evaluation_result: EvaluationResult
-    ):
-        """
-        Update metrics for an entire batch using the new EvaluationResult format.
-        
-        Args:
-            raw_batch: RawBatch containing ground truth data
-            evaluation_result: EvaluationResult with batch predictions
-        """
+        # Process each motion in the batch
         batch_size = len(raw_batch.prompts)
-        
         for batch_idx in range(batch_size):
             video_id = f"sample_{batch_idx}"
             
             # Get ground truth prompts for this motion
             ground_truth_prompts = raw_batch.prompts[batch_idx]
             
-            # Get predictions for this motion from the batch result
-            motion_predictions = (
-                evaluation_result.predictions[batch_idx] 
-                if batch_idx < len(evaluation_result.predictions) 
-                else []
-            )
+            # Get predictions for this motion
+            motion_predictions = evaluation_result.predictions[batch_idx] if batch_idx < len(evaluation_result.predictions) else []
             
             self._update_single_sample(video_id, ground_truth_prompts, motion_predictions)
     
@@ -233,26 +207,4 @@ class IntervalDetectionMetric(torchmetrics.Metric):
                 'score': score
             })
         
-        if gt_rows:
-            self.all_ground_truth.append(pd.DataFrame(gt_rows))
-        if pred_rows:
-            self.all_predictions.append(pd.DataFrame(pred_rows))
-            
-    def compute(self) -> typing.Dict[str, float]:
-        """
-        Compute the final metrics based on accumulated ground truth and predictions.
-        
-        Returns:
-            Dictionary with average precision for each threshold
-        """
-        if not self.all_ground_truth or not self.all_predictions:
-            return {f"ap@{t:.1f}": 0.0 for t in self.thresholds}
-        
-        # Concatenate all ground truth and predictions
-        all_gt = pd.concat(self.all_ground_truth, ignore_index=True)
-        all_preds = pd.concat(self.all_predictions, ignore_index=True)
-        
-        # Compute average precision for each threshold
-        ap_scores = compute_average_precision_detection(all_gt, all_preds, self.thresholds)
-        
-        return {f"ap@{t:.1f}": ap for t, ap in zip(self.thresholds, ap_scores)}
+        if

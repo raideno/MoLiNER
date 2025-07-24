@@ -3,7 +3,13 @@ import typing
 
 from abc import ABC, abstractmethod
 
-from src.types import ForwardOutput, DecodingStrategy, EvaluationResult
+from src.types import (
+    ForwardOutput,
+    DecodingStrategy,
+    EvaluationResult,
+    RawBatch,
+    ProcessedBatch,
+)
 
 class BaseDecoder(torch.nn.Module, ABC):
     """
@@ -20,16 +26,18 @@ class BaseDecoder(torch.nn.Module, ABC):
     def decode(
         self,
         forward_output: ForwardOutput,
-        prompts: typing.List[typing.List[str]],
+        raw_batch: RawBatch,
+        processed_batch: ProcessedBatch,
         score_threshold: float,
     ) -> typing.List[EvaluationResult]:
         """
         Decodes the model's forward pass output into a list of predicted spans.
 
         Args:
-            forward_output (ForwardOutput): The raw output from the model's forward pass.
-            prompts (typing.List[typing.List[str]]): List of prompt texts for each sample in the batch.
-            score_threshold (float): The minimum similarity score to consider a span as a potential match.
+            forward_output: ForwardOutput
+            raw_batch: RawBatch
+            processed_batch: ProcessedBatch
+            score_threshold: float,
 
         Returns:
             typing.List[EvaluationResult]: A list of EvaluationResult objects, one for each item in the batch.

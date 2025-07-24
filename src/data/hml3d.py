@@ -4,6 +4,7 @@ import datasets
 import src.auth
 
 from src.data.pipelines import get_pipeline
+from src.data.utils.collator import SimpleBatchStructureCollator
 
 from src.constants import (
     HML3D_REMOTE_DATASET_NAME,
@@ -17,8 +18,8 @@ class HML3DDataset:
     
     def __init__(
         self,
-        split: str = "train",
-        pipeline: str = "hml3d",
+        split: str,
+        pipeline: str,
         load_from_cache_file: bool = DEFAULT_LOAD_FROM_CACHE_FILE,
         motion_normalizer: typing.Optional[object] = None,
     ):
@@ -31,9 +32,6 @@ class HML3DDataset:
             load_from_cache_file: Whether to load from cache file
             motion_normalizer: Optional motion normalizer object
         """
-        if datasets is None:
-            raise ImportError("datasets library is required but not available")
-            
         self.split = split
         self.pipeline_name = pipeline
         self.load_from_cache_file = load_from_cache_file
@@ -52,7 +50,7 @@ class HML3DDataset:
             load_from_cache_file=load_from_cache_file
         )
         
-        self._collate_function = self._pipeline.get_collate_function()
+        self._collate_function = SimpleBatchStructureCollator()
     
     @property
     def dataset(self):
@@ -77,5 +75,4 @@ class HML3DDataset:
         return item
     
     def __len__(self):
-        """Get dataset length."""
         return len(self.dataset)

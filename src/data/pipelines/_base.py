@@ -6,7 +6,6 @@ from src.data.utils.batching import (
     hml3d_simplify_batch_structure,
     babel_simplify_batch_structure,
 )
-from src.data.utils.collator import SimpleBatchStructureCollator
 from src.constants import (
     MAP_AUGMENTATION_BATCH_SIZE,
     DEFAULT_LOAD_FROM_CACHE_FILE,
@@ -46,9 +45,3 @@ class BasePipeline:
             assert isinstance(processed_dataset, datasets.Dataset), "Each step must return a datasets.Dataset instance"
         
         return processed_dataset
-        
-    def get_collate_function(self) -> typing.Callable:
-        """
-        Get the appropriate collate function for this pipeline.
-        """
-        return SimpleBatchStructureCollator()

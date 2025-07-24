@@ -8,7 +8,10 @@ from .babel import (
     BabelProcLabelPipeline,
     BabelRawLabelPipeline
 )
-from .hml3d import HML3DPipeline
+from .hml3d import (
+    HML3DPipeline,
+    ShortLengthHML3DPipeline,
+)
 from .locate import (
     LocatePipeline,
     WindowingStandardizedLocatePipeline,
