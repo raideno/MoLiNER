@@ -30,4 +30,6 @@ defaults:
   # adam
   - optimizer: adam
 
-  - postprocessors: []
+  # span_grouping/0, span_grouping/4, span_grouping/8
+  - postprocessors:
+    - span_grouping/8

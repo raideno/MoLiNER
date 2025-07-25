@@ -21,17 +21,17 @@ class BasePostprocessor(torch.nn.Module, ABC):
         super().__init__()
 
     @abstractmethod
-    def decode(
+    def forward(
         self,
-        evaluation_results: typing.List[EvaluationResult],
-    ) -> typing.List[EvaluationResult]:
+        evaluation_results: EvaluationResult,
+    ) -> EvaluationResult:
         """
         Postprocess the decoder's output.
 
         Args:
-            evaluation_results (typing.List[EvaluationResult]): A list of EvaluationResult objects, one for each item in the batch.
+            evaluation_results (typing.List[EvaluationResult]).
 
         Returns:
-            typing.List[EvaluationResult]: A list of EvaluationResult objects, one for each item in the batch.
+            typing.List[EvaluationResult].
         """
         pass
