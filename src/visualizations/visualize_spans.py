@@ -40,21 +40,22 @@ def plot_evaluation_results(
         prompts_with_predictions = set()
         
         for prompt_text, span_list in motion_predictions:
-            prompts_with_predictions.add(prompt_text)
-            
-            # NOTE: multiple spans for the same prompt
-            for span_start, span_end, score in span_list:
-                start_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=span_start/DEFAULT_FPS)
-                end_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=span_end/DEFAULT_FPS)
+            if span_list:
+                prompts_with_predictions.add(prompt_text)
+                
+                # NOTE: multiple spans for the same prompt
+                for span_start, span_end, score in span_list:
+                    start_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=span_start/DEFAULT_FPS)
+                    end_timestamp = dt.datetime(2025, 1, 1, 0, 0, 0) + dt.timedelta(seconds=span_end/DEFAULT_FPS)
 
-                data_for_dataframe.append({
-                    "prompt": prompt_text,
-                    "start": span_start,
-                    "finish": span_end,
-                    "start_timestamp": start_timestamp,
-                    "end_timestamp": end_timestamp,
-                    "score": f"{score:.2f}"
-                })
+                    data_for_dataframe.append({
+                        "prompt": prompt_text,
+                        "start": span_start,
+                        "finish": span_end,
+                        "start_timestamp": start_timestamp,
+                        "end_timestamp": end_timestamp,
+                        "score": f"{score:.2f}"
+                    })
 
         # NOTE: ensure all prompts are visible, even if they have no predictions
         if all_prompts is not None:

@@ -16,7 +16,7 @@ from src.model import MoLiNER
 from src.auth import login_to_huggingface
 from src.load import load_model_from_cfg
 from src.config import read_config, save_config
-from src.visualizations.spans import plot_evaluation_results
+from src.visualizations import plot_evaluation_results
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,

@@ -34,7 +34,6 @@ KINEMATIC_TREES = {
     ],
 }
 
-
 @dataclass
 class MatplotlibRender:
     jointstype: str = "smpljoints"
@@ -66,7 +65,6 @@ class MatplotlibRender:
             canonicalize=self.canonicalize,
         )
 
-
 def init_axis(fig, title, radius=1.5):
     ax = fig.add_subplot(1, 1, 1, projection="3d")
     ax.view_init(elev=20.0, azim=-60)
@@ -86,7 +84,6 @@ def init_axis(fig, title, radius=1.5):
 
     ax.set_title(title, loc="center", wrap=True)
     return ax
-
 
 def plot_floor(ax, minx, maxx, miny, maxy, minz):
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -123,12 +120,10 @@ def plot_floor(ax, minx, maxx, miny, maxy, minz):
     ax.add_collection3d(xz_plane)
     return ax
 
-
 def update_camera(ax, root, radius=1.5):
     fact = 2
     ax.set_xlim3d([-radius / fact + root[0], radius / fact + root[0]])
     ax.set_ylim3d([-radius / fact + root[1], radius / fact + root[1]])
-
 
 def render_animation(
     joints: np.ndarray,
