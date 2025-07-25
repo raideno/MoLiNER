@@ -162,12 +162,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
             prompts_mask=prompts_mask
         )   
 
-    def step(self, processed_batch: "ProcessedBatch", batch_index: int) -> tuple[torch.Tensor, int, ForwardOutput, ProcessedBatch]:
+    def step(self, processed_batch: "ProcessedBatch", batch_index: int) -> tuple[torch.Tensor, ForwardOutput]:
         output = self.forward(processed_batch, batch_index=batch_index)
         
-        loss, unmatched_spans_count = self.loss.forward(output, processed_batch)
+        loss = self.loss.forward(output, processed_batch)
 
-        return loss, unmatched_spans_count, output, processed_batch
+        return loss, output
     
     def training_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
@@ -177,16 +177,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, unmatched_spans_count, output, processed_batch = self.step(processed_batch, batch_index)
+        loss, output = self.step(processed_batch, batch_index)
 
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         return {
             "loss": loss,
-            "forward_output": output,
-            "processed_batch": processed_batch,
-            "batch_size": batch_size,
-            "unmatched_spans_count": unmatched_spans_count
         }
 
     def validation_step(self, *args, **kwargs):
@@ -197,16 +193,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
        
         batch_size = raw_batch.motion_mask.size(0)
        
-        loss, unmatched_spans_count, output, processed_batch = self.step(processed_batch, batch_index)
+        loss, output = self.step(processed_batch, batch_index)
        
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
        
         return {
             "loss": loss,
-            "forward_output": output,
-            "processed_batch": processed_batch,
-            "batch_size": batch_size,
-            "unmatched_spans_count": unmatched_spans_count
         }
 
     def predict(

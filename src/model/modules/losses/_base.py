@@ -23,7 +23,7 @@ class BaseLoss(torch.nn.Module, abc.ABC):
         forward_output: ForwardOutput,
         batch: ProcessedBatch,
         batch_index: typing.Optional[int] = None,
-    ) -> typing.Tuple[torch.Tensor, int]:
+    ) -> torch.Tensor:
         """
         Computes the complete loss given model forward output and processed batch.
 
@@ -33,8 +33,6 @@ class BaseLoss(torch.nn.Module, abc.ABC):
             batch_index (typing.Optional[int]): Optional index of the batch in the dataset, if applicable.
 
         Returns:
-            typing.Tuple[torch.Tensor, int]: A tuple containing:
-                - loss (torch.Tensor): Computed loss value
-                - unmatched_spans_count (int): Number of ground truth spans that couldn't be matched
+            loss (torch.Tensor): Computed loss value
         """
         pass

@@ -22,7 +22,7 @@ def create_target_matrix(
     forward_output: ForwardOutput, 
     batch: ProcessedBatch,
     threshold: float
-) -> typing.Tuple[torch.Tensor, int]:
+) -> torch.Tensor:
     """
     Create a target matrix with the same shape as the model output logits (B, P, S).
     target_matrix[b, p, s] = IoU if IoU between candidate_spans[b, s] and any target span for prompt p 
@@ -69,8 +69,4 @@ def create_target_matrix(
     
     target_matrix = torch.where(target_matrix >= threshold, target_matrix, torch.zeros_like(target_matrix))
     
-    # --- --- --- xxx --- --- ---
-    unmatched_spans_count = -1
-    # --- --- --- xxx --- --- ---
-    
-    return target_matrix, unmatched_spans_count
+    return target_matrix

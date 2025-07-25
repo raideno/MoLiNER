@@ -98,13 +98,13 @@ class FocalLoss(BaseLoss):
         forward_output: ForwardOutput,
         batch: ProcessedBatch,
         batch_index: typing.Optional[int] = None,
-    ) -> typing.Tuple[torch.Tensor, int]:
+    ) -> torch.Tensor:
         if batch.target_spans is None:
             raise ValueError("Cannot compute loss without target spans (training data)")
         
         predicted_logits = forward_output.similarity_matrix
         
-        target_logits, unmatched_spans_count = create_target_matrix(
+        target_logits = create_target_matrix(
             forward_output=forward_output,
             batch=batch,
             threshold=self.threshold
@@ -136,4 +136,4 @@ class FocalLoss(BaseLoss):
             valid_mask=loss_mask
         )
         
-        return loss, unmatched_spans_count
+        return loss
