@@ -1,4 +1,5 @@
 import typing
+import datasets
 
 from src.data.hml3d import HML3DDataset
 from src.data.babel import BabelDataset
@@ -6,9 +7,6 @@ from src.data.babel import BabelDataset
 from src.data.utils.collator import SimpleBatchStructureCollator
 
 class MixedDataset:
-    """
-    Dataset that mixes samples from HumanML3D and Babel datasets.
-    """
     def __init__(
         self,
         split: str,
@@ -17,63 +15,63 @@ class MixedDataset:
         load_from_cache_file: bool = True,
         motion_normalizer: typing.Optional[object] = None,
         interleave: bool = False,
+        max_hml3d_samples: typing.Optional[int] = None,
+        max_babel_samples: typing.Optional[int] = None,
+        shuffle: bool = False,
+        seed: int = 42,
     ):
-        """
-        Initialize MixedDataset with HML3D and Babel datasets.
-        Args:
-            split: Dataset split ("train", "validation", "test")
-            hml3d_pipeline: Pipeline for HML3D
-            babel_pipeline: Pipeline for Babel
-            load_from_cache_file: Whether to load from cache
-            motion_normalizer: Optional motion normalizer
-            interleave: If True, alternate samples from each dataset
-        """
-        self.hml3d = HML3DDataset(
+        hml3d = HML3DDataset(
             split=split,
             pipeline=hml3d_pipeline,
             load_from_cache_file=load_from_cache_file,
             motion_normalizer=motion_normalizer,
         )
-        self.babel = BabelDataset(
+        babel = BabelDataset(
             split=split,
             pipeline=babel_pipeline,
             load_from_cache_file=load_from_cache_file,
             motion_normalizer=motion_normalizer,
         )
-        self.interleave = interleave
+        
+        def ensure_sid(example):
+            example['sid'] = str(example.get('sid', ''))
+            return example
 
-    def __getitem__(self, index):
-        if self.interleave:
-            hml3d_len = len(self.hml3d)
-            babel_len = len(self.babel)
-            
-            min_len = min(hml3d_len, babel_len)
-            
-            interleaved_len = min_len * 2
-            
-            if index < interleaved_len:
-                if index % 2 == 0:
-                    return self.hml3d[index // 2]
-                else:
-                    return self.babel[index // 2]
-            else:
-                # NOTE: a dataset is exhausted, continue with the other
-                if hml3d_len > babel_len:
-                    h_idx = index - babel_len
-                    return self.hml3d[h_idx]
-                else:
-                    b_idx = index - hml3d_len
-                    return self.babel[b_idx]
+        # babel._dataset = babel._dataset.map(ensure_sid)
+        # hml3d._dataset = hml3d._dataset.map(ensure_sid)
+        
+        # NOTE: this is done because there is an issue with the sid type, it is different in Babel and HML3D datasets, they need to be consistent for the interleave / concatenate to work properly
+        babel._dataset = babel._dataset.remove_columns("sid")
+        hml3d._dataset = hml3d._dataset.remove_columns("sid")
+
+        if shuffle:
+            hml3d._dataset = hml3d._dataset.shuffle(seed=seed)
+            babel._dataset = babel._dataset.shuffle(seed=seed)
+
+        # TODO: if no shuffling is done, only the first elements will be selected and this is problematic i think, we should do some shuffling when selecting max samples as well
+        if max_hml3d_samples is not None:
+            hml3d._dataset = hml3d._dataset.select(range(min(max_hml3d_samples, len(hml3d))))
+        if max_babel_samples is not None:
+            babel._dataset = babel._dataset.select(range(min(max_babel_samples, len(babel))))
+
+        if interleave:
+            self.dataset = datasets.interleave_datasets(
+                datasets=[hml3d._dataset, babel._dataset],
+                probabilities=None,
+                seed=None,
+                # first_exhausted, all_exhausted
+                stopping_strategy="all_exhausted",
+            )
         else:
-            # NOTE: concatenate datasets
-            hml3d_len = len(self.hml3d)
-            if index < hml3d_len:
-                return self.hml3d[index]
-            else:
-                return self.babel[index - hml3d_len]
+            self.dataset = datasets.concatenate_datasets(
+                dsets=[hml3d._dataset, babel._dataset],
+            )
+
+    def __getitem__(self, idx):
+        return self.dataset[idx]
 
     def __len__(self):
-        return len(self.hml3d) + len(self.babel)
+        return len(self.dataset)
 
     @property
     def collate_function(self):
@@ -81,4 +79,4 @@ class MixedDataset:
 
     @property
     def fingerprint(self):
-        return f"mixed-{self.hml3d.fingerprint}-{self.babel.fingerprint}"
+        return f"mixed-{self.dataset._fingerprint}"

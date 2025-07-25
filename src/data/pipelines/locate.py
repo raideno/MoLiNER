@@ -42,7 +42,7 @@ MAX_EXTEND_FRAMES = 4
 # NOTE: only filtering is that we take act_cat only and we limit motion frames between 8 and 4096
 FILTER_CONFIG = FilterConfig(
     min_motion_frames=1,
-    max_motion_frames=4096,
+    max_motion_frames=1024,
     min_prompts_per_sample=1,
     prompt_text_filter_function=create_locate_classes_filter_function(),
     min_span_frames=1,
