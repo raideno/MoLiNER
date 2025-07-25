@@ -10,7 +10,7 @@ from .babel import (
 )
 from .hml3d import (
     HML3DPipeline,
-    ShortLengthHML3DPipeline,
+    Max1024HML3DPipeline,
 )
 from .locate import (
     LocatePipeline,

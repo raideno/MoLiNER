@@ -6,18 +6,18 @@ from src.data.utils.filtering import FilterConfig, FilterFunction
 from src.data.utils.batching import hml3d_simplify_batch_structure
 
 class HML3DPipeline(BasePipeline):
-    def __init__(self):
-        super().__init__("hml3d")
+    def __init__(self, name: typing.Optional[str] = None):
+        super().__init__(name or "hml3d")
         
         self.add_step(hml3d_simplify_batch_structure, batched=True)
         
-class ShortLengthHML3DPipeline(HML3DPipeline):
+class Max1024HML3DPipeline(HML3DPipeline):
     """
     Pipeline for processing HumanML3D dataset with short length filtering.
     """
     
     def __init__(self):
-        super().__init__()
+        super().__init__("max-1024-hml3d")
                 
         filter_function = FilterFunction(FilterConfig(
             # seed: typing.Optional[int] = DEFAULT_SEED

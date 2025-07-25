@@ -1,5 +1,5 @@
 _target_: src.data.mixed.MixedDataset
-hml3d_pipeline: short-length-hml3d
+hml3d_pipeline: max-1024-hml3d
 babel_pipeline: locate
 
 motion_normalizer:

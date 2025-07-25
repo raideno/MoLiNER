@@ -2,7 +2,7 @@ from ._base import BasePipeline
 
 from .hml3d import (
     HML3DPipeline,
-    ShortLengthHML3DPipeline,
+    Max1024HML3DPipeline,
 )
 from .babel import (
     BabelPipeline,
@@ -27,7 +27,7 @@ PIPELINE_REGISTRY: dict[type[BasePipeline], list[str]] = {
     BabelRawLabelPipeline: ["babel-raw-label", "babel-raw_label"],
     WindowingStandardizedLocatePipeline: ["20-windowing-standardized", "windowing-standardized-locate", "windowing_standardized_locate"],
     ChunkingStandardizedLocatePipeline: ["20-chunking-standardized", "chunking-standardized-locate", "chunking_standardized_locate"],
-    ShortLengthHML3DPipeline: ["short-length-hml3d", "short_length_hml3d"]
+    Max1024HML3DPipeline: ["max-1024-hml3d", "mx_1024_hml3d"]
 }
 
 def get_pipeline(name: str) -> "BasePipeline":
