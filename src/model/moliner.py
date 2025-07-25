@@ -74,15 +74,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self.optimizer: BaseOptimizer = optimizer
         
         self.postprocessors: typing.List[BasePostprocessor] = postprocessors
-        
-        # self.val_iou_metric = IntervalDetectionMetric(
-        #     thresholds=IOU_THRESHOLDS,
-        #     score_threshold=0.5
-        # )
-        # self.train_iou_metric = IntervalDetectionMetric(
-        #     IOU_THRESHOLDS,
-        #     score_threshold=0.5
-        # )
 
     def configure_optimizers(self):
         return self.optimizer.configure_optimizer(self)
@@ -187,14 +178,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         batch_size = raw_batch.motion_mask.size(0)
         
         loss, unmatched_spans_count, output, processed_batch = self.step(processed_batch, batch_index)
-        
-        # self.train_iou_metric.update_from_model_outputs(
-        #     output,
-        #     raw_batch,
-        #     processed_batch,
-        #     self.decoder
-        # )
-      
+
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
         return {
@@ -208,22 +192,15 @@ class MoLiNER(pytorch_lightning.LightningModule):
     def validation_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
-        
+       
         processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
-        
+       
         batch_size = raw_batch.motion_mask.size(0)
-        
+       
         loss, unmatched_spans_count, output, processed_batch = self.step(processed_batch, batch_index)
-        
-        # self.val_iou_metric.update_from_model_outputs(
-        #     output,
-        #     raw_batch,
-        #     processed_batch,
-        #     self.decoder
-        # )
-        
+       
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        
+       
         return {
             "loss": loss,
             "forward_output": output,
@@ -232,29 +209,13 @@ class MoLiNER(pytorch_lightning.LightningModule):
             "unmatched_spans_count": unmatched_spans_count
         }
 
-    # def on_train_epoch_start(self):
-    #     self.train_iou_metric.reset()
-
-    # def on_validation_epoch_start(self):
-    #     self.val_iou_metric.reset()
-
-    # def on_train_epoch_end(self):
-    #     metrics = self.train_iou_metric.compute()
-        
-    #     for key, val in metrics.items():
-    #         self.log(f"train/{key}", val, on_epoch=True, prog_bar=False)
-
-    # def on_validation_epoch_end(self):
-    #     metrics = self.val_iou_metric.compute()
-        
-    #     for key, val in metrics.items():
-    #         self.log(f"val/{key}", val, on_epoch=True, prog_bar=False)
-
     def predict(
         self,
         raw_batch: RawBatch,
         threshold: float
     ):
+        self.eval()
+        
         processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
         
         output = self.forward(processed_batch)

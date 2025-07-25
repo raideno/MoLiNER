@@ -48,57 +48,52 @@ def evaluate_model(cfg: DictConfig):
     )
     
     iou_metric = IntervalDetectionMetric(IOU_THRESHOLDS, score_threshold=score)
-    
     model.eval()
     
     import pdb
     
-    for index, raw_batch in tqdm.tqdm(enumerate(validation_dataloader), desc="[evaluation]"):
-        if index == 208:
-            pdb.set_trace()
+    for index, raw_batch in tqdm.tqdm(enumerate(validation_dataloader), total=len(validation_dataloader), desc="[evaluation]"):
+        raw_batch = raw_batch.to(device)
         
-        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, model.prompts_tokens_encoder).to(device)
-        
-        # TODO: there is a memory leak in here
-        output = model.forward(processed_batch)
-        
-        batch_prompts = [[prompt[0] for prompt in prompts] for prompts in raw_batch.prompts]
-        evaluation_results = model.decoder.decode(
-            output,
-            batch_prompts,
-            score
+        evaluation_results = model.predict(
+            raw_batch=raw_batch,
+            threshold=score
         )
         
-        # Convert to the correct format for the fixed metric
         batch_predictions = []
-        batch_groundtruths = []
+        batch_targets = []
         
-        for result, prompts in zip(evaluation_results, raw_batch.prompts):
-            # Format predictions: List[(prompt_text, start, end, score)]
-            sample_predictions = []
-            for prompt_text, start, end, score in result.predictions:
-                sample_predictions.append((prompt_text, start, end, score))
-            batch_predictions.append(sample_predictions)
+        batch_size = len(raw_batch.prompts)
+        
+        for batch_idx in range(batch_size):
+            sample_targets = raw_batch.prompts[batch_idx]
             
-            # Format ground truth: List[(prompt_text, spans_list, is_sequence_prompt)]
-            sample_groundtruths = []
-            for prompt_text, spans, is_sequence_prompt in prompts:
-                sample_groundtruths.append((prompt_text, spans, is_sequence_prompt))
-            batch_groundtruths.append(sample_groundtruths)
+            sample_predictions = []
+            motion_predictions = (
+                evaluation_results.predictions[batch_idx] 
+                if batch_idx < len(evaluation_results.predictions) 
+                else []
+            )
+            
+            for prompt_text, span_list in motion_predictions:
+                for start_frame, end_frame, score_val in span_list:
+                    sample_predictions.append((prompt_text, start_frame, end_frame, score_val))
+            
+            batch_predictions.append(sample_predictions)
+            batch_targets.append(sample_targets)
         
-        # Update the metric with properly formatted data
-        iou_metric.update(preds=batch_predictions, target=batch_groundtruths)
+        iou_metric.update(preds=batch_predictions, target=batch_targets)
         
-        # NOTE: very required as there is a memory leak somewhere
-        del processed_batch, output, evaluation_results
-        del batch_predictions, batch_groundtruths
-        torch.cuda.empty_cache()
+        # del processed_batch, output, evaluation_results
+        del evaluation_results
+        del batch_predictions, batch_targets
         torch.cuda.empty_cache()
         gc.collect()
-        
+    
     pdb.set_trace()
     
     metrics = iou_metric.compute()
+    
     print("[evaluation]:")
     print(metrics)
 

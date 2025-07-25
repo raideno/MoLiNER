@@ -130,15 +130,36 @@ class IntervalDetectionMetric(torchmetrics.Metric):
         self.thresholds = thresholds
         self.score_threshold = score_threshold
         
+        # Store as list of dicts for torchmetrics compatibility
         self.add_state("all_ground_truth", default=[], dist_reduce_fx=None)
         self.add_state("all_predictions", default=[], dist_reduce_fx=None)
+        self._sample_counter = 0
     
-    def update(self, *args, **kwargs):
+    def update(
+        self, 
+        preds: typing.List[typing.List[typing.Tuple[str, int, int, float]]], 
+        target: typing.List[typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]]
+    ):
         """
-        Required abstract method from torchmetrics.Metric.
-        This is a placeholder - use update_from_model_outputs for actual updates.
+        Update metrics with batch predictions and targets.
+        
+        Args:
+            preds: List of predictions for each sample in batch
+                   Each prediction is (prompt_text, start, end, score)
+            target: List of ground truth for each sample in batch
+                    Each target is (prompt_text, spans_list, is_sequence_prompt)
         """
-        pass
+        batch_size = len(preds)
+        
+        for batch_idx in range(batch_size):
+            video_id = f"sample_{self._sample_counter}_{batch_idx}"
+            
+            sample_preds = preds[batch_idx]
+            sample_targets = target[batch_idx]
+            
+            self._update_single_sample(video_id, sample_targets, sample_preds)
+        
+        self._sample_counter += 1
     
     def update_from_model_outputs(
         self, 
@@ -156,7 +177,6 @@ class IntervalDetectionMetric(torchmetrics.Metric):
             processed_batch: ProcessedBatch containing processed data
             decoder: Decoder that produces EvaluationResult objects
         """
-        # Get evaluation results from decoder (now returns batch results)
         evaluation_result = decoder.decode(
             output, 
             raw_batch, 
@@ -164,43 +184,35 @@ class IntervalDetectionMetric(torchmetrics.Metric):
             self.score_threshold
         )
         
-        # Process the entire batch at once
-        self._update_batch(raw_batch, evaluation_result)
-    
-    def _update_batch(
-        self, 
-        raw_batch: RawBatch,
-        evaluation_result: EvaluationResult
-    ):
-        """
-        Update metrics for an entire batch using the new EvaluationResult format.
+        batch_predictions = []
+        batch_targets = []
         
-        Args:
-            raw_batch: RawBatch containing ground truth data
-            evaluation_result: EvaluationResult with batch predictions
-        """
         batch_size = len(raw_batch.prompts)
         
         for batch_idx in range(batch_size):
-            video_id = f"sample_{batch_idx}"
-            
-            # Get ground truth prompts for this motion
             ground_truth_prompts = raw_batch.prompts[batch_idx]
             
-            # Get predictions for this motion from the batch result
             motion_predictions = (
                 evaluation_result.predictions[batch_idx] 
                 if batch_idx < len(evaluation_result.predictions) 
                 else []
             )
             
-            self._update_single_sample(video_id, ground_truth_prompts, motion_predictions)
+            sample_predictions = []
+            for prompt_text, span_list in motion_predictions:
+                for start_frame, end_frame, score in span_list:
+                    sample_predictions.append((prompt_text, start_frame, end_frame, score))
+            
+            batch_predictions.append(sample_predictions)
+            batch_targets.append(ground_truth_prompts)
+        
+        self.update(preds=batch_predictions, target=batch_targets)
     
     def _update_single_sample(
         self, 
         video_id: str, 
         ground_truth_prompts: typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]],
-        predictions: typing.List[typing.Tuple[str, typing.Tuple[int, int], float]]
+        predictions: typing.List[typing.Tuple[str, int, int, float]]
     ):
         """
         Update metrics for a single sample, converting to the pandas format expected by the evaluator.
@@ -208,9 +220,8 @@ class IntervalDetectionMetric(torchmetrics.Metric):
         Args:
             video_id: Unique identifier for this sample
             ground_truth_prompts: List of (text, spans, is_sequence_prompt) tuples  
-            predictions: List of (text, span, score) tuples
+            predictions: List of (text, start, end, score) tuples
         """
-        # Convert ground truth to DataFrame format
         gt_rows = []
         for prompt_text, gt_spans, _ in ground_truth_prompts:
             for start_frame, end_frame in gt_spans:
@@ -221,10 +232,8 @@ class IntervalDetectionMetric(torchmetrics.Metric):
                     'label': prompt_text
                 })
         
-        # Convert predictions to DataFrame format  
         pred_rows = []
-        for prompt_text, span_tuple, score in predictions:
-            start_frame, end_frame = span_tuple
+        for prompt_text, start_frame, end_frame, score in predictions:
             pred_rows.append({
                 'video-id': video_id,
                 't-start': start_frame,
@@ -248,11 +257,13 @@ class IntervalDetectionMetric(torchmetrics.Metric):
         if not self.all_ground_truth or not self.all_predictions:
             return {f"ap@{t:.1f}": 0.0 for t in self.thresholds}
         
-        # Concatenate all ground truth and predictions
         all_gt = pd.concat(self.all_ground_truth, ignore_index=True)
         all_preds = pd.concat(self.all_predictions, ignore_index=True)
         
-        # Compute average precision for each threshold
         ap_scores = compute_average_precision_detection(all_gt, all_preds, self.thresholds)
         
         return {f"ap@{t:.1f}": ap for t, ap in zip(self.thresholds, ap_scores)}
+    
+    def reset(self):
+        super().reset()
+        self._sample_counter = 0
