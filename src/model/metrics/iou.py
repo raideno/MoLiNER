@@ -177,7 +177,7 @@ class IntervalDetectionMetric(torchmetrics.Metric):
             processed_batch: ProcessedBatch containing processed data
             decoder: Decoder that produces EvaluationResult objects
         """
-        evaluation_result = decoder.decode(
+        evaluation_result = decoder.forward(
             output, 
             raw_batch, 
             processed_batch, 

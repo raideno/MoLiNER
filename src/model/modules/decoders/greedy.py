@@ -20,7 +20,7 @@ class GreedyDecoder(BaseDecoder):
         super().__init__()
         self.strategy = strategy
 
-    def decode(
+    def forward(
         self,
         forward_output: ForwardOutput,
         raw_batch: RawBatch,

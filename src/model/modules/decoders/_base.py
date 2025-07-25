@@ -23,7 +23,7 @@ class BaseDecoder(torch.nn.Module, ABC):
         super().__init__()
 
     @abstractmethod
-    def decode(
+    def forward(
         self,
         forward_output: ForwardOutput,
         raw_batch: RawBatch,

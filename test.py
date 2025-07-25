@@ -173,7 +173,7 @@ def test(cfg: DictConfig):
             print("forward_output.similarity_matrix.max()", forward_output.similarity_matrix.max())
             print("forward_output.similarity_matrix.mean()", forward_output.similarity_matrix.mean())
             print("forward_output.similarity_matrix.min()", forward_output.similarity_matrix.min())
-            decoded_results = model.decoder.decode(
+            decoded_results = model.decoder.forward(
                 forward_output=forward_output,
                 prompts=prompt_texts,
                 score_threshold=threshold,

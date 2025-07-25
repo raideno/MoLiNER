@@ -212,7 +212,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         output = self.forward(processed_batch)
         
-        decoded = self.decoder.decode(
+        decoded = self.decoder.forward(
             forward_output=output,
             raw_batch=raw_batch,
             processed_batch=processed_batch,
