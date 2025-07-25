@@ -27,7 +27,8 @@ loggers:
     name: ${run_dir}
     save_dir: ${run_dir}
     offline: false
-    tags: []
+    tags:
+      - v1.0.0
     notes: "MoLiNER training run"
     # NOTE: set to your WandB username or team
     entity: nadirkichou-university-of-lille

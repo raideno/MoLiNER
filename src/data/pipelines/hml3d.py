@@ -25,8 +25,8 @@ class Max1024HML3DPipeline(HML3DPipeline):
             min_motion_frames=1,
             max_motion_frames=1024,
             min_prompts_per_sample=1,
-            max_prompts_per_sample=16,
-            # split_max_prompts_per_sample: bool = False
+            max_prompts_per_sample=1,
+            split_max_prompts_per_sample=True,
             # prompt_text_filter_function,
             # min_span_frames=1,
             # max_span_frames=64,
