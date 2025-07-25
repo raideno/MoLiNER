@@ -44,32 +44,33 @@ class MixedDataset:
 
     def __getitem__(self, index):
         if self.interleave:
-            # NOTE: alternate between datasets
-            total = len(self)
-            h_len = len(self.hml3d)
-            b_len = len(self.babel)
-            if index % 2 == 0:
-                h_idx = index // 2
-                if h_idx < h_len:
-                    return self.hml3d[h_idx]
+            hml3d_len = len(self.hml3d)
+            babel_len = len(self.babel)
+            
+            min_len = min(hml3d_len, babel_len)
+            
+            interleaved_len = min_len * 2
+            
+            if index < interleaved_len:
+                if index % 2 == 0:
+                    return self.hml3d[index // 2]
                 else:
-                    # NOTE: if HML3D exhausted, use Babel
-                    b_idx = index - h_len
-                    return self.babel[b_idx]
+                    return self.babel[index // 2]
             else:
-                b_idx = index // 2
-                if b_idx < b_len:
-                    return self.babel[b_idx]
-                else:
-                    h_idx = index - b_len
+                # NOTE: a dataset is exhausted, continue with the other
+                if hml3d_len > babel_len:
+                    h_idx = index - babel_len
                     return self.hml3d[h_idx]
+                else:
+                    b_idx = index - hml3d_len
+                    return self.babel[b_idx]
         else:
             # NOTE: concatenate datasets
-            h_len = len(self.hml3d)
-            if index < h_len:
+            hml3d_len = len(self.hml3d)
+            if index < hml3d_len:
                 return self.hml3d[index]
             else:
-                return self.babel[index - h_len]
+                return self.babel[index - hml3d_len]
 
     def __len__(self):
         return len(self.hml3d) + len(self.babel)
