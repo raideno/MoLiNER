@@ -8,7 +8,8 @@ from .babel import (
     BabelPipeline,
     BabelActionCategoryPipeline,
     BabelProcLabelPipeline,
-    BabelRawLabelPipeline
+    BabelRawLabelPipeline,
+    CustomBabelPipeline
 )
 from .locate import (
     LocatePipeline,
@@ -18,6 +19,7 @@ from .locate import (
 )
     
 PIPELINE_REGISTRY: dict[type[BasePipeline], list[str]] = {
+    BabelSeparate: ["babel-separate", "babel-separate"],
     FilteredLocatePipeline: ["filtered-locate", "filtered_locate"],
     LocatePipeline: ["20", "locate"],
     BabelPipeline: ["babel"],
