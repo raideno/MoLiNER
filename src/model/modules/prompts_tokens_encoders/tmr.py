@@ -13,12 +13,14 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         frozen: bool,
         pretrained: bool,
         weights_path: typing.Optional[str] = None,
+        sample_mean: bool = False
     ):
         super().__init__()
         
         self.frozen = frozen
         self.pretrained_ = pretrained
         self.weights_path = weights_path
+        self.sample_mean = sample_mean
         
         MODEL_NAME = "distilbert-base-uncased"
         
@@ -67,15 +69,6 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         # NOTE: the base text model is always frozen
         for param in self.base_text_model.parameters():
             param.requires_grad = False
-        
-    def get_output_dim(self) -> int:
-        """
-        Returns the output dimension of the text encoder.
-        Note: This might differ from latent_dim if the TMR encoder uses a different output dimension.
-        """
-        # NOTE: The TMR encoder might use a different output dimension than the configured latent_dim
-        # We return latent_dim as a fallback, but the actual dimension is determined at runtime
-        return self.latent_dim
     
     def forward(
         self,
@@ -118,7 +111,13 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
                 # NOTE: we skip empty prompts
                 if reshaped_mask[i].sum() == 0:
                     # NOTE: We'll determine the correct size after processing at least one valid prompt
-                    cls_embeddings_list.append(None)
+                    if len(cls_embeddings_list) == 0:
+                        # Determine embedding size from base_features or self.latent_dim
+                        embedding_size = self.latent_dim
+                    else:
+                        embedding_size = cls_embeddings_list[0].shape[0]
+                    zero_embedding = torch.zeros(embedding_size, device=base_features.device, dtype=base_features.dtype)
+                    cls_embeddings_list.append(zero_embedding)
                     continue
                 
                 try:
@@ -136,48 +135,38 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
                     )
                     
                     # NOTE: cls_token is of shape (1, hidden_size) as tmr is a VAE, thus we only take the mean
-                    mean, std = cls_token.squeeze(0)
-                    cls_token = mean
+                    mu, logvar = cls_token.squeeze(0)
                     
-                    # NOTE: Use the CLS token directly (shape: [1, hidden_size])
-                    cls_embedding = cls_token.squeeze(0)  # Remove batch dimension
-                    cls_embeddings_list.append(cls_embedding)
+                    # --- --- ---
+                            
+                    fact = 1.0
                     
-                except Exception as e:
-                    logger.warning(f"Failed to encode prompt {i}, using zero CLS embedding: {e}")
-                    # NOTE: We'll determine the correct size after processing at least one valid prompt
-                    cls_embeddings_list.append(None)
-            
-            # NOTE: Find the first valid embedding to determine the correct dimension
-            valid_embedding = None
-            for embedding in cls_embeddings_list:
-                if embedding is not None:
-                    valid_embedding = embedding
-                    break
-            
-            if valid_embedding is None:
-                # NOTE: All prompts are empty, use the configured latent_dim
-                actual_hidden_size = self.get_output_dim()
-            else:
-                actual_hidden_size = valid_embedding.shape[-1]
-            
-            # NOTE: Replace None entries with zero embeddings of the correct size
-            for i, emb in enumerate(cls_embeddings_list):
-                if emb is None:
-                    cls_embeddings_list[i] = torch.zeros(
-                        actual_hidden_size,
-                        device=prompt_input_ids.device,
-                        dtype=torch.float32
-                    )
+                    if self.sample_mean:
+                        embedding = mu
+                    else:
+                        # NOTE: reparameterization trick
+                        std = logvar.exp().pow(0.5)
+                        eps = std.data.new(std.size()).normal_()
+                        embedding = mu + fact * eps * std
+                        
+                    embedding = embedding.squeeze(0)  # remove batch dimension
+                    cls_embeddings_list.append(embedding)
+                    
+                    # --- --- ---
+                    
+                    # # NOTE: Use the CLS token directly (shape: [1, hidden_size])
+                    # cls_embedding = cls_token.squeeze(0)  # remove batch dimension
+                    # cls_embeddings_list.append(cls_embedding)
+                    
+                except Exception as exception:
+                    logger.warning(f"Failed to encode prompt {i} with error: {exception}")
+                    logger.warning(f"Will likely fail the program.")
             
             # NOTE: stack all CLS embeddings: (B * P, hidden_size)
             flat_cls_embeddings = torch.stack(cls_embeddings_list, dim=0)
             
-            # NOTE: Get the actual hidden size from the tensor
-            actual_hidden_size = flat_cls_embeddings.shape[-1]
-            
-            # NOTE: Reshape back to (B, P, actual_hidden_size)
-            output_embeddings = flat_cls_embeddings.view(B, P, actual_hidden_size)
+            # NOTE: Reshape back to (B, P, hidden_size)
+            output_embeddings = flat_cls_embeddings.view(B, P, self.latent_dim)
             
             return output_embeddings
 
@@ -190,9 +179,6 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         return_tensors: str = "pt",
         batch_index: typing.Optional[int] = None,
     ) -> typing.Dict[str, torch.Tensor]:
-        """
-        Tokenizes a list of text strings.
-        """
         if max_length is None:
             max_length = self.model_max_length
             
@@ -208,23 +194,12 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     @property
     def model_max_length(self) -> int:
-        """
-        Returns the maximum sequence length supported by the Distilbert tokenizer.
-        """
-        # return self.tokenizer.model_max_length
         return 512
     
     @property
     def pad_token_id(self) -> int:
-        """
-        Returns the padding token ID used by the Distilbert tokenizer.
-        """
         return self.tokenizer.pad_token_id
     
     @property
     def pretrained(self) -> bool:
-        """
-        Indicates whether the encoder is pretrained or not.
-        This is used by the model to adjust learning rates and training strategies.
-        """
         return self.pretrained_

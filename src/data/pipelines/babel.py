@@ -4,7 +4,11 @@ from ._base import BasePipeline
 
 from src.data.utils.filtering import (
     FilterConfig,
-    FilterFunction
+    FilterFunction,
+    NoTransitionFilter,
+)
+from src.data.utils.augmentation import (
+    SeparateFrameAndSequenceSpans
 )
 from src.data.utils.batching import babel_simplify_batch_structure
 
@@ -40,3 +44,29 @@ class BabelProcLabelPipeline(__BabelFromSourcePipeline):
 class BabelRawLabelPipeline(__BabelFromSourcePipeline):
     def __init__(self):
         super().__init__(source="raw_label")
+        
+class BabelSeparate(BabelPipeline):
+    def __init__(self):
+        super().__init__("custom-babel")
+        filter_function = FilterFunction(FilterConfig(
+            min_motion_frames=1,
+            max_motion_frames=1024,
+            min_prompts_per_sample=1,
+            max_prompts_per_sample=16,
+            # split_max_prompts_per_sample=False
+            prompt_text_filter_function=NoTransitionFilter(),
+            min_span_frames=1,
+            max_span_frames=256,
+            # min_spans_per_prompt: typing.Optional[int] = None
+            # max_spans_per_prompt: typing.Optional[int] = None
+            sources=["raw_label"],
+            annotation_types=["frames", "sequence"]
+        ))
+        
+        
+        fn = SeparateFrameAndSequenceSpans()
+        # NOTE: we split the frame annotation and sequence annotations into distinct samples to not confuse the model
+        self.add_step(fn, batched=True)
+        
+        # NOTE: we filter the samples based on the specified configuration
+        self.add_step(filter_function, batched=True)

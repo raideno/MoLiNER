@@ -2,7 +2,7 @@ import torch
 import typing
 
 from src.types import ForwardOutput, ProcessedBatch
-from src.model.losses.helpers import create_target_matrix, create_loss_mask
+from src.model.modules.losses.helpers import create_target_matrix, create_loss_mask
 
 class Monitoring:
     def compute_stats(

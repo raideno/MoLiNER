@@ -2,3 +2,4 @@ _target_: src.model.modules.motion_frames_encoders.tmr.TMRMotionFramesEncoder
 weights_path: ./models/tmr_humanml3d_guoh3dfeats/last_weights/motion_encoder.pt
 frozen: true
 pretrained: true
+sample_mean: false

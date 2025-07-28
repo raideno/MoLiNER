@@ -1,0 +1,11 @@
+_target_: src.data.mixed.MixedDataset
+hml3d_pipeline: max-1024-hml3d
+babel_pipeline: locate
+interleave: true
+max_hml3d_samples: 2048
+max_babel_samples: null
+shuffle: false
+
+motion_normalizer:
+  _target_: src.helpers.motion_normalizer.MotionNormalizer
+  stats_path: ./statistics/babel.pt

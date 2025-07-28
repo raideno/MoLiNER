@@ -1,0 +1,12 @@
+defaults:
+  - defaults
+  - _self_
+
+max_workers: null
+
+configurations:
+  - [babel, babel-act-cat]
+  - [babel, babel-proc-label]
+  - [babel, babel]
+  - [babel, locate]
+  - [hml3d, hml3d]

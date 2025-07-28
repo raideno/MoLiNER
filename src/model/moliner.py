@@ -9,7 +9,8 @@ import typing_extensions
 import pytorch_lightning
 
 from src.types import (
-    RawBatch, ProcessedBatch,
+    RawBatch,
+    ProcessedBatch,
     ForwardOutput,
 )
 
@@ -22,16 +23,15 @@ from src.model.modules import (
     BasePromptsTokensEncoder,
     BaseDecoder,
     BaseOptimizer,
+    BaseLoss,
+    BasePostprocessor,
 )
 
-from src.model.losses import BaseLoss
-
-from src.model.helpers import Monitoring
+from src.model.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
 
 logger = logging.getLogger(__name__)
     
 # TODO: add a shuffler, takes in the spans and prompts representation, shuffle them and return the shuffled representations.
-# TODO: make sure we correctly have dropout everywhere
 
 class MoLiNER(pytorch_lightning.LightningModule):
     def __init__(
@@ -52,9 +52,11 @@ class MoLiNER(pytorch_lightning.LightningModule):
         loss: BaseLoss,
         
         optimizer: BaseOptimizer,
+        
+        postprocessors: typing.List[BasePostprocessor] = []
     ):
         super().__init__()
-                
+        
         self.motion_frames_encoder: BaseMotionFramesEncoder = motion_frames_encoder
         self.prompts_tokens_encoder: BasePromptsTokensEncoder = prompts_tokens_encoder
         
@@ -71,8 +73,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         self.optimizer: BaseOptimizer = optimizer
         
-        self.target_matrix_monitor = Monitoring()
-        
+        self.postprocessors: typing.List[BasePostprocessor] = postprocessors
+
     def configure_optimizers(self):
         return self.optimizer.configure_optimizer(self)
     
@@ -109,6 +111,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
             span_indices=spans_indices,
             spans_masks=spans_masks,
         )
+        
+        del motion_frames_embeddings
 
         # --- --- --- NEW PROMPTS TREATMENT --- --- ---
         
@@ -130,12 +134,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
             prompts_mask=batch.prompt_attention_mask,
         )
         
+        del prompts_embeddings
+        
         # --- --- --- MATCHING MATRIX CONSTRUCTION --- --- ---
 
         # NOTE: prompts_representation: (batch_size, batch_max_prompts_per_motion, prompt_representation_dimension)
         # NOTE: spans_representation: (batch_size, batch_max_spans_per_motion_in_batch, span_representation_dimension)
-        
-        # assert span_representation_dimension == span_representation_dimension
         
         # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_motion_in_batch)
         similarity_matrix = self.scorer.forward(
@@ -143,82 +147,79 @@ class MoLiNER(pytorch_lightning.LightningModule):
             spans_representation=spans_representation
         )
         
+        del prompts_representation
+        del spans_representation
+        
         # --- --- --- OUTPUT --- --- ---
+        
+        if batch_index % 10 == 0:
+            torch.cuda.empty_cache()
        
         return ForwardOutput(
             similarity_matrix=similarity_matrix,
             candidate_spans_indices=spans_indices,
             candidate_spans_mask=spans_masks,
-            prompts_representation=prompts_representation,
-            spans_representation=spans_representation,
             prompts_mask=prompts_mask
         )   
 
-    def step(self, raw_batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, int, ForwardOutput, dict]:
-        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
-        
+    def step(self, processed_batch: "ProcessedBatch", batch_index: int) -> tuple[torch.Tensor, ForwardOutput]:
         output = self.forward(processed_batch, batch_index=batch_index)
         
-        loss, unmatched_spans_count = self.loss.forward(output, processed_batch)
+        loss = self.loss.forward(output, processed_batch)
 
-        target_matrix_stats = self.target_matrix_monitor.compute_stats(output, processed_batch)
-
-        return loss, unmatched_spans_count, output, target_matrix_stats
+        return loss, output
     
     def training_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
+        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
+        
         batch_size = raw_batch.motion_mask.size(0)
         
-        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
-        
+        loss, output = self.step(processed_batch, batch_index)
+
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
-        self.target_matrix_monitor.log_stats(
-            stats=target_matrix_stats,
-            lightning_module=self,
-            prefix="train",
-            batch_size=batch_size
-        )
+        return {
+            "loss": loss,
+        }
 
-        return loss
-    
     def validation_step(self, *args, **kwargs):
         raw_batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
-        
+       
+        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
+       
         batch_size = raw_batch.motion_mask.size(0)
-        
-        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
-        
+       
+        loss, output = self.step(processed_batch, batch_index)
+       
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        
-        self.target_matrix_monitor.log_stats(
-            stats=target_matrix_stats,
-            lightning_module=self,
-            prefix="val",
-            batch_size=batch_size
-        )
-        
-        return loss
-        
-    def test_step(self, *args, **kwargs):
-        raw_batch: "RawBatch" = args[0]
-        batch_index: int = kwargs.get("batch_index", 0)
-        
-        batch_size = raw_batch.motion_mask.size(0)
-        
-        loss, unmatched_spans_count, output, target_matrix_stats = self.step(raw_batch, batch_index)
-        
-        self.log("test/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
-        
-        self.target_matrix_monitor.log_stats(
-            stats=target_matrix_stats,
-            lightning_module=self,
-            prefix="test",
-            batch_size=batch_size
-        )
-        
-        return loss
+       
+        return {
+            "loss": loss,
+        }
 
+    def predict(
+        self,
+        raw_batch: RawBatch,
+        threshold: float
+    ):
+        self.eval()
+        
+        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
+        
+        output = self.forward(processed_batch)
+        
+        decoded = self.decoder.forward(
+            forward_output=output,
+            raw_batch=raw_batch,
+            processed_batch=processed_batch,
+            score_threshold=threshold,
+        )
+
+        for postprocessor in self.postprocessors:
+            decoded = postprocessor.forward(decoded)
+
+        return decoded

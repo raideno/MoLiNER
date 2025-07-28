@@ -6,3 +6,5 @@ from .prompts_tokens_encoders import BasePromptsTokensEncoder
 from .span_representation_layers import BaseSpanRepresentationLayer
 from .spans_generators import BaseSpansGenerator
 from .optimizers import BaseOptimizer
+from .losses import BaseLoss
+from .postprocessors import BasePostprocessor

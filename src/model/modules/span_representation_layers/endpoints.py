@@ -37,19 +37,21 @@ class EndpointsSpanRepresentationLayer(BaseSpanRepresentationLayer):
             motion_features, span_indices
         )
 
-        projected_first = self.start_proj(first_frames)
-        projected_last = self.end_proj(last_frames)
+        first_frames = self.start_proj(first_frames)
+        last_frames = self.end_proj(last_frames)
 
-        aggregated_spans = torch.cat((projected_first, projected_last), dim=-1)
+        aggregated_spans = torch.cat((first_frames, last_frames), dim=-1)
         
+        aggregated_spans.mul_(spans_masks.unsqueeze(-1))
         # TODO: check if this is necessary and if it is badly impacting the model's performance
-        masked_aggregated_spans = aggregated_spans * spans_masks.unsqueeze(-1)
+        # aggregated_spans = aggregated_spans * spans_masks.unsqueeze(-1)
         
-        representations = self.out_project(masked_aggregated_spans)
+        representations = self.out_project(aggregated_spans)
         
-        masked_representations = representations * spans_masks.unsqueeze(-1)
+        representations.mul_(spans_masks.unsqueeze(-1))
+        # representations = representations * spans_masks.unsqueeze(-1)
         
-        return masked_representations
+        return representations
     
     def _get_span_endpoints(
         self,

@@ -46,7 +46,8 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
         min_span_width: int,
         max_span_width: int,
         conv_mode: str,
-        dropout: float
+        dropout: float,
+        step: int
     ):
         """
         Args:
@@ -56,6 +57,7 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
             max_span_width (int): Maximum span width to support.
             conv_mode (str): Type of convolution operation ('conv', 'max', 'mean', 'sum').
             dropout (float): The dropout rate to apply for regularization.
+            step (int): Step size for generating kernel sizes.
         """
         super().__init__()
         
@@ -64,12 +66,12 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
         self.max_span_width = max_span_width
         self.min_span_width = min_span_width
         self.conv_mode = conv_mode
+        self.step = step
         
-        # TODO: should we do i + 2 just like glinner ?
-        kernels = [i for i in range(min_span_width, max_span_width + 1)]
+        self.kernels = list(range(min_span_width, max_span_width + 1, step))
         
         self.conv_blocks = torch.nn.ModuleList()
-        for kernel_size in kernels:
+        for kernel_size in self.kernels:
             self.conv_blocks.append(
                 SpanConvBlock(motion_embed_dim, kernel_size, conv_mode)
             )
@@ -159,14 +161,7 @@ class ConvolutionalSpanRepresentationLayer(BaseSpanRepresentationLayer):
                     span_width = end_idx - start_idx + 1
                     
                     # NOTE: given the span width, we determine the corresponding conv block width
-                    if span_width < self.min_span_width:
-                        # NOTE: should never happen, but if it does, we use the first conv block
-                        width_idx = 0
-                    elif span_width > self.max_span_width:
-                        # NOTE: should never happen, but if it does, we use the last conv block
-                        width_idx = num_widths - 1
-                    else:
-                        width_idx = span_width - self.min_span_width
+                    width_idx = (span_width - self.min_span_width) // self.step
                     
                     span_rep = stacked_features[batch_idx, start_idx, width_idx, :]
                 

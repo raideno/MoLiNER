@@ -69,14 +69,15 @@ HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MOD
 
 ### Data Pipelines
 
-| **Data Variants**                    | **Description**                                                  |
-| ------------------------------------ | ---------------------------------------------------------------- |
-| `babel/base`                         | Babel dataset for motion-language segmentation.                  |
-| `babel/20/base`                      | Babel dataset with sequence-level annotations.                   |
-| `babel/20/standardized/chunking/16`  | Babel dataset with chunk-based annotations. 16 Frames per span.  |
-| `babel/20/standardized/windowing/16` | Babel dataset with window-based annotations. 16 Frames per span. |
-| `hml3d/base`                         | HumanML3D dataset for 3D motion-language tasks.                  |
-| `kitml/base`                         | KIT-ML dataset for motion-language retrieval.                    |
+| **Data Variants**                                                                              | **Description**                                                  |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`babel/base`](./configs/data/babel/base.yaml)                                                 | Babel dataset for motion-language segmentation.                  |
+| [`babel/separate`](./configs/data/babel/separate.yaml)                                         | Frame and sequence annotations are put in different samples.     |
+| [`babel/20/base`](./configs/data/babel/20/base.yaml)                                           | Babel dataset with sequence-level annotations.                   |
+| [`babel/20/standardized/chunking/16`](./configs/data/babel/20/standardized/chunking/16.yaml)   | Babel dataset with chunk-based annotations. 16 Frames per span.  |
+| [`babel/20/standardized/windowing/16`](./configs/data/babel/20/standardized/windowing/16.yaml) | Babel dataset with window-based annotations. 16 Frames per span. |
+| [`hml3d/base`](./configs/data/hml3d/base.yaml)                                                 | HumanML3D dataset for 3D motion-language tasks.                  |
+| [`mixed/base`](./configs/data/mixed/base.yaml)                                                 | A mix of HML3D and Babel dataset.                                |
 
 **`RUN_DIR`:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
 

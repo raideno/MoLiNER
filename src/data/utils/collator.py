@@ -29,7 +29,9 @@ class SimpleBatchStructureCollator:
         for i, length in enumerate(lengths):
             mask[i, :length] = True
 
-        sids: list[int] = [sample["sid"] for sample in batch]
+        # NOTE: the None is required for the collator to work with a mixed dataset as the sids are dropped.
+        sids: list = [sample.get("sid", None) for sample in batch]
+        
         amass_paths: list[str] = [sample["amass_file_relative_path"] for sample in batch]
         dataset_names: list[str] = ["babel"] * len(batch)
 

@@ -16,7 +16,7 @@ from src.model import MoLiNER
 from src.auth import login_to_huggingface
 from src.load import load_model_from_cfg
 from src.config import read_config, save_config
-from src.visualizations.spans import plot_evaluation_results
+from src.visualizations import plot_evaluation_results
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
@@ -173,7 +173,7 @@ def test(cfg: DictConfig):
             print("forward_output.similarity_matrix.max()", forward_output.similarity_matrix.max())
             print("forward_output.similarity_matrix.mean()", forward_output.similarity_matrix.mean())
             print("forward_output.similarity_matrix.min()", forward_output.similarity_matrix.min())
-            decoded_results = model.decoder.decode(
+            decoded_results = model.decoder.forward(
                 forward_output=forward_output,
                 prompts=prompt_texts,
                 score_threshold=threshold,

@@ -11,9 +11,10 @@ HML3D_FEATURES_SIZE = 263
 class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
     def __init__(
         self,
-        frozen: bool = False,
-        pretrained: bool = False,
+        frozen: bool,
+        pretrained: bool,
         weights_path: typing.Optional[str] = None,
+        sample_mean: bool = False
         # --- --- ---
     ):
         super().__init__()
@@ -21,6 +22,7 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
         self.frozen = frozen
         self.pretrained_ = pretrained
         self.weights_path = weights_path
+        self.sample_mean = sample_mean
         
         from src.model.helpers import ACTORStyleEncoder
         

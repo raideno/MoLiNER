@@ -1,15 +1,13 @@
 import os
-from omegaconf import DictConfig
-import logging
+import re
+import torch
 import hydra
+import logging
 
+from omegaconf import DictConfig
 from src.config import read_config
 
 logger = logging.getLogger(__name__)
-
-import os
-import re
-import torch
 
 def extract_best_ckpt(run_dir):
     """

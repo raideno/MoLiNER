@@ -24,7 +24,7 @@ def main(cfg: DictConfig):
 
     all_motion = {"new_joint_vecs": [], "new_joints": []}
     
-    for item in tqdm.tqdm(dataset, desc="Collecting motion data"):
+    for item in tqdm.tqdm(dataset, desc="[collecting-motion-stats]"):
         motion = item.get("motion", None)
         if motion is None:
             continue
