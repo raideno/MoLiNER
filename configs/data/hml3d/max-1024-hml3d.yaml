@@ -1,0 +1,6 @@
+_target_: src.data.hml3d.HML3DDataset
+pipeline: max-1024-hml3d
+
+motion_normalizer:
+  _target_: src.helpers.motion_normalizer.MotionNormalizer
+  stats_path: ./statistics/hml3d.pt
