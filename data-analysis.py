@@ -1,4 +1,5 @@
 import os
+import typing
 import logging
 import nbformat
 import papermill
@@ -20,8 +21,10 @@ ANALYSIS_NOTEBOOK_NAME = 'template.analysis.ipynb'
 
 logger = logging.getLogger(__name__)
 
-def run_notebook_for_pipeline(configuration: list[str, str]):
-    dataset_name, pipeline_name = configuration
+def run_notebook_for_pipeline(configuration: typing.Tuple[str, str, str]):
+    dataset_name, pipeline_name, raw_split_names = configuration
+    
+    split_names = raw_split_names.split(",") 
     
     logger.info(f"[data-analysis]: running analysis for '{dataset_name}({pipeline_name})'...")
     
@@ -31,10 +34,11 @@ def run_notebook_for_pipeline(configuration: list[str, str]):
     papermill.execute_notebook(
         template_ipynb_path,
         output_ipynb_path,
-        parameters=dict(
-            dataset_name=dataset_name,
-            pipeline_name=pipeline_name,
-        ),
+        parameters={
+            "dataset_name": dataset_name,
+            "pipeline_name": pipeline_name,
+            "split_names": split_names
+        },
     )
     
     logger.info(f"[data-analysis]: analysis for pipeline '{dataset_name}({pipeline_name})' completed.")

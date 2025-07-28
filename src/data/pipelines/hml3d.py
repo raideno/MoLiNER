@@ -20,18 +20,18 @@ class Max1024HML3DPipeline(HML3DPipeline):
         super().__init__("max-1024-hml3d")
                 
         filter_function = FilterFunction(FilterConfig(
-            # seed: typing.Optional[int] = DEFAULT_SEED
-            # fps: typing.Optional[int] = DEFAULT_FPS
+            # seed=None
+            # fps=None
             min_motion_frames=1,
             max_motion_frames=1024,
             min_prompts_per_sample=1,
             max_prompts_per_sample=1,
             split_max_prompts_per_sample=True,
-            # prompt_text_filter_function,
+            # prompt_text_filter_function=None,
             # min_span_frames=1,
             # max_span_frames=64,
-            # min_spans_per_prompt: typing.Optional[int] = None
-            # max_spans_per_prompt: typing.Optional[int] = None
+            # min_spans_per_prompt=None
+            # max_spans_per_prompt=None
             sources=["texts"],
             annotation_types=["sequence"]
             # debug: bool = False
