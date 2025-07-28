@@ -1,12 +1,9 @@
 # HYDRA_FULL_ERROR=1 python evaluate.py -m \
-#     device=cuda:0 score=0.5 \
-#     data=babel/20/base\
-#     run_dir="./out/training.2025-07-26_11-39-16","./out/training.2025-07-26_14-27-48","./out/training.2025-07-27_00-19-11","./out/training.2025-07-27_02-43-23","./out/training.2025-07-27_11-48-31","./out/training.2025-07-27_20-51-52"
+#   device=cuda:0 score=0.5 \
+#   protocol=self,locate,mlp \
+#   run_dir="./out/training.2025-07-26_11-39-16","./out/training.2025-07-26_14-27-48","./out/training.2025-07-27_00-19-11","./out/training.2025-07-27_02-43-23","./out/training.2025-07-27_11-48-31","./out/training.2025-07-27_20-51-52"
 
-# HYDRA_FULL_ERROR=1 python evaluate.py -m \
-#     device=cuda:0 score=0.5 \
-#     run_dir="./out/training.2025-07-26_11-39-16","./out/training.2025-07-26_14-27-48","./out/training.2025-07-27_00-19-11","./out/training.2025-07-27_02-43-23","./out/training.2025-07-27_11-48-31","./out/training.2025-07-27_20-51-52"
-
+import json
 import gc
 import os
 import tqdm
@@ -38,18 +35,37 @@ def evaluate_model(cfg: DictConfig):
     device = cfg.device
     run_dir = cfg.run_dir
     score = cfg.score
-
-    # NOTE: we use the specified data if provided, otherwise we use the data used while training the model
-    data = cfg.data if "data" in cfg else None
-    data = data if data is not None and data != "none" else None
-    cfg = read_config(run_dir)
-    data = cfg.data if data is None else data
-
-    validation_dataset = instantiate(
-        cfg.data,
-        split="validation"
-    )
+    protocol = cfg.protocol
     
+    cfg = read_config(run_dir)
+    
+    # NOTE: use the same data used during training
+    if protocol == "self":
+        validation_dataset = instantiate(
+            cfg.data,
+            split="validation"
+        )
+    # NOTE: use locate data
+    elif protocol == "locate":
+        from src.data.babel import BabelDataset
+        from src.helpers.motion_normalizer import MotionNormalizer
+        validation_dataset = BabelDataset(
+            split="validation",
+            pipeline="locate",
+            motion_normalizer=MotionNormalizer(stats_path="/home/nadirkichou/MoLiNER/statistics/babel.pt"),
+        )
+    # NOTE: use MLP data; HumanML3D sequences
+    elif protocol == "mlp":
+        from src.data.hml3d import HML3DDataset
+        from src.helpers.motion_normalizer import MotionNormalizer
+        validation_dataset = HML3DDataset(
+            split="validation",
+            pipeline="max-1024-hml3d",
+            motion_normalizer=MotionNormalizer(stats_path="/home/nadirkichou/MoLiNER/statistics/hml3d.pt"),
+        )
+    else:
+        raise ValueError(f"Unknown protocol: {protocol}. Valid protocols are: {VALID_PROTOCOLS}")
+        
     validation_dataloader = instantiate(
         cfg.dataloader,
         dataset=validation_dataset,
@@ -109,23 +125,17 @@ def evaluate_model(cfg: DictConfig):
     print("[evaluation]:")
     pprint.pprint(metrics)
     
-    pipeline_name = data.pipeline if "pipeline" in cfg.data else "unknown"
-    
     results = {
         "timestamp": datetime.datetime.now().isoformat(),
         "checkpoint": ckpt,
         "device": device,
-        "pipeline": pipeline_name,
+        "protocol": protocol,
         "score_threshold": score,
         "metrics": metrics,
-        "config": {
-            "data": data,
-            "run_dir": run_dir
-        }
     }
     
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_path = os.path.join(run_dir, results_filename, f"evaluation_{pipeline_name}_{timestamp_str}.json")
+    results_path = os.path.join(run_dir, f"evaluation_{protocol}_{timestamp_str}.json")
 
     with open(results_path, 'w') as file:
         json.dump(results, file, indent=2, default=str)
