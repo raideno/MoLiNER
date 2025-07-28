@@ -220,6 +220,6 @@ class MoLiNER(pytorch_lightning.LightningModule):
         )
 
         for postprocessor in self.postprocessors:
-            decoded = postprocessor(decoded, processed_batch)
+            decoded = postprocessor.forward(decoded)
 
         return decoded

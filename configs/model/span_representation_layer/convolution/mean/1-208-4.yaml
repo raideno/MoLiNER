@@ -3,7 +3,8 @@ _target_: src.model.modules.span_representation_layers.ConvolutionalSpanRepresen
 motion_embed_dim: 256
 # representation_dim: ${model.prompt_representation_layer.representation_dim}
 representation_dim: 256
-max_span_width: 16
-min_span_width: 16
+max_span_width: 208
+min_span_width: 1
+step: 4
 conv_mode: 'mean'
 dropout: 0.4

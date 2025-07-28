@@ -5,5 +5,6 @@ motion_embed_dim: 256
 representation_dim: 256
 max_span_width: 16
 min_span_width: 16
-conv_mode: 'conv'
+step: 1
+conv_mode: 'mean'
 dropout: 0.4

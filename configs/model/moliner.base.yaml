@@ -1,7 +1,5 @@
 _target_: src.model.MoLiNER
 
-threshold: 0.3
-
 defaults:
   # tmr/scratch, tmr/pretrained, tmr/frozen
   - motion_frames_encoder: tmr/scratch
@@ -15,7 +13,7 @@ defaults:
   # mlp/deberta, mlp/tmr, mlp/clip
   - prompt_representation_layer: mlp/tmr
   # endpoints
-  # convolution/base/16-16, convolution/max/16-16, convolution/sum/16-16, convolution/mean/16-16
+  # convolution/base/16-16-1, convolution/max/16-16-1, convolution/sum/16-16-1, convolution/mean/16-16-1
   - span_representation_layer: endpoints
 
   # product
@@ -31,5 +29,4 @@ defaults:
   - optimizer: adam
 
   # span_grouping/0, span_grouping/4, span_grouping/8
-  - postprocessors:
-    - span_grouping/8
+  - postprocessors: span_grouping/8
