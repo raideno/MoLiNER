@@ -9,7 +9,7 @@ from .babel import (
     BabelActionCategoryPipeline,
     BabelProcLabelPipeline,
     BabelRawLabelPipeline,
-    CustomBabelPipeline
+    BabelSeparate
 )
 from .locate import (
     LocatePipeline,
