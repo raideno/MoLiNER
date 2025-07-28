@@ -28,7 +28,13 @@ loggers:
     save_dir: ${run_dir}
     offline: false
     tags:
-      - v1.0.0
+      - ${data.pipeline}
+      - ${split-get-last:${data._target_}}
+      - ${split-get-last:${model.motion_frames_encoder._target_}}
+      - ${split-get-last:${model.prompts_tokens_encoder._target_}}
+      - ${split-get-last:${model.loss._target_}}
+      # NOTE: oc.select documentation
+      - ${oc.select:model.loss.reduction, unknown}
     notes: "MoLiNER training run"
     # NOTE: set to your WandB username or team
     entity: nadirkichou-university-of-lille

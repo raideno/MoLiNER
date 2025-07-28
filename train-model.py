@@ -5,6 +5,8 @@ import hydra
 import torch
 import logging
 
+import resolvers
+
 # # --- --- --- --- --- --- ---
 import os
 # import sys
