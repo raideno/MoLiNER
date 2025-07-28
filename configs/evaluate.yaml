@@ -5,7 +5,7 @@ device: ???
 score: ???
 
 defaults:
-  - data: ???
+  - data: null
   - defaults
   - _self_
   - override hydra/launcher: basic

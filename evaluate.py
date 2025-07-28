@@ -27,17 +27,15 @@ def evaluate_model(cfg: DictConfig):
     device = cfg.device
     run_dir = cfg.run_dir
     score = cfg.score
-    
+
+    # NOTE: we use the specified data if provided, otherwise we use the data used while training the model
+    data = cfg.data if "data" in cfg else None
+    cfg = read_config(run_dir)
+    data = cfg.data if data is None else data
+
     validation_dataset = instantiate(
         cfg.data,
         split="validation"
-    )
-    
-    cfg = read_config(run_dir)
-    model = load_model_from_cfg(
-        cfg,
-        ckpt_name=ckpt,
-        device=device
     )
     
     validation_dataloader = instantiate(
@@ -45,6 +43,12 @@ def evaluate_model(cfg: DictConfig):
         dataset=validation_dataset,
         collate_fn=validation_dataset.collate_function,
         shuffle=False,
+    )
+    
+    model = load_model_from_cfg(
+        cfg,
+        ckpt_name=ckpt,
+        device=device
     )
     
     iou_metric = IntervalDetectionMetric(IOU_THRESHOLDS, score_threshold=score)
