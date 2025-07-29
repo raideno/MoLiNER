@@ -26,7 +26,7 @@ class GreedyDecoder(BaseDecoder):
         raw_batch: RawBatch,
         processed_batch: ProcessedBatch,
         score_threshold: float,
-    ) -> typing.List[EvaluationResult]:
+    ) -> EvaluationResult:
         """
         Decode the forward output to produce evaluation results.
         

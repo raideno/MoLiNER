@@ -1,0 +1,10 @@
+ckpt: best
+run_dir: ???
+
+device: ???
+score: ???
+
+defaults:
+  - defaults
+  - _self_
+  - override hydra/launcher: basic

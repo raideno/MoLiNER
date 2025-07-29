@@ -29,7 +29,7 @@ class BaseDecoder(torch.nn.Module, ABC):
         raw_batch: RawBatch,
         processed_batch: ProcessedBatch,
         score_threshold: float,
-    ) -> typing.List[EvaluationResult]:
+    ) -> EvaluationResult:
         """
         Decodes the model's forward pass output into a list of predicted spans.
 
