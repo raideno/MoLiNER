@@ -10,6 +10,7 @@ class MLPMotionFramesEncoder(BaseMotionFramesEncoder):
         hidden_dim: int = 256,
         num_layers: int = 3,
         dropout: float = 0.1,
+        pretrained: bool = False,
         frozen: bool = False,
     ):
         super().__init__()
@@ -18,9 +19,10 @@ class MLPMotionFramesEncoder(BaseMotionFramesEncoder):
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         self.dropout = dropout
-        self.frozen = frozen
+        self.frozen_ = frozen
+        self.pretrained_ = pretrained
         
-        layers = []
+        layers: typing.List[torch.nn.Module] = []
         
         layers.append(torch.nn.Linear(input_dim, hidden_dim))
         layers.append(torch.nn.ReLU())
@@ -60,4 +62,8 @@ class MLPMotionFramesEncoder(BaseMotionFramesEncoder):
     
     @property
     def pretrained(self) -> bool:
+        return False
+
+    @property
+    def frozen(self) -> bool:
         return False

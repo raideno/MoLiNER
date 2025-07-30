@@ -19,7 +19,7 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
     ):
         super().__init__()
         
-        self.frozen = frozen
+        self.frozen_ = frozen
         self.pretrained_ = pretrained
         self.weights_path = weights_path
         self.sample_mean = sample_mean
@@ -96,8 +96,8 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
     
     @property
     def pretrained(self) -> bool:
-        """
-        Indicates whether the encoder is pretrained or not.
-        This is used by the model to adjust learning rates and training strategies.
-        """
         return self.pretrained_
+
+    @property
+    def frozen(self) -> bool:
+        return self.frozen_

@@ -16,6 +16,7 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     def __init__(
         self,
         frozen: bool,
+        pretrained: bool
     ):
         """
         Initializes the CLIPPromptsTokensEncoder.
@@ -31,10 +32,13 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
         # MODEL_NAME = "openai/clip-vit-base-patch16"
         MODEL_NAME = "openai/clip-vit-base-patch32"
         
-        self.frozen = frozen
+        self.frozen_ = frozen
+        self.pretrained_ = pretrained
         
-        self.tokenizer = transformers.CLIPTokenizer.from_pretrained(MODEL_NAME)
-        self.text_encoder = transformers.CLIPTextModel.from_pretrained(MODEL_NAME)
+        # type: ignore
+        self.tokenizer: transformers.CLIPTokenizer = transformers.CLIPTokenizer.from_pretrained(MODEL_NAME)
+        # type: ignore
+        self.text_encoder: transformers.CLIPTextModel = transformers.CLIPTextModel.from_pretrained(MODEL_NAME)
         
         self.text_encoder.train()
         
@@ -74,7 +78,6 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
         reshaped_mask = prompt_attention_mask.view(B * P, L)
         
         with torch.set_grad_enabled(not self.frozen):
-            # CLIP text encoder returns pooled output (CLS-like representation)
             outputs = self.text_encoder(
                 input_ids=reshaped_ids,
                 attention_mask=reshaped_mask,
@@ -82,7 +85,7 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
             )
             
             # NOTE: Use pooler_output which is the final representation after pooling
-            # Shape: (batch_size * num_prompts, hidden_size)
+            # NOTE: (batch_size * num_prompts, hidden_size)
             text_embeddings = outputs.pooler_output
         
         # NOTE: reshape back to (B, P, hidden_size)
@@ -143,8 +146,8 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
 
     @property
     def pretrained(self) -> bool:
-        """
-        Indicates whether the encoder is pretrained or not.
-        This is used by the model to adjust learning rates and training strategies.
-        """
-        return True
+        return self.pretrained_
+    
+    @property
+    def frozen(self) -> bool:
+        return self.frozen_
