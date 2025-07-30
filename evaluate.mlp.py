@@ -50,7 +50,7 @@ def evaluate_model(cfg: DictConfig):
     from src.helpers.motion_normalizer import MotionNormalizer
     validation_dataset = HML3DDataset(
         split="test",
-        pipeline="max-1024-hml3d-splitted",
+        pipeline="mlp-max-1024-hml3d-splitted",
         motion_normalizer=MotionNormalizer(stats_path="./statistics/hml3d.pt"),
     )
    

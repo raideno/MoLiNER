@@ -2,7 +2,11 @@ import typing
 
 from ._base import BasePipeline
 
-from src.data.utils.filtering import FilterConfig, FilterFunction
+from src.data.utils.filtering import (
+    FilterConfig,
+    FilterFunction,
+    HML3DRelativeLengthFilter,
+)
 from src.data.utils.batching import hml3d_simplify_batch_structure
 
 class HML3DPipeline(BasePipeline):
@@ -10,7 +14,7 @@ class HML3DPipeline(BasePipeline):
         super().__init__(name or "hml3d")
         
         self.add_step(hml3d_simplify_batch_structure, batched=True)
-        
+                
 class Max1024HML3DPipeline_(HML3DPipeline):
     def __init__(self, splitted: bool, name: str):
         super().__init__(name)
@@ -48,3 +52,21 @@ class Max1024HML3DSplittedPipeline(Max1024HML3DPipeline_):
 class Max1024HML3DGroupedPipeline(Max1024HML3DPipeline_):
     def __init__(self):
         super().__init__(splitted=False, name="max-1024-hml3d-grouped")
+        
+class MlpMax1024HML3DSplittedPipeline(Max1024HML3DPipeline_):
+    def __init__(self):
+        super().__init__(splitted=True, name="mlp-max-1024-hml3d-splitted")
+        
+        self.add_step(
+            HML3DRelativeLengthFilter(max_relative_moment_length=0.8),
+            batched=True
+        )
+        
+class MlpMax1024HML3DGroupedPipeline(Max1024HML3DPipeline_):
+    def __init__(self):
+        super().__init__(splitted=False, name="mlp-max-1024-hml3d-grouped")
+        
+        self.add_step(
+            HML3DRelativeLengthFilter(max_relative_moment_length=0.8),
+            batched=True
+        )

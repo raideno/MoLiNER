@@ -11,7 +11,8 @@ def reduce(
         loss = logits
     elif reduction == "mean":
         if valid_mask is not None:
-            loss = logits.sum() / valid_mask.sum()  # Normalize by the number of valid (non-ignored) elements
+            # NOTE: normalize by the number of valid (non-ignored) elements
+            loss = logits.sum() / valid_mask.sum()
         else:
             raise ValueError("valid_mask must be provided for 'mean' reduction.")
     elif reduction == 'sum':
