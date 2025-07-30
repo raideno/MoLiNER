@@ -6,5 +6,5 @@ representation_dim: 256
 max_span_width: 16
 min_span_width: 16
 step: 1
-conv_mode: 'max'
+mode: 'max'
 dropout: 0.4
