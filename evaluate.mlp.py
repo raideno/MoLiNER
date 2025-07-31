@@ -149,9 +149,9 @@ def evaluate_model(cfg: DictConfig):
     nb = len(_groundtruths_)
 
     for k, v in all_rank1.items():
-        print(v / nb * 100, 1)
+        print(f"[{k}]:", v / nb * 100, 1)
     for k, v in all_rank5.items():
-        print(v / nb * 100, 1)
+        print(f"[{k}]:", v / nb * 100, 1)
 
 
 if __name__ == "__main__":
