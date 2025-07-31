@@ -362,3 +362,88 @@ class FilterFunction:
             logger.info(f"\tTotal unique prompts filtered out: {total_unique_prompts_filtered}")
         
         return new_batch
+    
+class HML3DRelativeLengthFilter:
+    def __init__(
+        self,
+        max_relative_moment_length: float,
+        debug: bool = False
+    ):
+        """
+        Filters HumanML3D samples based on the relative length of target moments.
+
+        Args:
+            max_relative_moment_length (float): The maximum allowed ratio of target moment length to the total motion length. Defaults to 0.8 (80%).
+            debug (bool): If True, logs detailed filtering decisions.
+        """
+        if not (0 < max_relative_moment_length <= 1.0):
+            raise ValueError("max_relative_moment_length must be between 0 and 1.0")
+        
+        self.max_relative_moment_length = max_relative_moment_length
+        self.debug = debug
+
+    def __call__(self, batch: dict[str, list]) -> dict[str, list]:
+        new_batch = {key: [] for key in batch.keys()}
+        num_samples_in = len(batch[next(iter(batch.keys()))])
+
+        samples_kept = 0
+        samples_dropped = 0
+
+        for i in range(num_samples_in):
+            sample_sid = batch.get("sid", ["N/A"])[i]
+            prompts_list = batch["prompts"][i]
+            motion_data = batch["motion"][i]
+
+            if not motion_data or "new_joints" not in motion_data:
+                if self.debug:
+                    logger.debug(f"[HML3DFilter] SID {sample_sid}: Skipping sample due to missing motion data or 'new_joints'.")
+                continue
+
+            motion_length_frames = len(motion_data["new_joints"])
+            if motion_length_frames == 0:
+                if self.debug:
+                    logger.debug(f"[HML3DFilter] SID {sample_sid}: Skipping sample as motion has 0 frames.")
+                continue
+
+            sample_exceeds_limit = False
+            if prompts_list:
+                # NOTE: all prompts refer to the same span with different texts, consider only first one
+                first_prompt = prompts_list[0]
+                if "span" in first_prompt and first_prompt["span"]:
+                    start_frame, end_frame = first_prompt["span"]
+                    moment_duration_frames = end_frame - start_frame
+
+                    if moment_duration_frames < 0:
+                        moment_duration_frames = 0
+
+                    relative_length = moment_duration_frames / motion_length_frames
+
+                    if relative_length > self.max_relative_moment_length:
+                        sample_exceeds_limit = True
+                        if self.debug:
+                            logger.debug(
+                                f"[HML3DFilter] SID {sample_sid}: Sample exceeds limit. "
+                                f"Motion frames: {motion_length_frames}, Moment frames: {moment_duration_frames} "
+                                f"(relative: {relative_length:.2f} > {self.max_relative_moment_length})"
+                            )
+                else:
+                    if self.debug:
+                        logger.debug(f"[HML3DFilter] SID {sample_sid}: Skipping span length check as prompt has no valid 'span'.")
+            else:
+                if self.debug:
+                    logger.debug(f"[HML3DFilter] SID {sample_sid}: Skipping span length check as sample has no prompts.")
+
+
+            if sample_exceeds_limit:
+                samples_dropped += 1
+                # NOTE: we don't add the sample to the new batch; it get filtered
+                continue
+            else:
+                for key in batch.keys():
+                    new_batch[key].append(batch[key][i])
+                samples_kept += 1
+
+        if self.debug:
+            logger.info(f"[HML3DFilter] Filtering complete: {samples_kept} samples kept, {samples_dropped} dropped (out of {num_samples_in} total).")
+
+        return new_batch

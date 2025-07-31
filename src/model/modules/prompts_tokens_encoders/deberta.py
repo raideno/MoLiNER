@@ -11,7 +11,8 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     """
     def __init__(
         self,
-        frozen: bool
+        frozen: bool,
+        pretrained: bool
     ):
         """
         Initializes the DebertaPromptsTokensEncoder.
@@ -23,10 +24,11 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
         
         MODEL_NAME = "microsoft/deberta-v3-base"
         
-        self.frozen = frozen
+        self.frozen_ = frozen
+        self.pretrained_ = pretrained
         
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_NAME)
-        self.transformer = transformers.AutoModel.from_pretrained(MODEL_NAME)
+        self.tokenizer: transformers.DebertaTokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_NAME)
+        self.transformer: transformers.DebertaPreTrainedModel = transformers.AutoModel.from_pretrained(MODEL_NAME)
 
         self.transformer.train()
 
@@ -120,8 +122,8 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     @property
     def pretrained(self) -> bool:
-        """
-        Indicates whether the encoder is pretrained or not.
-        This is used by the model to adjust learning rates and training strategies.
-        """
-        return True
+        return self.pretrained_
+    
+    @property
+    def frozen(self) -> bool:
+        return self.frozen_

@@ -52,19 +52,19 @@ def evaluate_model(cfg: DictConfig):
         validation_dataset = BabelDataset(
             split="validation",
             pipeline="locate",
-            motion_normalizer=MotionNormalizer(stats_path="/home/nadirkichou/MoLiNER/statistics/babel.pt"),
+            motion_normalizer=MotionNormalizer(stats_path="./statistics/babel.pt"),
         )
     # NOTE: use MLP data; HumanML3D sequences
     elif protocol == "mlp":
         from src.data.hml3d import HML3DDataset
         from src.helpers.motion_normalizer import MotionNormalizer
         validation_dataset = HML3DDataset(
-            split="validation",
-            pipeline="max-1024-hml3d",
-            motion_normalizer=MotionNormalizer(stats_path="/home/nadirkichou/MoLiNER/statistics/hml3d.pt"),
+            split="test",
+            pipeline="max-1024-hml3d-splitted",
+            motion_normalizer=MotionNormalizer(stats_path="./statistics/hml3d.pt"),
         )
     else:
-        raise ValueError(f"Unknown protocol: {protocol}. Valid protocols are: {VALID_PROTOCOLS}")
+        raise ValueError(f"Unknown protocol: {protocol}. Valid protocols are: self, locate, mlp.")
         
     validation_dataloader = instantiate(
         cfg.dataloader,
@@ -73,11 +73,14 @@ def evaluate_model(cfg: DictConfig):
         shuffle=False,
     )
     
-    model = load_model_from_cfg(
+    model: MoLiNER = load_model_from_cfg(
         cfg,
         ckpt_name=ckpt,
         device=device
     )
+    model.postprocessors = []
+    from src.model.modules.decoders.greedy import GreedyDecoder, DecodingStrategy
+    model.decoder = GreedyDecoder(strategy=DecodingStrategy.FLAT)
     
     iou_metric = IntervalDetectionMetric(IOU_THRESHOLDS, score_threshold=score)
     model.eval()
@@ -135,7 +138,7 @@ def evaluate_model(cfg: DictConfig):
     }
     
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_path = os.path.join(run_dir, f"evaluation_{protocol}_{timestamp_str}.json")
+    results_path = os.path.join(run_dir, f"evaluation_{protocol}_{score}_{timestamp_str}.json")
 
     with open(results_path, 'w') as file:
         json.dump(results, file, indent=2, default=str)

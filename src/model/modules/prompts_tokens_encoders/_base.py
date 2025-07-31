@@ -64,3 +64,12 @@ class BasePromptsTokensEncoder(torch.nn.Module, ABC):
         This is used by the model to adjust learning rates and training strategies.
         """
         pass
+    
+    @property
+    @abstractmethod
+    def frozen(self) -> bool:
+        """
+        Indicates whether the encoder is frozen or not.
+        A frozen encoder will not update its weights during training.
+        """
+        pass

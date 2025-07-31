@@ -11,6 +11,7 @@ class LSTMMotionFramesEncoder(BaseMotionFramesEncoder):
         num_layers: int = 2,
         dropout: float = 0.1,
         bidirectional: bool = True,
+        pretrained: bool = False,
         frozen: bool = False,
     ):
         super().__init__()
@@ -20,7 +21,9 @@ class LSTMMotionFramesEncoder(BaseMotionFramesEncoder):
         self.num_layers = num_layers
         self.dropout = dropout
         self.bidirectional = bidirectional
-        self.frozen = frozen
+        
+        self.frozen_ = frozen
+        self.pretrained_ = pretrained
         
         self.lstm = torch.nn.LSTM(
             input_size=input_dim,
@@ -73,4 +76,8 @@ class LSTMMotionFramesEncoder(BaseMotionFramesEncoder):
     
     @property
     def pretrained(self) -> bool:
+        return False
+
+    @property
+    def frozen(self) -> bool:
         return False

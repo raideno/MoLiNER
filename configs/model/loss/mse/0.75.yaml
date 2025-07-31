@@ -1,0 +1,7 @@
+_target_: src.model.modules.losses.MSELoss
+
+reduction: mean
+negatives_type: "labels"
+negatives_probability: 1.0
+ignore_index: -100
+threshold: 0.75

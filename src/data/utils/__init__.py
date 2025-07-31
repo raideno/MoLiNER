@@ -16,7 +16,8 @@ from .filtering import (
     create_babel_90_classes_filter_function,
     create_babel_120_classes_filter_function,
     FilterConfig,
-    FilterFunction
+    FilterFunction,
+    HML3DRelativeLengthFilter,
 )
 
 from .augmentation import (

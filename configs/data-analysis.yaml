@@ -5,8 +5,8 @@ defaults:
 max_workers: null
 
 configurations:
-  - [babel, babel-act-cat]
-  - [babel, babel-proc-label]
-  - [babel, babel]
-  - [babel, locate]
-  - [hml3d, hml3d]
+  - [babel, babel-act-cat, "train,validation"]
+  - [babel, babel-proc-label, "train,validation"]
+  - [babel, babel, "train,validation"]
+  - [babel, locate, "train,validation"]
+  - [hml3d, hml3d, "train,validation,test"]

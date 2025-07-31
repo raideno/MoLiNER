@@ -50,6 +50,8 @@ class WandBLogger(Logger):
         
         self._experiment = None
         self._initialized = False
+        
+        logger.info(f"[wandb](tags): {self._tags}")
 
     @property
     def name(self) -> typing.Optional[str]:

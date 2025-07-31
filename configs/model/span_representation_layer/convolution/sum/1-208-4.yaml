@@ -6,5 +6,5 @@ representation_dim: 256
 max_span_width: 208
 min_span_width: 1
 step: 4
-conv_mode: 'sum'
+mode: 'sum'
 dropout: 0.4

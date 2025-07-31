@@ -1,2 +1,3 @@
 _target_: src.model.modules.prompts_tokens_encoders.deberta.DebertaPromptsTokensEncoder
+pretrained: true
 frozen: true

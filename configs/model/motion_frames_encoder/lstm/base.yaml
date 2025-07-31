@@ -4,4 +4,5 @@ hidden_dim: 256
 num_layers: 2
 dropout: 0.1
 bidirectional: true
+pretrained: false
 frozen: false

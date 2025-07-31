@@ -17,8 +17,9 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     ):
         super().__init__()
         
-        self.frozen = frozen
+        self.frozen_ = frozen
         self.pretrained_ = pretrained
+        
         self.weights_path = weights_path
         self.sample_mean = sample_mean
         
@@ -203,3 +204,7 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     @property
     def pretrained(self) -> bool:
         return self.pretrained_
+
+    @property
+    def frozen(self) -> bool:
+        return self.frozen_

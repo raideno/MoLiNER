@@ -241,7 +241,7 @@ def render_animation(
     if output == "notebook":
         from IPython.display import HTML
 
-        HTML(anim.to_jshtml())
+        return HTML(anim.to_jshtml())
     else:
         # anim.save(output, writer='ffmpeg', fps=fps)
         anim.save(output, fps=fps)
