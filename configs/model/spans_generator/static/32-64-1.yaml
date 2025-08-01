@@ -1,4 +1,5 @@
-_target_: src.model.modules.spans_generators.static.StaticSpansGenerator
+_target_: src.model.modules.spans_generators.standard.standardSpansGenerator
 min_width: 32
 max_width: 64
 step: 1
+stride: 1

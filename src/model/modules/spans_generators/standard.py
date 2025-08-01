@@ -7,15 +7,28 @@ from src.constants import (
     DEFAULT_PADDING_VALUE
 )
 
-class StaticSpansGenerator(BaseSpansGenerator):
-    def __init__(self, min_width: int, max_width: int, step: int, padding_value: int = int(DEFAULT_PADDING_VALUE)):
+class StandardSpanGenerator(BaseSpansGenerator):
+    """
+    Possible to generate all possible contiguous spans from min_width to max_width with a step increment as well as a 
+    stride to skip certain frames.
+    Can generate sliding windows (size 20) by setting min_width=1, max_width=20, step=20, stride=1.
+    """
+    def __init__(
+        self,
+        min_width: int,
+        max_width: int,
+        step: int,
+        stride: int,
+        padding_value: int = int(DEFAULT_PADDING_VALUE)
+    ):
         """
-        Initializes the StaticSpansGenerator.
+        Initializes the StandardSpanGenerator.
 
         Args:
             min_width (int): The minimum length of a span to generate.
             max_width (int): The maximum length of a span to generate. Spans of lengths from min_width to max_width (inclusive) will be generated with the given step.
-            step (int): The increment between consecutive span lengths. Defaults to 1.
+            step (int): The increment between consecutive span lengths of a given frame.
+            stride (int): The with which to move the start of the span. A stride of 1 means spans will be generated starting from every frame.
             padding_value (int): The value to use for padding the span indices tensor. Defaults to src/constants.py:DEFAULT_PADDING_VALUE.
         """
         super().__init__()
@@ -31,6 +44,7 @@ class StaticSpansGenerator(BaseSpansGenerator):
         
         self.max_width = max_width
         self.min_width = min_width
+        self.stride = stride
         self.step = step
         self.padding_value = padding_value
         
@@ -67,7 +81,7 @@ class StaticSpansGenerator(BaseSpansGenerator):
             sample_spans_positions = []
             
             if current_length > 0:
-                for start_idx in range(current_length):
+                for start_idx in range(0, current_length, self.stride):
                     for length in range(self.min_width, self.max_width + 1, self.step):
                         end_idx = start_idx + length - 1
                         if end_idx >= current_length:

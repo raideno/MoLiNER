@@ -1,3 +1,5 @@
-_target_: src.model.modules.spans_generators.windowed.WindowedSpansGenerator
-size: 16
+_target_: src.model.modules.spans_generators.standard.standardSpansGenerator
+min_width: 1
+max_width: 8
+step: 8
 stride: 1
