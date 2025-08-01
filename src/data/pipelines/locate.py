@@ -10,7 +10,6 @@ from src.data.utils.filtering import (
 
 from src.data.utils.augmentation import (
     StandardizeSpansSlidingWindow,
-    StandardizeSpansChunking
 )
 
 class FilteredLocatePipeline(BabelPipeline):
