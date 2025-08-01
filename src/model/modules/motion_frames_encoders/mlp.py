@@ -3,40 +3,31 @@ import typing
 
 from ._base import BaseMotionFramesEncoder
 
+HML3D_FEATURES_SIZE = 263
+
 class MLPMotionFramesEncoder(BaseMotionFramesEncoder):
     def __init__(
         self,
-        input_dim: int = 263,
-        hidden_dim: int = 256,
-        num_layers: int = 3,
-        dropout: float = 0.1,
-        pretrained: bool = False,
-        frozen: bool = False,
+        dropout: float,
+        hidden_dim: int,
+        pretrained: bool,
+        frozen: bool,
     ):
         super().__init__()
         
-        self.input_dim = input_dim
         self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
         self.dropout = dropout
         self.frozen_ = frozen
         self.pretrained_ = pretrained
         
-        layers: typing.List[torch.nn.Module] = []
-        
-        layers.append(torch.nn.Linear(input_dim, hidden_dim))
-        layers.append(torch.nn.ReLU())
-        
-        for _ in range(num_layers - 2):
-            layers.append(torch.nn.Dropout(dropout))
-            layers.append(torch.nn.Linear(hidden_dim, hidden_dim))
-            layers.append(torch.nn.ReLU())
-        
-        if num_layers > 1:
-            layers.append(torch.nn.Dropout(dropout))
-            layers.append(torch.nn.Linear(hidden_dim, hidden_dim))
-        
-        self.mlp = torch.nn.Sequential(*layers)
+        self.mlp = torch.nn.Sequential(
+            torch.nn.Linear(HML3D_FEATURES_SIZE, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(dropout),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, hidden_dim)
+        )
         
         if frozen:
             for param in self.parameters():
