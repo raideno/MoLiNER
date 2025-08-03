@@ -1,14 +1,14 @@
 import torch
 import typing
 
-from src.types import ForwardOutput, ProcessedBatch
+from src.types import ForwardOutput, RawBatch
 from src.model.modules.losses.helpers import create_target_matrix, create_loss_mask
 
 class Monitoring:
     def compute_stats(
         self,
         forward_output: ForwardOutput,
-        batch: ProcessedBatch,
+        batch: RawBatch,
     ) -> typing.Dict[str, float]:
         if batch.target_spans is None:
             return {}

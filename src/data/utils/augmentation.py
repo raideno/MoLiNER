@@ -184,3 +184,14 @@ class SeparateFrameAndSequenceSpans:
                     new_batch[key].append(batch[key][i])
         
         return new_batch
+
+"""
+Spans first get filtered according to the locate thing or something like that.
+And the model will take the motion with all of its spans as it is and given that it'll have a helper function to generate a classes binary mask thing.
+And the model will generate the windows it self rather than having them pre made for it, this is easier to be implemented.
+We won't even implement an augmentation or mapping function to generate the binary mask, it'll be a separate function in order to not overload the batch / collator.
+"""
+
+"""
+Train the legacy model on hml3d motions as well by considering similarly annotated motions as a given class.
+"""

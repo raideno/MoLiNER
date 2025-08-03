@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from src.types import ForwardOutput, ProcessedBatch
+from src.types import ForwardOutput, RawBatch
 
 def compute_span_iou(span_1: torch.Tensor, span_2: torch.Tensor) -> torch.Tensor:
     start1, end1 = span_1[..., 0], span_1[..., 1]
@@ -20,7 +20,7 @@ def compute_span_iou(span_1: torch.Tensor, span_2: torch.Tensor) -> torch.Tensor
 
 def create_target_matrix(
     forward_output: ForwardOutput, 
-    batch: ProcessedBatch,
+    batch: RawBatch,
     threshold: float
 ) -> torch.Tensor:
     """

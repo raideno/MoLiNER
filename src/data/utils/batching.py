@@ -1,9 +1,12 @@
+import typing
+
+from src.types import DatasetSample
 from src.data.utils.helpers import _normalize_annotations
 from src.constants import (
     DEFAULT_FPS
 )
-
-def babel_simplify_batch_structure(sample: dict) -> dict:
+    
+def babel_simplify_batch_structure(sample: dict) -> DatasetSample:
     """
     A function for `datasets.map(batched=False)` to simplify the Babel dataset structure.
     Consolidates sequence_annotations and frame_annotations into a single 'prompts' field.
@@ -90,7 +93,7 @@ def babel_simplify_batch_structure(sample: dict) -> dict:
     
     return new_sample
 
-def hml3d_simplify_batch_structure(batch: dict[str, list]) -> dict[str, list]:
+def hml3d_simplify_batch_structure(batch: dict[str, list]) -> DatasetSample:
     """
     A function for `datasets.map(batched=True)` to simplify the HML3D dataset structure.
     Converts the 'texts' field into a unified 'prompts' field compatible with the simplified structure.

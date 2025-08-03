@@ -3,8 +3,8 @@ import datasets
 
 import src.auth
 
+from src.types import DatasetSample
 from src.data.pipelines import get_pipeline
-from src.data.utils.collator import SimpleBatchStructureCollator
 
 from src.constants import (
     HML3D_REMOTE_DATASET_NAME,
@@ -50,21 +50,15 @@ class HML3DDataset:
             load_from_cache_file=load_from_cache_file
         )
         
-        self._collate_function = SimpleBatchStructureCollator()
-    
     @property
     def dataset(self):
         return self._dataset
     
     @property
-    def collate_function(self):
-        return self._collate_function
-    
-    @property
     def fingerprint(self):
         return self._dataset._fingerprint
     
-    def __getitem__(self, index):
+    def __getitem__(self, index)-> DatasetSample:
         item = self.dataset[index]
         if self.motion_normalizer and isinstance(item, dict):
             motion = item.get("motion", None)

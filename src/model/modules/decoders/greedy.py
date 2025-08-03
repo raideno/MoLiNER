@@ -1,16 +1,28 @@
+import enum
 import torch
 import typing
+
 import numpy as np
 
 from src.types import (
     ForwardOutput,
-    DecodingStrategy,
     EvaluationResult,
     RawBatch,
-    ProcessedBatch
 )
 
 from ._base import BaseDecoder
+
+class DecodingStrategy(enum.Enum):
+    """
+    Defines the strategy for handling overlapping spans during decoding.
+
+    - FLAT: No overlaps are allowed. The highest-scoring non-overlapping spans are chosen.
+    - NESTED: Allows spans that are fully nested within another selected span, but prohibits partial overlaps.
+    - OVERLAP: Allows any overlap. All spans above the score threshold are selected.
+    """
+    FLAT = "flat"
+    NESTED = "nested"
+    OVERLAP = "overlap"
 
 class GreedyDecoder(BaseDecoder):
     def __init__(
@@ -23,8 +35,7 @@ class GreedyDecoder(BaseDecoder):
     def forward(
         self,
         forward_output: ForwardOutput,
-        raw_batch: RawBatch,
-        processed_batch: ProcessedBatch,
+        batch: RawBatch,
         score_threshold: float,
     ) -> EvaluationResult:
         """
@@ -32,8 +43,7 @@ class GreedyDecoder(BaseDecoder):
         
         Args:
             forward_output: The output from the model's forward pass
-            raw_batch: The raw batch containing original prompts information
-            processed_batch: The processed batch (for consistency with interface)
+            batch: The raw batch containing original prompts information
             score_threshold: Minimum score threshold for predictions
             
         Returns:
@@ -54,7 +64,7 @@ class GreedyDecoder(BaseDecoder):
             num_prompts = int(prompts_mask[batch_index].sum())
             num_spans = int(spans_mask[batch_index].sum())
             
-            motion_length = int(raw_batch.motion_mask[batch_index].sum().item())
+            motion_length = int(batch.motion_mask[batch_index].sum().item())
             batch_motion_lengths.append(motion_length)
             
             valid_scores = batch_scores[:num_prompts, :num_spans]
@@ -87,7 +97,7 @@ class GreedyDecoder(BaseDecoder):
             final_predictions = self._apply_strategy(predictions)
             
             motion_predictions = []
-            batch_prompts = raw_batch.prompts[batch_index] if batch_index < len(raw_batch.prompts) else []
+            batch_prompts = batch.prompts[batch_index] if batch_index < len(batch.prompts) else []
             
             for pred in final_predictions:
                 prompt_idx = int(pred['prompt_idx'])

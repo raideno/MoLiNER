@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 
 from src.types import (
     ForwardOutput,
-    DecodingStrategy,
     EvaluationResult
 )
 

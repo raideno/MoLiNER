@@ -10,7 +10,6 @@ import pytorch_lightning
 
 from src.types import (
     RawBatch,
-    ProcessedBatch,
     ForwardOutput,
 )
 
@@ -83,10 +82,8 @@ class MoLiNER(pytorch_lightning.LightningModule):
         *args,
         **kwargs
     ) -> ForwardOutput:
-        batch: ProcessedBatch = args[0]
+        batch: RawBatch = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
-        
-        batch.validate_type_or_raise(name="batch")
         
         # --- --- --- MOTIONS TREATMENT --- --- ---
         
@@ -162,22 +159,20 @@ class MoLiNER(pytorch_lightning.LightningModule):
             prompts_mask=prompts_mask
         )   
 
-    def step(self, processed_batch: "ProcessedBatch", batch_index: int) -> tuple[torch.Tensor, ForwardOutput]:
-        output = self.forward(processed_batch, batch_index=batch_index)
+    def step(self, batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, ForwardOutput]:
+        output = self.forward(batch, batch_index=batch_index)
         
-        loss = self.loss.forward(output, processed_batch)
+        loss = self.loss.forward(output, batch)
 
         return loss, output
     
     def training_step(self, *args, **kwargs):
-        raw_batch: "RawBatch" = args[0]
+        batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
-        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
+        batch_size = batch.motion_mask.size(0)
         
-        batch_size = raw_batch.motion_mask.size(0)
-        
-        loss, output = self.step(processed_batch, batch_index)
+        loss, output = self.step(batch, batch_index)
 
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
@@ -186,14 +181,12 @@ class MoLiNER(pytorch_lightning.LightningModule):
         }
 
     def validation_step(self, *args, **kwargs):
-        raw_batch: "RawBatch" = args[0]
+        batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
        
-        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
+        batch_size = batch.motion_mask.size(0)
        
-        batch_size = raw_batch.motion_mask.size(0)
-       
-        loss, output = self.step(processed_batch, batch_index)
+        loss, output = self.step(batch, batch_index)
        
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
        
@@ -203,19 +196,16 @@ class MoLiNER(pytorch_lightning.LightningModule):
 
     def predict(
         self,
-        raw_batch: RawBatch,
+        batch: RawBatch,
         threshold: float
     ):
         self.eval()
         
-        processed_batch = ProcessedBatch.from_raw_batch(raw_batch, self.prompts_tokens_encoder)
-        
-        output = self.forward(processed_batch)
+        output = self.forward(batch)
         
         decoded = self.decoder.forward(
             forward_output=output,
-            raw_batch=raw_batch,
-            processed_batch=processed_batch,
+            batch=batch,
             score_threshold=threshold,
         )
 

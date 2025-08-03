@@ -19,10 +19,10 @@ from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
     DEFAULT_HYDRA_VERSION_BASE
 )
+from src.types import RawBatch
 from src.config import read_config
 from src.model.moliner import MoLiNER
 from src.load import load_model_from_cfg
-from src.types import RawBatch, ProcessedBatch
 from src.model.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
 
 @main(

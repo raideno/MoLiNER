@@ -9,10 +9,26 @@ import transformers
 # Use TYPE_CHECKING to avoid circular imports
 if typing.TYPE_CHECKING:
     from src.model.modules import BasePromptsTokensEncoder
+    
+class MotionDict(typing.TypedDict):
+    new_joints: typing.List[typing.List[float]]
+    new_joint_vecs: typing.List[typing.List[float]]
+
+class PromptsDict(typing.TypedDict):
+    text: str
+    span: typing.Tuple[int, int]
+    source: typing.List[str]
+    is_sequence: bool
+    
+class DatasetSample(typing.TypedDict):
+    sid: str | int
+    motion: MotionDict
+    prompts: typing.List[PromptsDict]
+    amass_file_relative_path: str
 
 @dataclasses.dataclass
 class RawBatch:
-    sid: typing.List[int]
+    sid: typing.List[str | int]
     dataset_name: typing.List[str]
     amass_relative_path: typing.List[str]
     
@@ -36,19 +52,41 @@ class RawBatch:
         ]
     ]
     
-    @staticmethod
-    def _validate_type_or_raise(
-        value: typing.Any,
-        name: str = "value"
-    ):
-        if not isinstance(value, RawBatch):
-            raise TypeError(f"Expected {name} to be of type {RawBatch}, but got {type(value)}.")
+    # --- Processed Prompt Data (The "Labels" to be localized) ---
     
-    def validate_type_or_raise(
-        self,
-        name: typing.Any = "value",
-    ):
-        RawBatch._validate_type_or_raise(self, name=name)
+    # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
+    # The tokenized and padded text prompts.
+    prompt_input_ids: typing.Optional[torch.Tensor] = None
+
+    # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
+    # The attention mask for the tokenized prompts. A 1 indicates a real token, 0 indicates padding.
+    prompt_attention_mask: typing.Optional[torch.Tensor] = None
+    
+    # --- Ground Truth Data (The Localizations of each prompt) ---
+    
+    # NOTE:: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_prompt, 2)
+    # The last dim is [start_frame, end_frame]
+    # Only required for training
+    target_spans: typing.Optional[torch.Tensor] = None
+
+    # NOTE: (batch_size, batch_max_prompts_per_motion)
+    # A mask to indicate which prompts are real vs. padding, as each motion in the batch can have a different number of prompts.
+    # Only required for training
+    target_spans_mask: typing.Optional[torch.Tensor] = None
+    
+    # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_prompt)
+    # A mask to indicate which spans within each prompt are real vs. padding
+    # Only required for training
+    target_spans_per_prompt_mask: typing.Optional[torch.Tensor] = None
+    
+    # NOTE: (batch_size, batch_max_prompts_per_motion)
+    # A boolean tensor indicating if the prompt is a sequence-level prompt (True) or a frame-level prompt (False).
+    # Only required for training
+    is_sequence_prompt: typing.Optional[torch.Tensor] = None
+    
+    @property
+    def motion_features(self) -> torch.Tensor:
+        return self.transformed_motion
     
     @classmethod
     def create_random(
@@ -57,7 +95,8 @@ class RawBatch:
         max_frames_per_motion: int = 100,
         max_prompts_per_motion: int = 3,
         max_spans_per_prompt: int = 2,
-        device: torch.device = torch.device('cpu')
+        device: torch.device = torch.device('cpu'),
+        encoder: typing.Optional["BasePromptsTokensEncoder"] = None
     ) -> "RawBatch":
         """
         Create a random RawBatch for testing purposes.
@@ -68,6 +107,7 @@ class RawBatch:
             max_prompts_per_motion: Maximum number of prompts per motion
             max_spans_per_prompt: Maximum number of spans per prompt
             device: Device to place tensors on
+            encoder: Optional encoder for tokenizing prompts
             
         Returns:
             A randomly generated RawBatch
@@ -87,6 +127,7 @@ class RawBatch:
         action_words = ['walk', 'run', 'jump', 'sit', 'stand', 'dance', 'turn', 'bend', 'reach', 'grab']
         direction_words = ['forward', 'backward', 'left', 'right', 'up', 'down']
         
+        # Generate prompts in the original raw format
         prompts = []
         for i in range(batch_size):
             motion_prompts = []
@@ -112,6 +153,7 @@ class RawBatch:
             
             prompts.append(motion_prompts)
         
+        # Create base batch with raw prompts
         return cls(
             sid=sid,
             dataset_name=dataset_name,
@@ -130,224 +172,9 @@ class RawBatch:
             raw_motion=self.raw_motion.to(device),
             transformed_motion=self.transformed_motion.to(device),
             motion_mask=self.motion_mask.to(device),
-            prompts=self.prompts
-        )
-
-# TODO: we could have multiple prompts of the same type in a single motion, so when encoding them we should only encode one of them and not all of them.
-@dataclasses.dataclass
-class ProcessedBatch:
-    sid: typing.List[int]
-    dataset_name: typing.List[str]
-    amass_relative_path: typing.List[str]
-    
-    # --- Motion Data ---
-    
-    # NOTE: (batch_size, batch_max_frames_per_motion, motion_feature_dim)
-    motion_features: torch.Tensor
-
-    # NOTE: (batch_size, batch_max_frames_per_motion)
-    motion_mask: torch.Tensor
-
-    # --- Prompt Data (The "Labels" to be localized) ---
-    
-    # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
-    # The tokenized and padded text prompts.
-    prompt_input_ids: torch.Tensor
-
-    # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_prompt_length_in_tokens)
-    # The attention mask for the tokenized prompts. A 1 indicates a real token, 0 indicates padding.
-    prompt_attention_mask: torch.Tensor
-    
-    # --- Ground Truth Data (The Localizations of each prompt) ---
-    
-    # NOTE:: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_prompt, 2)
-    # The last dim is [start_frame, end_frame]
-    # Only required for training
-    target_spans: typing.Optional[torch.Tensor] = None
-
-    # NOTE: (batch_size, batch_max_prompts_per_motion)
-    # A mask to indicate which prompts are real vs. padding, as each motion in the batch can have a different number of prompts.
-    # Only required for training
-    target_spans_mask: typing.Optional[torch.Tensor] = None
-    
-    # NOTE: (batch_size, batch_max_prompts_per_motion, batch_max_spans_per_prompt)
-    # A mask to indicate which spans within each prompt are real vs. padding
-    # Only required for training
-    target_spans_per_prompt_mask: typing.Optional[torch.Tensor] = None
-    
-    # NOTE: (batch_size, batch_max_prompts_per_motion)
-    # A boolean tensor indicating if the prompt is a sequence-level prompt (True) or a frame-level prompt (False).
-    # Only required for training
-    is_sequence_prompt: typing.Optional[torch.Tensor] = None
-    
-    def is_training_data_defined(self) -> bool:
-        """
-        Check if the batch contains training data (i.e., target spans and masks).
-        
-        Returns:
-            bool: True if training data is defined, False otherwise.
-        """
-        return (
-            self.target_spans is not None and
-            self.target_spans_mask is not None and
-            self.target_spans_per_prompt_mask is not None and
-            self.is_sequence_prompt is not None
-        )
-    
-    @staticmethod
-    def _validate_type_or_raise(
-        value: typing.Any,
-        name: str = "value"
-    ):
-        if not isinstance(value, ProcessedBatch):
-            raise TypeError(f"Expected {name} to be of type {ProcessedBatch}, but got {type(value)}.")
-    
-    def validate_type_or_raise(
-        self,
-        name: typing.Any = "value",
-    ):
-        ProcessedBatch._validate_type_or_raise(self, name=name)
-    
-    @classmethod
-    def from_raw_batch(
-        cls,
-        raw_batch: "RawBatch",
-        encoder: "BasePromptsTokensEncoder",
-    ) -> "ProcessedBatch":
-        batch_size = raw_batch.transformed_motion.shape[0]
-        device = raw_batch.transformed_motion.device
-        
-        batch_max_prompts = max(len(prompts) for prompts in raw_batch.prompts)
-        
-        batch_max_spans_per_prompt = 0
-        for batch_prompts in raw_batch.prompts:
-            for prompt in batch_prompts:
-                batch_max_spans_per_prompt = max(batch_max_spans_per_prompt, len(prompt[1]))
-        
-        # NOTE: first collect all texts to determine global max sequence length
-        all_texts_in_batch: list[str] = []
-        for batch_prompts in raw_batch.prompts:
-            for prompt in batch_prompts:
-                all_texts_in_batch.append(prompt[0])
-                
-        if all_texts_in_batch:
-            global_tokenized = encoder.tokenize(
-                all_texts_in_batch,
-                padding=True,
-                truncation=True,
-                return_tensors='pt'
-            )
-            batch_max_sequence_length = global_tokenized["input_ids"].shape[1]
-        else:
-            batch_max_sequence_length = 1
-        
-        all_prompt_ids, all_prompt_masks = [], []
-        all_target_spans = []
-        all_target_spans_masks = []
-        all_target_spans_per_prompt_masks = []
-        all_is_sequence_prompt_flags = []
-
-        for batch_index in range(batch_size):
-            batch_motion_prompts = raw_batch.prompts[batch_index]
-            
-            texts = [prompt[0] for prompt in batch_motion_prompts]
-            spans_lists = [prompt[1] for prompt in batch_motion_prompts]
-            is_sequence_prompt_list = [prompt[2] for prompt in batch_motion_prompts]
-            
-            # NOTE: we tokenize the prompt texts
-            if texts:
-                tokenized = encoder.tokenize(
-                    texts,
-                    padding=True,
-                    truncation=True,
-                    return_tensors='pt'
-                )
-                prompt_ids = tokenized["input_ids"]
-                prompt_mask = tokenized["attention_mask"]
-                
-                # Pad to global max sequence length if needed
-                current_seq_len = prompt_ids.shape[1]
-                if current_seq_len < batch_max_sequence_length:
-                    pad_length = batch_max_sequence_length - current_seq_len
-                    pad_ids = torch.full((prompt_ids.shape[0], pad_length), encoder.pad_token_id, dtype=torch.long)
-                    prompt_ids = torch.cat([prompt_ids, pad_ids], dim=1)
-                    pad_mask = torch.zeros((prompt_mask.shape[0], pad_length), dtype=torch.long)
-                    prompt_mask = torch.cat([prompt_mask, pad_mask], dim=1)
-            else:
-                # NOTE: empty texts case
-                prompt_ids = torch.zeros((0, batch_max_sequence_length), dtype=torch.long)
-                prompt_mask = torch.zeros((0, batch_max_sequence_length), dtype=torch.long)
-
-            number_of_prompts = len(batch_motion_prompts)
-            number_of_paddings = batch_max_prompts - number_of_prompts
-
-            # NOTE: pad prompt tensors
-            pad_ids = torch.zeros((number_of_paddings, prompt_ids.shape[1]), dtype=torch.long)
-            prompt_ids = torch.cat([prompt_ids, pad_ids], dim=0)
-            pad_mask = torch.zeros((number_of_paddings, prompt_mask.shape[1]), dtype=torch.long)
-            prompt_mask = torch.cat([prompt_mask, pad_mask], dim=0)
-
-            # NOTE: create target spans tensor for this batch
-            # Shape: (num_prompts, max_spans_per_prompt, 2)
-            prompt_spans_tensor = torch.zeros((number_of_prompts, batch_max_spans_per_prompt, 2), dtype=torch.long)
-            spans_per_prompt_mask = torch.zeros((number_of_prompts, batch_max_spans_per_prompt), dtype=torch.bool)
-            
-            for prompt_idx, spans_list in enumerate(spans_lists):
-                num_spans = len(spans_list)
-                if num_spans > 0:
-                    spans_per_prompt_mask[prompt_idx, :num_spans] = True
-                    for span_idx, (start_frame, end_frame) in enumerate(spans_list):
-                        prompt_spans_tensor[prompt_idx, span_idx, 0] = start_frame
-                        prompt_spans_tensor[prompt_idx, span_idx, 1] = end_frame
-
-            # NOTE: pad target spans for padded prompts
-            pad_spans = torch.zeros((number_of_paddings, batch_max_spans_per_prompt, 2), dtype=torch.long)
-            spans_tensor = torch.cat([prompt_spans_tensor, pad_spans], dim=0)
-            
-            # NOTE: pad spans per prompt mask for padded prompts  
-            pad_spans_per_prompt_mask = torch.zeros((number_of_paddings, batch_max_spans_per_prompt), dtype=torch.bool)
-            spans_per_prompt_mask = torch.cat([spans_per_prompt_mask, pad_spans_per_prompt_mask], dim=0)
-            
-            # NOTE: pad the `is_sequence_prompt` tensor
-            is_sequence_prompt_tensor = torch.tensor(is_sequence_prompt_list, dtype=torch.bool)
-            # NOTE: we set padded prompts to False (not positive) but it does not matter as they are not used in training, ignored
-            pad_is_sequence = torch.zeros(number_of_paddings, dtype=torch.bool)
-            is_sequence_prompt_tensor = torch.cat([is_sequence_prompt_tensor, pad_is_sequence], dim=0)
-
-            # NOTE: create the mask for all non-padded prompts (both positive and negative)
-            spans_mask = torch.zeros(batch_max_prompts, dtype=torch.bool)
-            spans_mask[:number_of_prompts] = True
-
-            all_prompt_ids.append(prompt_ids)
-            all_prompt_masks.append(prompt_mask)
-            all_target_spans.append(spans_tensor)
-            all_target_spans_masks.append(spans_mask)
-            all_target_spans_per_prompt_masks.append(spans_per_prompt_mask)
-            all_is_sequence_prompt_flags.append(is_sequence_prompt_tensor)
-            
-        return cls(
-            sid=raw_batch.sid,
-            dataset_name=raw_batch.dataset_name,
-            amass_relative_path=raw_batch.amass_relative_path,
-            motion_features=raw_batch.transformed_motion,
-            motion_mask=raw_batch.motion_mask,
-            prompt_input_ids=torch.stack(all_prompt_ids).to(device),
-            prompt_attention_mask=torch.stack(all_prompt_masks).to(device),
-            target_spans=torch.stack(all_target_spans).to(device),
-            target_spans_mask=torch.stack(all_target_spans_masks).to(device),
-            target_spans_per_prompt_mask=torch.stack(all_target_spans_per_prompt_masks).to(device),
-            is_sequence_prompt=torch.stack(all_is_sequence_prompt_flags).to(device)
-        )
-    
-    def to(self, device: torch.device) -> "ProcessedBatch":
-        return ProcessedBatch(
-            sid=self.sid,
-            dataset_name=self.dataset_name,
-            amass_relative_path=self.amass_relative_path,
-            motion_features=self.motion_features.to(device),
-            motion_mask=self.motion_mask.to(device),
-            prompt_input_ids=self.prompt_input_ids.to(device),
-            prompt_attention_mask=self.prompt_attention_mask.to(device),
+            prompts=self.prompts,
+            prompt_input_ids=self.prompt_input_ids.to(device) if self.prompt_input_ids is not None else None,
+            prompt_attention_mask=self.prompt_attention_mask.to(device) if self.prompt_attention_mask is not None else None,
             target_spans=self.target_spans.to(device) if self.target_spans is not None else None,
             target_spans_mask=self.target_spans_mask.to(device) if self.target_spans_mask is not None else None,
             target_spans_per_prompt_mask=self.target_spans_per_prompt_mask.to(device) if self.target_spans_per_prompt_mask is not None else None,
@@ -374,32 +201,6 @@ class ForwardOutput:
             
     # --- --- --- xxx --- --- ---
     
-    @staticmethod
-    def _validate_type_or_raise(
-        value: typing.Any,
-        name: str = "value"
-    ):
-        if not isinstance(value, ForwardOutput):
-            raise TypeError(f"Expected {name} to be of type {ForwardOutput}, but got {type(value)}.")
-    
-    def validate_type_or_raise(
-        self,
-        name: typing.Any = "value",
-    ):
-        ForwardOutput._validate_type_or_raise(self, name=name)
-        
-class DecodingStrategy(enum.Enum):
-    """
-    Defines the strategy for handling overlapping spans during decoding.
-
-    - FLAT: No overlaps are allowed. The highest-scoring non-overlapping spans are chosen.
-    - NESTED: Allows spans that are fully nested within another selected span, but prohibits partial overlaps.
-    - OVERLAP: Allows any overlap. All spans above the score threshold are selected.
-    """
-    FLAT = "flat"
-    NESTED = "nested"
-    OVERLAP = "overlap"
-
 @dataclasses.dataclass
 class EvaluationResult:
     """

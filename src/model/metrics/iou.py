@@ -5,7 +5,8 @@ import torchmetrics
 import numpy as np
 import pandas as pd
 
-from src.types import ForwardOutput, RawBatch, ProcessedBatch, EvaluationResult
+from src.model.modules.decoders._base import BaseDecoder
+from src.types import ForwardOutput, RawBatch, EvaluationResult
 
 IOU_THRESHOLDS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
@@ -165,8 +166,7 @@ class IntervalDetectionMetric(torchmetrics.Metric):
         self, 
         output: ForwardOutput, 
         raw_batch: RawBatch,
-        processed_batch: ProcessedBatch,
-        decoder
+        decoder: BaseDecoder
     ):
         """
         Update metrics from model outputs using the new batch-based EvaluationResult format.
@@ -174,13 +174,11 @@ class IntervalDetectionMetric(torchmetrics.Metric):
         Args:
             output: Model forward output
             raw_batch: RawBatch containing ground truth data
-            processed_batch: ProcessedBatch containing processed data
             decoder: Decoder that produces EvaluationResult objects
         """
         evaluation_result = decoder.forward(
             output, 
             raw_batch, 
-            processed_batch, 
             self.score_threshold
         )
         

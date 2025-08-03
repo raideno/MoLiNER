@@ -5,10 +5,8 @@ from abc import ABC, abstractmethod
 
 from src.types import (
     ForwardOutput,
-    DecodingStrategy,
     EvaluationResult,
     RawBatch,
-    ProcessedBatch,
 )
 
 class BaseDecoder(torch.nn.Module, ABC):
@@ -26,8 +24,7 @@ class BaseDecoder(torch.nn.Module, ABC):
     def forward(
         self,
         forward_output: ForwardOutput,
-        raw_batch: RawBatch,
-        processed_batch: ProcessedBatch,
+        batch: RawBatch,
         score_threshold: float,
     ) -> EvaluationResult:
         """
@@ -35,8 +32,7 @@ class BaseDecoder(torch.nn.Module, ABC):
 
         Args:
             forward_output: ForwardOutput
-            raw_batch: RawBatch
-            processed_batch: ProcessedBatch
+            batch: RawBatch
             score_threshold: float,
 
         Returns:
