@@ -1,14 +1,13 @@
 import os
+import hydra
 import typing
 import logging
 import nbformat
 import papermill
+import omegaconf
+import nbconvert
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
-
-from hydra import main
-from omegaconf import DictConfig
-from nbconvert import HTMLExporter
 
 from src.load import extract_best_ckpt, extract_ckpt
 from src.constants import (
@@ -48,7 +47,7 @@ def run_notebook_for_pipeline(configuration: typing.Tuple[str, str, str, bool]):
     with open(output_ipynb_path) as notebook_file:
         nb_node = nbformat.read(notebook_file, as_version=4)
         
-    (body, resources) = HTMLExporter().from_notebook_node(nb_node)
+    (body, resources) = nbconvert.HTMLExporter().from_notebook_node(nb_node)
     
     html_output_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, f'{dataset_name}.{pipeline_name}.analysis.html')
     
@@ -63,10 +62,12 @@ def run_notebook_for_pipeline(configuration: typing.Tuple[str, str, str, bool]):
     
     return configuration
 
-@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="data-analysis", version_base=DEFAULT_HYDRA_VERSION_BASE)
-def data_analysis(cfg: DictConfig):
+# type: ignore
+@hydra.main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="data-analysis", version_base=DEFAULT_HYDRA_VERSION_BASE)
+def data_analysis(cfg: omegaconf.DictConfig):
     configurations = cfg.configurations
     keep_notebooks = cfg.keep_notebooks
+    
     max_workers = getattr(cfg, 'max_workers', None)
     
     logger.info("[data-analysis]: starting data analysis...")

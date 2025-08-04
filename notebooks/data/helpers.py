@@ -82,7 +82,7 @@ def analyze_prompts(
         'spans_durations_per_motion': spans_durations_per_motion
     }
     
-DEFAULT_CACHE_DIR = "./cache.local"
+DEFAULT_CACHE_DIR = "./data-analysis.cache.local"
 
 def get_analysis_with_cache(
     dataset,

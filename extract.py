@@ -1,7 +1,6 @@
+import hydra
 import logging
-
-from hydra import main
-from omegaconf import DictConfig
+import omegaconf
 
 from src.load import extract_best_ckpt, extract_ckpt
 from src.constants import (
@@ -11,8 +10,9 @@ from src.constants import (
 
 logger = logging.getLogger(__name__)
 
-@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="extract", version_base=DEFAULT_HYDRA_VERSION_BASE)
-def extract(cfg: DictConfig):
+# type: ignore
+@hydra.main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="extract", version_base=DEFAULT_HYDRA_VERSION_BASE)
+def extract(cfg: omegaconf.DictConfig):
     run_dir = cfg.run_dir
     ckpt = cfg.ckpt
     mode = cfg.mode

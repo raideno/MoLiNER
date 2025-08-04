@@ -1,22 +1,21 @@
 import os
 import tqdm
+import hydra
 import torch
 import importlib
+import omegaconf
 
 import numpy as np
-
-from hydra import main
-from hydra.utils import instantiate
-from omegaconf import DictConfig
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
     DEFAULT_HYDRA_VERSION_BASE,
 )
 
-@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="compute-statistics", version_base=DEFAULT_HYDRA_VERSION_BASE)
-def main(cfg: DictConfig):
-    dataset = instantiate(
+# type: ignore
+@hydra.main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="compute-statistics", version_base=DEFAULT_HYDRA_VERSION_BASE)
+def main(cfg: omegaconf.DictConfig):
+    dataset = hydra.utils.instantiate(
         cfg.data,
         split="train",
         motion_normalizer=None
