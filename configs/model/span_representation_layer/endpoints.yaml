@@ -1,4 +1,4 @@
-_target_: src.model.modules.span_representation_layers.endpoints.EndpointsSpanRepresentationLayer
+_target_: src.models.moliner.modules.span_representation_layers.endpoints.EndpointsSpanRepresentationLayer
 motion_embed_dim: 256
 representation_dim: 256
 dropout: 0.4

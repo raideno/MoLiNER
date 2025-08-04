@@ -20,8 +20,7 @@ from omegaconf import DictConfig
 from hydra.utils import instantiate
 
 from src.auth import login_to_huggingface
-from src.model import MoLiNER
-from src.refactor.segmentation.segmentation import StartEndSegmentationModel
+from src.models import MoLiNER, StartEndSegmentationModel
 from src.config import read_config, save_config
 from src.data.utils.collator import SimpleBatchStructureCollator
 

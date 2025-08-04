@@ -1,4 +1,4 @@
-_target_: src.model.modules.losses.MSELoss
+_target_: src.models.moliner.modules.losses.MSELoss
 
 reduction: mean
 negatives_type: "labels"

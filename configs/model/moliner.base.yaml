@@ -1,4 +1,4 @@
-_target_: src.model.MoLiNER
+_target_: src.models.MoLiNER
 
 defaults:
   # tmr/scratch, tmr/pretrained, tmr/frozen

@@ -1,4 +1,4 @@
-_target_: src.model.modules.spans_generators.standard.standardSpansGenerator
+_target_: src.models.moliner.modules.spans_generators.standard.standardSpansGenerator
 min_width: 1
 max_width: 8
 step: 8

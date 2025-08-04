@@ -8,7 +8,7 @@ import transformers
 
 # Use TYPE_CHECKING to avoid circular imports
 if typing.TYPE_CHECKING:
-    from src.model.modules import BasePromptsTokensEncoder
+    from src.models.moliner.modules import BasePromptsTokensEncoder
     
 class MotionDict(typing.TypedDict):
     new_joints: typing.List[typing.List[float]]

@@ -1,4 +1,4 @@
-_target_: src.model.modules.span_representation_layers.ConvolutionalSpanRepresentationLayer
+_target_: src.models.moliner.modules.span_representation_layers.ConvolutionalSpanRepresentationLayer
 # motion_embed_dim: ${model.motion_frames_encoder.embed_dim}
 motion_embed_dim: 256
 # representation_dim: ${model.prompt_representation_layer.representation_dim}

@@ -21,9 +21,9 @@ from src.constants import (
 )
 from src.types import RawBatch
 from src.config import read_config
-from src.model.moliner import MoLiNER
+from src.models.moliner import MoLiNER
 from src.load import load_model_from_cfg
-from src.model.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
+from src.models.moliner.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
 from src.data.utils.collator import SimpleBatchStructureCollator
 
 @main(
@@ -80,7 +80,7 @@ def evaluate_model(cfg: DictConfig):
         shuffle=False,
     )
     model.postprocessors = []
-    from src.model.modules.decoders.greedy import GreedyDecoder, DecodingStrategy
+    from src.models.moliner.modules.decoders.greedy import GreedyDecoder, DecodingStrategy
     model.decoder = GreedyDecoder(strategy=DecodingStrategy.FLAT)
     
     iou_metric = IntervalDetectionMetric(IOU_THRESHOLDS, score_threshold=score)

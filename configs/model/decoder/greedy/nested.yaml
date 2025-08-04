@@ -1,2 +1,2 @@
-_target_: src.model.modules.decoders.greedy.GreedyDecoder
+_target_: src.models.moliner.modules.decoders.greedy.GreedyDecoder
 strategy: NESTED

@@ -3,7 +3,7 @@ import typing
 import random
 
 from src.types import RawBatch
-from src.model.modules import BasePromptsTokensEncoder
+from src.models.moliner.modules import BasePromptsTokensEncoder
 
 def create_random(
     batch_size: int = 2,

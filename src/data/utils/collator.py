@@ -8,7 +8,7 @@ from src.types import DatasetSample
 from src.constants import DEFAULT_FPS, DEFAULT_PADDING_VALUE
 
 if typing.TYPE_CHECKING:
-    from src.model.modules import BasePromptsTokensEncoder
+    from src.models.moliner.modules import BasePromptsTokensEncoder
 
 class SimpleBatchStructureCollator:
     def __init__(self, encoder: typing.Optional["BasePromptsTokensEncoder"] = None):

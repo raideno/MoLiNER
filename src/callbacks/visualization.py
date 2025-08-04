@@ -10,7 +10,7 @@ import pytorch_lightning
 import pytorch_lightning.loggers
 import pytorch_lightning.callbacks
 
-from src.model import MoLiNER
+from src.models import MoLiNER
 from src.types import RawBatch, EvaluationResult
 
 from src.visualizations import plot_evaluation_results

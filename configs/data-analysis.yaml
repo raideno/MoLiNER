@@ -3,6 +3,7 @@ defaults:
   - _self_
 
 max_workers: null
+cfg.keep_notebooks: false
 
 configurations:
   - [babel, babel-act-cat, "train,validation"]

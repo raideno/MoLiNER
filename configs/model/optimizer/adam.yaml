@@ -1,4 +1,4 @@
-_target_: src.model.modules.optimizers.AdamOptimizer
+_target_: src.models.modules.optimizers.AdamOptimizer
 
 lr:
   scratch: 5e-5

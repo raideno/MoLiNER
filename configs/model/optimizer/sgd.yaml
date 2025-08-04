@@ -1,4 +1,4 @@
-_target_: src.model.modules.optimizers.SGDOptimizer
+_target_: src.models.modules.optimizers.SGDOptimizer
 
 lr:
   scratch: 1e-3
