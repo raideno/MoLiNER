@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from src.types import ForwardOutput, RawBatch
+from src.types import MolinerForwardOutput, RawBatch
 
 def compute_span_iou(span_1: torch.Tensor, span_2: torch.Tensor) -> torch.Tensor:
     start1, end1 = span_1[..., 0], span_1[..., 1]
@@ -19,7 +19,7 @@ def compute_span_iou(span_1: torch.Tensor, span_2: torch.Tensor) -> torch.Tensor
     return iou
 
 def create_target_matrix(
-    forward_output: ForwardOutput, 
+    forward_output: MolinerForwardOutput, 
     batch: RawBatch,
     threshold: float
 ) -> torch.Tensor:

@@ -12,7 +12,8 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     def __init__(
         self,
         frozen: bool,
-        pretrained: bool
+        pretrained: bool,
+        hidden_dimension: int
     ):
         """
         Initializes the DebertaPromptsTokensEncoder.
@@ -21,6 +22,10 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
             frozen (bool): If True, the transformer's weights will not be updated during training.
         """
         super().__init__()
+        
+        assert hidden_dimension == self.hidden_dimension, "Hidden dimension mismatch. Expected {}, got {}.".format(
+            self.hidden_dimension, hidden_dimension
+        )
         
         MODEL_NAME = "microsoft/deberta-v3-base"
         
@@ -36,12 +41,6 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
             self.transformer.eval()
             for param in self.transformer.parameters():
                 param.requires_grad = False
-
-    def get_output_dim(self) -> int:
-        """
-        Returns the hidden dimension size of the transformer model.
-        """
-        return self.transformer.config.hidden_size
 
     def forward(
         self,
@@ -107,17 +106,11 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     @property
     def model_max_length(self) -> int:
-        """
-        Returns the maximum sequence length supported by the Deberta tokenizer.
-        """
         # return self.tokenizer.model_max_length
         return 512
     
     @property
     def pad_token_id(self) -> int:
-        """
-        Returns the padding token ID used by the Deberta tokenizer.
-        """
         return self.tokenizer.pad_token_id
     
     @property
@@ -127,3 +120,7 @@ class DebertaPromptsTokensEncoder(BasePromptsTokensEncoder):
     @property
     def frozen(self) -> bool:
         return self.frozen_
+
+    @property
+    def hidden_dimension(self) -> int:
+        return self.transformer.config.hidden_size

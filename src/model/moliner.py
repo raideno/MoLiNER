@@ -10,7 +10,7 @@ import pytorch_lightning
 
 from src.types import (
     RawBatch,
-    ForwardOutput,
+    MolinerForwardOutput,
 )
 
 from src.model.modules import (
@@ -81,7 +81,7 @@ class MoLiNER(pytorch_lightning.LightningModule):
         self,
         *args,
         **kwargs
-    ) -> ForwardOutput:
+    ) -> MolinerForwardOutput:
         batch: RawBatch = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
@@ -152,27 +152,22 @@ class MoLiNER(pytorch_lightning.LightningModule):
         if batch_index % 10 == 0:
             torch.cuda.empty_cache()
        
-        return ForwardOutput(
+        return MolinerForwardOutput(
             similarity_matrix=similarity_matrix,
             candidate_spans_indices=spans_indices,
             candidate_spans_mask=spans_masks,
             prompts_mask=prompts_mask
         )   
 
-    def step(self, batch: "RawBatch", batch_index: int) -> tuple[torch.Tensor, ForwardOutput]:
-        output = self.forward(batch, batch_index=batch_index)
-        
-        loss = self.loss.forward(output, batch)
-
-        return loss, output
-    
     def training_step(self, *args, **kwargs):
         batch: "RawBatch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         batch_size = batch.motion_mask.size(0)
         
-        loss, output = self.step(batch, batch_index)
+        output = self.forward(batch, batch_index=batch_index)
+        
+        loss = self.loss.forward(output, batch)
 
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         
@@ -186,7 +181,9 @@ class MoLiNER(pytorch_lightning.LightningModule):
        
         batch_size = batch.motion_mask.size(0)
        
-        loss, output = self.step(batch, batch_index)
+        output = self.forward(batch, batch_index=batch_index)
+        
+        loss = self.loss.forward(output, batch)
        
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
        

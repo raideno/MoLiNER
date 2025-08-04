@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from src.types import ForwardOutput, RawBatch
+from src.types import MolinerForwardOutput, RawBatch
 
 from ._base import BaseLoss
 
@@ -95,7 +95,7 @@ class FocalLoss(BaseLoss):
     
     def forward(
         self,
-        forward_output: ForwardOutput,
+        forward_output: MolinerForwardOutput,
         batch: RawBatch,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:

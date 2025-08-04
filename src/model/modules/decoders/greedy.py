@@ -5,7 +5,7 @@ import typing
 import numpy as np
 
 from src.types import (
-    ForwardOutput,
+    MolinerForwardOutput,
     EvaluationResult,
     RawBatch,
 )
@@ -34,7 +34,7 @@ class GreedyDecoder(BaseDecoder):
 
     def forward(
         self,
-        forward_output: ForwardOutput,
+        forward_output: MolinerForwardOutput,
         batch: RawBatch,
         score_threshold: float,
     ) -> EvaluationResult:

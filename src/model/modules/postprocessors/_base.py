@@ -4,7 +4,7 @@ import typing
 from abc import ABC, abstractmethod
 
 from src.types import (
-    ForwardOutput,
+    MolinerForwardOutput,
     EvaluationResult
 )
 

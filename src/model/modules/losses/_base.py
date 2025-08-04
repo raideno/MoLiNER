@@ -2,7 +2,7 @@ import abc
 import torch
 import typing
 
-from src.types import ForwardOutput, RawBatch
+from src.types import MolinerForwardOutput, RawBatch
 
 class BaseLoss(torch.nn.Module, abc.ABC):
     """
@@ -20,7 +20,7 @@ class BaseLoss(torch.nn.Module, abc.ABC):
     @abc.abstractmethod
     def forward(
         self,
-        forward_output: ForwardOutput,
+        forward_output: MolinerForwardOutput,
         batch: RawBatch,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:
@@ -28,7 +28,7 @@ class BaseLoss(torch.nn.Module, abc.ABC):
         Computes the complete loss given model forward output and processed batch.
 
         Args:
-            forward_output (ForwardOutput): Model predictions and intermediate outputs
+            forward_output (MolinerForwardOutput): Model predictions and intermediate outputs
             batch (RawBatch): Batch containing ground truth data
             batch_index (typing.Optional[int]): Optional index of the batch in the dataset, if applicable.
 

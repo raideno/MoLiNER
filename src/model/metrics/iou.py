@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from src.model.modules.decoders._base import BaseDecoder
-from src.types import ForwardOutput, RawBatch, EvaluationResult
+from src.types import MolinerForwardOutput, RawBatch, EvaluationResult
 
 IOU_THRESHOLDS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
@@ -164,7 +164,7 @@ class IntervalDetectionMetric(torchmetrics.Metric):
     
     def update_from_model_outputs(
         self, 
-        output: ForwardOutput, 
+        output: MolinerForwardOutput, 
         raw_batch: RawBatch,
         decoder: BaseDecoder
     ):

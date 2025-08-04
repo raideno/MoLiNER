@@ -12,10 +12,15 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         self,
         frozen: bool,
         pretrained: bool,
+        hidden_dimension: int,
         weights_path: typing.Optional[str] = None,
-        sample_mean: bool = False
+        sample_mean: bool = False,
     ):
         super().__init__()
+        
+        assert hidden_dimension == self.hidden_dimension, "Hidden dimension mismatch. Expected {}, got {}.".format(
+            self.hidden_dimension, hidden_dimension
+        )
         
         self.frozen_ = frozen
         self.pretrained_ = pretrained
@@ -208,3 +213,7 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     @property
     def frozen(self) -> bool:
         return self.frozen_
+    
+    @property
+    def hidden_dimension(self) -> int:
+        return self.latent_dim

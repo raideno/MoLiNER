@@ -16,7 +16,8 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     def __init__(
         self,
         frozen: bool,
-        pretrained: bool
+        pretrained: bool,
+        hidden_dimension: int
     ):
         """
         Initializes the CLIPPromptsTokensEncoder.
@@ -26,6 +27,9 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
         """
         super().__init__()
         
+        assert hidden_dimension == self.hidden_dimension, "Hidden dimension mismatch. Expected {}, got {}.".format(
+            self.hidden_dimension, hidden_dimension
+        )
         
         # MODEL_NAME = "openai/clip-vit-large-patch14"
         # MODEL_NAME = "openai/clip-vit-large-patch14-336"
@@ -46,12 +50,6 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
             self.text_encoder.eval()
             for param in self.text_encoder.parameters():
                 param.requires_grad = False
-
-    def get_output_dim(self) -> int:
-        """
-        Returns the hidden dimension size of the CLIP text encoder.
-        """
-        return self.text_encoder.config.hidden_size
 
     def forward(
         self,
@@ -132,16 +130,10 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     
     @property
     def model_max_length(self) -> int:
-        """
-        Returns the maximum sequence length supported by the CLIP tokenizer.
-        """
         return self.tokenizer.model_max_length
     
     @property
     def pad_token_id(self) -> int:
-        """
-        Returns the padding token ID used by the CLIP tokenizer.
-        """
         return self.tokenizer.pad_token_id
 
     @property
@@ -151,3 +143,7 @@ class CLIPPromptsTokensEncoder(BasePromptsTokensEncoder):
     @property
     def frozen(self) -> bool:
         return self.frozen_
+    
+    @property
+    def hidden_dimension(self) -> int:
+        return self.text_encoder.config.hidden_size

@@ -73,3 +73,12 @@ class BasePromptsTokensEncoder(torch.nn.Module, ABC):
         A frozen encoder will not update its weights during training.
         """
         pass
+    
+    @property
+    @abstractmethod
+    def hidden_dimension(self) -> int:
+        """
+        Returns:
+            int: The dimension of the output embeddings produced by the encoder.
+        """
+        pass

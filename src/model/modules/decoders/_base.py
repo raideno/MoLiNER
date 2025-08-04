@@ -4,7 +4,7 @@ import typing
 from abc import ABC, abstractmethod
 
 from src.types import (
-    ForwardOutput,
+    MolinerForwardOutput,
     EvaluationResult,
     RawBatch,
 )
@@ -23,7 +23,7 @@ class BaseDecoder(torch.nn.Module, ABC):
     @abstractmethod
     def forward(
         self,
-        forward_output: ForwardOutput,
+        forward_output: MolinerForwardOutput,
         batch: RawBatch,
         score_threshold: float,
     ) -> EvaluationResult:
@@ -31,7 +31,7 @@ class BaseDecoder(torch.nn.Module, ABC):
         Decodes the model's forward pass output into a list of predicted spans.
 
         Args:
-            forward_output: ForwardOutput
+            forward_output: MolinerForwardOutput
             batch: RawBatch
             score_threshold: float,
 

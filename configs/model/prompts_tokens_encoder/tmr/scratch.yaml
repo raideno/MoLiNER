@@ -2,3 +2,4 @@ _target_: src.model.modules.prompts_tokens_encoders.tmr.TMRPromptsTokensEncoder
 weights_path: ./models/tmr_humanml3d_guoh3dfeats/last_weights/text_encoder.pt
 pretrained: false
 frozen: false
+hidden_dimension: 256

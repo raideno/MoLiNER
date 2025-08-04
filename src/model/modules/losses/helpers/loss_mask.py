@@ -1,10 +1,10 @@
 import torch
 import typing
 
-from src.types import ForwardOutput, RawBatch
+from src.types import MolinerForwardOutput, RawBatch
 
 def create_loss_mask(
-    forward_output: ForwardOutput, 
+    forward_output: MolinerForwardOutput, 
     batch: RawBatch
 ) -> torch.Tensor:
     """
