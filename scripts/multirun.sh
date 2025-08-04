@@ -6,8 +6,8 @@ MODELS=(
     # "segmentation.frozen-tmr.local.yaml"
     "segmentation.mlp.local.yaml"
     "segmentation.pretrained-tmr.local.yaml"
-    "segmentation.scratch-tmr.local.yaml"
-    "segmentation.stgcn.local.yaml"
+    # "segmentation.scratch-tmr.local.yaml"
+    # "segmentation.stgcn.local.yaml"
 )
 
 DATA="babel/20/base"
