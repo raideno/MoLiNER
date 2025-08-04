@@ -1,0 +1,2 @@
+_target_: src.refactor.segmentation.modules.encoders.mlp.MLPMotionEncoder
+num_frames: 20

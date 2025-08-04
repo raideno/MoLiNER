@@ -27,16 +27,17 @@ loggers:
     name: ${run_dir}
     save_dir: ${run_dir}
     offline: false
-    tags:
-      - v1.0.1
-      - ${data.pipeline}
-      - ${split-get-last:${data._target_}}
-      - ${split-get-last:${model.motion_frames_encoder._target_}},pretrained=${model.motion_frames_encoder.pretrained},frozen=${model.motion_frames_encoder.frozen}
-      - ${split-get-last:${model.prompts_tokens_encoder._target_}},pretrained=${model.prompts_tokens_encoder.pretrained},frozen=${model.prompts_tokens_encoder.frozen}
-      # NOTE: oc.select documentation
-      - ${split-get-last:${model.loss._target_}},${oc.select:model.loss.reduction, unknown},${oc.select:model.loss.threshold, unknown}
-      - ${split-get-last:${model.span_representation_layer._target_}},${oc.select:model.span_representation_layer.mode}
-      - ${split-get-last:${model.spans_generator._target_}},min_width=${oc.select:model.spans_generator.min_width, unknown},max_width=${oc.select:model.spans_generator.max_width, unknown},step=${oc.select:model.spans_generator.step, unknown}
+    # TODO: define the tags at the model yaml file rather than being defined globally here
+    # tags:
+    #   - v1.0.1
+    #   - ${data.pipeline}
+    #   - ${split-get-last:${data._target_}}
+    #   - ${split-get-last:${model.motion_frames_encoder._target_}},pretrained=${model.motion_frames_encoder.pretrained},frozen=${model.motion_frames_encoder.frozen}
+    #   - ${split-get-last:${model.prompts_tokens_encoder._target_}},pretrained=${model.prompts_tokens_encoder.pretrained},frozen=${model.prompts_tokens_encoder.frozen}
+    #   # NOTE: oc.select documentation
+    #   - ${split-get-last:${model.loss._target_}},${oc.select:model.loss.reduction, unknown},${oc.select:model.loss.threshold, unknown}
+    #   - ${split-get-last:${model.span_representation_layer._target_}},${oc.select:model.span_representation_layer.mode}
+    #   - ${split-get-last:${model.spans_generator._target_}},min_width=${oc.select:model.spans_generator.min_width, unknown},max_width=${oc.select:model.spans_generator.max_width, unknown},step=${oc.select:model.spans_generator.step, unknown}
     notes: "MoLiNER training run"
     # NOTE: set to your WandB username or team
     entity: nadirkichou-university-of-lille

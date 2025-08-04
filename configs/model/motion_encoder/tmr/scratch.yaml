@@ -1,0 +1,5 @@
+_target_: src.refactor.segmentation.modules.encoders.tmr.TMRMotionFramesEncoder
+weights_path: ./models/tmr_humanml3d_guoh3dfeats/last_weights/motion_encoder.pt
+frozen: false
+pretrained: false
+sample_mean: false
