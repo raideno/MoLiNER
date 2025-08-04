@@ -24,6 +24,7 @@ from src.config import read_config
 from src.model.moliner import MoLiNER
 from src.load import load_model_from_cfg
 from src.model.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
+from src.data.utils.collator import SimpleBatchStructureCollator
 
 @main(
     config_path=DEFAULT_HYDRA_CONFIG_PATH,
@@ -66,17 +67,17 @@ def evaluate_model(cfg: DictConfig):
     else:
         raise ValueError(f"Unknown protocol: {protocol}. Valid protocols are: self, locate, mlp.")
         
-    validation_dataloader = instantiate(
-        cfg.dataloader,
-        dataset=validation_dataset,
-        collate_fn=validation_dataset.collate_function,
-        shuffle=False,
-    )
-    
     model: MoLiNER = load_model_from_cfg(
         cfg,
         ckpt_name=ckpt,
         device=device
+    )
+    
+    validation_dataloader = instantiate(
+        cfg.dataloader,
+        dataset=validation_dataset,
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
+        shuffle=False,
     )
     model.postprocessors = []
     from src.model.modules.decoders.greedy import GreedyDecoder, DecodingStrategy

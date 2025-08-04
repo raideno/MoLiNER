@@ -9,6 +9,8 @@ from hydra import main
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from src.config import read_config, save_config
+from src.model import MoLiNER
+from src.data.utils.collator import SimpleBatchStructureCollator
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
@@ -58,16 +60,19 @@ def test_model(cfg: DictConfig):
         split="val"
     )
     
+    logger.info("[model]: loading the model")
+    model: MoLiNER = instantiate(cfg.model)
+    
     train_dataloader = instantiate(
         cfg.dataloader,
         dataset=train_dataset,
-        collate_fn=train_dataset.collate_function,
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
         shuffle=True,
     )
     val_dataloader = instantiate(
         cfg.dataloader,
         dataset=val_dataset,
-        collate_fn=val_dataset.collate_function,
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
         shuffle=False,
     )
     
@@ -76,11 +81,6 @@ def test_model(cfg: DictConfig):
     
     for batch in tqdm.tqdm(iterable=val_dataloader, total=len(val_dataloader), desc="[preload-dataloader]:"):
         pass
-    
-    logger.info("[model]: loading the model")
-    model = instantiate(cfg.model)
-    
-    logger.info("[model]: loading motion encoder weights")
     
     trainer = instantiate(cfg.trainer)
     

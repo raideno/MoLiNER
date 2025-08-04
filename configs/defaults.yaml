@@ -52,6 +52,7 @@ callbacks:
     verbose: true
   model_checkpoint_best:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${run_dir}/logs/checkpoints
     filename: best-{epoch}
     monitor: val/loss
     mode: min
@@ -59,6 +60,7 @@ callbacks:
     save_last: true
   model_checkpoint_latest:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${run_dir}/logs/checkpoints
     filename: latest-{epoch}
     every_n_epochs: 1
     save_top_k: 1

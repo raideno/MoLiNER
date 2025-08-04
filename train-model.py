@@ -20,8 +20,9 @@ from omegaconf import DictConfig
 from hydra.utils import instantiate
 
 from src.auth import login_to_huggingface
+from src.model import MoLiNER
 from src.config import read_config, save_config
-
+from src.data.utils.collator import SimpleBatchStructureCollator
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
@@ -75,23 +76,23 @@ def train_model(cfg: DictConfig):
         cfg.data,
         split="validation"
     )
+        
+    logger.info("[model]: loading the model")
+    model: MoLiNER = instantiate(cfg.model)
     
     train_dataloader: torch.utils.data.DataLoader = instantiate(
         cfg.dataloader,
         dataset=train_dataset,
-        collate_fn=train_dataset.collate_function,
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
         shuffle=True,
     )
     validation_dataloader: torch.utils.data.DataLoader = instantiate(
         cfg.dataloader,
         dataset=validation_dataset,
-        collate_fn=validation_dataset.collate_function,
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
         shuffle=False,
     )
-    
-    logger.info("[model]: loading the model")
-    model = instantiate(cfg.model)
-    
+
     trainer = instantiate(cfg.trainer)
     
     # NOTE: find wandb logger instance and log model configuration

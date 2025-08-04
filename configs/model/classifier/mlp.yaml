@@ -1,1 +1,1 @@
-_target_: src.refactor.classifiers.mlp.MLPClassifier
+_target_: src.refactor.segmentation.modules.classifiers.mlp.MLPClassifier
