@@ -15,6 +15,7 @@ from src.types import (
 from src.models.modules import (
     BaseOptimizer
 )
+from src.models._base import BaseModel
 
 from .modules import (
     BaseMotionEncoder,
@@ -29,7 +30,7 @@ from .modules.losses.standard import extract_window_labels
 
 logger = logging.getLogger(__name__)
 
-class StartEndSegmentationModel(pytorch_lightning.LightningModule):
+class StartEndSegmentationModel(BaseModel):
     def __init__(
         self,
         motion_encoder: BaseMotionEncoder,

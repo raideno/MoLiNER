@@ -4,12 +4,6 @@ run_dir: ???
 device: ???
 score: ???
 
-# self, locate, mlp
-# NOTE: self - use the same data used during training.
-#       locate - use locate data.
-#       mlp - use MLP data; HumanML3D sequences.
-protocol: ???
-
 defaults:
   - defaults
   - _self_

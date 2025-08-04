@@ -13,7 +13,7 @@ import pytorch_lightning.callbacks
 from src.models import MoLiNER
 from src.types import RawBatch, EvaluationResult
 
-from src.visualizations import plot_evaluation_results
+from src.helpers import plot_evaluation_results
 
 logger = logging.getLogger(__name__)
 

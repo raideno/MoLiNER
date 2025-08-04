@@ -1,52 +1,52 @@
-import pdb
-# HYDRA_FULL_ERROR=1 python evaluate.py -m \
-#   device=cuda:0 score=0.5 \
-#   protocol=self,locate,mlp \
-#   run_dir="./out/training.2025-07-26_11-39-16","./out/training.2025-07-26_14-27-48","./out/training.2025-07-27_00-19-11","./out/training.2025-07-27_02-43-23","./out/training.2025-07-27_11-48-31","./out/training.2025-07-27_20-51-52"
-
-from src.types import EvaluationResult
-import itertools
 import gc
 import os
+import pdb
 import tqdm
 import json
 import torch
 import hydra
+import hydra
 import pprint
 import typing
 import datetime
+import omegaconf
+import itertools
 
-from hydra import main
-from omegaconf import DictConfig
-from hydra.utils import instantiate
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
     DEFAULT_HYDRA_VERSION_BASE
 )
-from src.types import RawBatch
 from src.config import read_config
-from src.models import MoLiNER
 from src.load import load_model_from_cfg
+from src.types import RawBatch, EvaluationResult
+from src.models import MoLiNER, StartEndSegmentationModel
 from src.data.utils.collator import SimpleBatchStructureCollator
-from src.models.moliner.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
+from src.metrics.mlp import TALLEvaluator
 
-from mlp_helpers import TALLEvaluator
-
-@main(
+# type: ignore
+@hydra.main(
     config_path=DEFAULT_HYDRA_CONFIG_PATH,
     config_name="evaluate.mlp",
     version_base=DEFAULT_HYDRA_VERSION_BASE
 )
-def evaluate_model(cfg: DictConfig):
+def evaluate_mlp(cfg: omegaconf.DictConfig):
     ckpt = cfg.ckpt
     device = cfg.device
     run_dir = cfg.run_dir
     score = cfg.score
-    # protocol = cfg.protocol
     
     cfg = read_config(run_dir)
-
-    # NOTE: use MLP data; HumanML3D sequences
+   
+    model: typing.Union[StartEndSegmentationModel, MoLiNER] = load_model_from_cfg(
+        cfg,
+        ckpt_name=ckpt,
+        device=device
+    )
+    if isinstance(model, StartEndSegmentationModel):
+        raise ValueError("The MLP evaluation is not supported for StartEndSegmentationModel, please use MoLiNER model.")
+    elif not isinstance(model, MoLiNER):
+        raise ValueError("The model must be an instance of MoLiNER for MLP evaluation.")
+    
     from src.data.hml3d import HML3DDataset
     from src.helpers.motion_normalizer import MotionNormalizer
     validation_dataset = HML3DDataset(
@@ -54,29 +54,14 @@ def evaluate_model(cfg: DictConfig):
         pipeline="mlp-max-1024-hml3d-splitted",
         motion_normalizer=MotionNormalizer(stats_path="./statistics/hml3d.pt"),
     )
-   
-    model: MoLiNER = load_model_from_cfg(
-        cfg,
-        ckpt_name=ckpt,
-        device=device
-    )
-    
-    validation_dataloader = instantiate(
+    validation_dataloader = hydra.utils.instantiate(
         cfg.dataloader,
         dataset=validation_dataset,
         collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
         shuffle=False,
     )
     
-    # --- --- ---
-    model.postprocessors = []
-    from src.models.moliner.modules.decoders.greedy import GreedyDecoder, DecodingStrategy
-    model.decoder = GreedyDecoder(strategy=DecodingStrategy.FLAT)
-    # --- --- ---
-    
     model.eval()
-    
-    from mlp_helpers import TALLEvaluator
     
     evaluator = TALLEvaluator()
     
@@ -157,4 +142,4 @@ def evaluate_model(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    evaluate_model()
+    evaluate_mlp()

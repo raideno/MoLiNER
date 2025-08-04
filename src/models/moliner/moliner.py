@@ -12,7 +12,6 @@ from src.types import (
     RawBatch,
     MolinerForwardOutput,
 )
-
 from src.models.modules import (
     BaseOptimizer
 )
@@ -27,14 +26,14 @@ from src.models.moliner.modules import (
     BaseLoss,
     BasePostprocessor,
 )
+from src.models._base import BaseModel
 
-from src.models.moliner.metrics.iou import IntervalDetectionMetric, IOU_THRESHOLDS
 
 logger = logging.getLogger(__name__)
     
 # TODO: add a shuffler, takes in the spans and prompts representation, shuffle them and return the shuffled representations.
 
-class MoLiNER(pytorch_lightning.LightningModule):
+class MoLiNER(BaseModel):
     def __init__(
         self,
         

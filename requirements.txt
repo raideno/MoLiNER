@@ -1,3 +1,4 @@
+hydra-joblib-launcher
 nbconvert
 wandb
 papermill

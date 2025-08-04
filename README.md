@@ -148,7 +148,10 @@ This will save the model weights in the run directory.
 To evaluate the model's performance on in-motion retrieval tasks:
 
 ```bash
-HYDRA_FULL_ERROR=1 python evaluate.mlp.py run_dir=<path_to_run_dir>
+HYDRA_FULL_ERROR=1 python evaluate.mlp.py \
+    run_dir=<path_to_run_dir> \
+    device=cuda:1 \
+    score=0.5
 ```
 
 This supports HumanML3D, Babel sequence-level, and Babel frame-level datasets.
@@ -158,7 +161,10 @@ This supports HumanML3D, Babel sequence-level, and Babel frame-level datasets.
 To evaluate the model on segmentation tasks with the Babel frame-level dataset:
 
 ```bash
-HYDRA_FULL_ERROR=1 python evaluate-evaluate.locate.py run_dir=<path_to_run_dir>
+HYDRA_FULL_ERROR=1 python evaluate.locate.py \
+    run_dir=<path_to_run_dir> \
+    device=cuda:1 \
+    score=0.5
 ```
 
 ## Pre-trained Models
