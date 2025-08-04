@@ -34,7 +34,7 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         # NOTE: for feature extraction before passing it to the ActorStyle Encoder
         self.base_text_model = transformers.AutoModel.from_pretrained(MODEL_NAME)
         
-        from src.models.moliner.helpers import ACTORStyleEncoder
+        from src.models.helpers import ACTORStyleEncoder
         
         self.vae: bool = True
         self.latent_dim: int = 256

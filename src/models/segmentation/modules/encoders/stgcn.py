@@ -594,6 +594,8 @@ class StgcnMotionEncoder(BaseMotionEncoder):
     def __init__(
         self,
         latent_dim,
+        frozen: bool = False,
+        pretrained: bool = False,
     ):
         super().__init__()
         

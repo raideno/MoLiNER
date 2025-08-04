@@ -23,7 +23,7 @@ class TMRMotionEncoder(BaseMotionEncoder):
         self.pretrained_ = pretrained
         self.weights_path = weights_path
         
-        from src.models.moliner.helpers import ACTORStyleEncoder
+        from src.models.helpers import ACTORStyleEncoder
         
         self.vae: bool = True
         self.latent_dim: int = 256

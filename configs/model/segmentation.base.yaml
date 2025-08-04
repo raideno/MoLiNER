@@ -1,4 +1,4 @@
-_target_: src.refactor.segmentation.segmentation.StartEndSegmentationModel
+_target_: src.models.segmentation.segmentation.StartEndSegmentationModel
 
 window_size: 20
 

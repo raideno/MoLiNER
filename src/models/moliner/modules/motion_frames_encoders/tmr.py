@@ -24,7 +24,7 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
         self.weights_path = weights_path
         self.sample_mean = sample_mean
         
-        from src.models.moliner.helpers import ACTORStyleEncoder
+        from src.models.helpers import ACTORStyleEncoder
         
         self.vae: bool = True
         self.latent_dim: int = 256

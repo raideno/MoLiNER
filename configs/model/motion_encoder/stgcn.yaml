@@ -1,2 +1,4 @@
-_target_: src.refactor.segmentation.modules.encoders.stgcn.StgcnMotionEncoder
+_target_: src.models.segmentation.modules.encoders.stgcn.StgcnMotionEncoder
 latent_dim: 256
+frozen: false
+pretrained: false

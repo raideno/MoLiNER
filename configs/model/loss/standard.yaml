@@ -1,1 +1,1 @@
-_target_: src.refactor.segmentation.modules.losses.standard.StandardLoss
+_target_: src.models.segmentation.modules.losses.standard.StandardLoss

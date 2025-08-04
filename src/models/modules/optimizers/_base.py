@@ -15,12 +15,14 @@ class BaseOptimizer(abc.ABC):
     def __init__(self, lr: LearningRateConfig):
         self.lr = lr
     
-    def _get_parameter_groups(self, model: "MoLiNER" | "StartEndSegmentationModel") -> list[dict]:
+    def _get_parameter_groups(self, model: typing.Union["MoLiNER", "StartEndSegmentationModel"]) -> list[dict]:
         pretrained_lr = self.lr["pretrained"]
         non_pretrained_lr = self.lr["scratch"]
         
         pretrained_parameters = []
         non_pretrained_parameters = []
+        
+        from src.models import MoLiNER, StartEndSegmentationModel
         
         if isinstance(model, MoLiNER):
             if model.prompts_tokens_encoder.pretrained:

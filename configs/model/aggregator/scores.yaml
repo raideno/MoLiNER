@@ -1,1 +1,1 @@
-_target_: src.refactor.segmentation.modules.aggregators.scores.ScoresAggregator
+_target_: src.models.segmentation.modules.aggregators.scores.ScoresAggregator
