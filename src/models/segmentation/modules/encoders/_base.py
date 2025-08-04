@@ -45,3 +45,12 @@ class BaseMotionEncoder(torch.nn.Module, ABC):
         This is used by the model to adjust learning rates and training strategies.
         """
         pass
+    
+    @property
+    @abstractmethod
+    def frozen(self) -> bool:
+        """
+        Indicates whether the encoder is frozen or not.
+        If frozen, the parameters of the encoder will not be updated during training.
+        """
+        pass

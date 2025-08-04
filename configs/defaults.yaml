@@ -22,7 +22,7 @@ loggers:
     save_dir: ${run_dir}
     name: logs
   wandb:
-    _target_: src.logging.wandb.WandbLogger
+    _target_: src.logging.WandbLogger
     project: ${split-get-last:${model._target_}}
     name: ${run_dir}
     save_dir: ${run_dir}
@@ -75,4 +75,3 @@ defaults:
   - _self_
   - override hydra/job_logging: tqdm
   - override hydra/hydra_logging: tqdm
-  - override hydra/launcher: joblib

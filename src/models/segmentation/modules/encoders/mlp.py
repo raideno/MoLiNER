@@ -7,6 +7,8 @@ from ._base import BaseMotionEncoder
 class MLPMotionEncoder(BaseMotionEncoder):
     def __init__(
         self,
+        frozen: bool,
+        pretrained: bool,
         num_frames: int,
         dropout: float = 0.1,
         input_dim: int = 263,
@@ -67,4 +69,8 @@ class MLPMotionEncoder(BaseMotionEncoder):
         
     @property
     def pretrained(self) -> bool:
+        return False
+
+    @property
+    def frozen(self) -> bool:
         return False

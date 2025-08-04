@@ -635,3 +635,11 @@ class StgcnMotionEncoder(BaseMotionEncoder):
         x = x.permute(0, 4, 1, 3, 2)
 
         return self.stgcn.encode(x)
+
+    @property
+    def pretrained(self) -> bool:
+        return False
+
+    @property
+    def frozen(self) -> bool:
+        return False

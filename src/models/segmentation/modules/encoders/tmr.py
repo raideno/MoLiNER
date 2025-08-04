@@ -19,7 +19,7 @@ class TMRMotionEncoder(BaseMotionEncoder):
     ):
         super().__init__()
         
-        self.frozen = frozen
+        self.frozen_ = frozen
         self.pretrained_ = pretrained
         self.weights_path = weights_path
         
@@ -44,7 +44,7 @@ class TMRMotionEncoder(BaseMotionEncoder):
             activation=self.activation
         )
         
-        if pretrained:
+        if self.pretrained:
             if self.weights_path is not None:
                 self.tmr_encoder.load_state_dict(
                     torch.load(weights_path)
@@ -53,7 +53,7 @@ class TMRMotionEncoder(BaseMotionEncoder):
                 logger.warning("Pretrained weights path is not provided. Using uninitialized TMR encoder.")
                 raise ValueError("Pretrained weights path must be specified if pretrained is True.")
     
-        if frozen:
+        if self.frozen:
             for param in self.tmr_encoder.parameters():
                 param.requires_grad = False
     
@@ -96,8 +96,8 @@ class TMRMotionEncoder(BaseMotionEncoder):
     
     @property
     def pretrained(self) -> bool:
-        """
-        Indicates whether the encoder is pretrained or not.
-        This is used by the model to adjust learning rates and training strategies.
-        """
         return self.pretrained_
+
+    @property
+    def frozen(self) -> bool:
+        return self.frozen_
