@@ -90,7 +90,7 @@ def evaluate_model(cfg: DictConfig):
         raw_batch = raw_batch.to(device)
         
         evaluation_results = model.predict(
-            raw_batch=raw_batch,
+            batch=raw_batch,
             threshold=score
         )
         

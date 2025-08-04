@@ -52,7 +52,9 @@ class MoLiNER(pytorch_lightning.LightningModule):
         
         optimizer: BaseOptimizer,
         
-        postprocessors: typing.List[BasePostprocessor] = []
+        postprocessors: typing.List[BasePostprocessor] = [],
+        
+        **kwargs,
     ):
         super().__init__()
         

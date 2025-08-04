@@ -2,7 +2,7 @@ import torch
 import typing
 
 from src.types import SegmenterForwardOutput, RawBatch
-from src.constants import LOCATE_CLASSES, __get_locate_classes_flat_list
+from src.constants import LOCATE_CLASSES_DICT
 
 from ._base import BaseLoss
 
@@ -36,6 +36,23 @@ class StandardLoss(BaseLoss):
         labels = extract_window_labels(batch, forward_output)
         
         class_targets = labels[:, 0].long()
+        
+        # Debug: Check for invalid class indices
+        num_classes = class_logits.shape[1]
+        valid_class_mask = (class_targets >= 0) & (class_targets < num_classes)
+        invalid_indices = class_targets[(class_targets != NO_CLASS_INDEX) & (~valid_class_mask)]
+        
+        if len(invalid_indices) > 0:
+            print(f"WARNING: Found invalid class indices: {invalid_indices.unique()}")
+            print(f"Expected range: [0, {num_classes-1}] or {NO_CLASS_INDEX} for ignore")
+            print(f"Class logits shape: {class_logits.shape}")
+            # Clamp invalid indices to valid range or set to ignore index
+            class_targets = torch.where(
+                (class_targets >= 0) & (class_targets < num_classes),
+                class_targets,
+                torch.tensor(NO_CLASS_INDEX, device=class_targets.device, dtype=class_targets.dtype)
+            )
+        
         class_loss = self.classification_loss_fn(class_logits, class_targets)
         
         valid_windows = class_targets != -1
@@ -47,21 +64,21 @@ class StandardLoss(BaseLoss):
             if valid_start_mask.any():
                 start_loss = self.start_regression_loss_fn(
                     start_logits[valid_start_mask], 
-                    labels[:, 1][valid_start_mask]
+                    labels[:, 1][valid_start_mask].float()
                 )
             else:
-                start_loss = torch.tensor(0.0, device=labels.device)
+                start_loss = torch.tensor(0.0, device=labels.device, dtype=start_logits.dtype)
                 
             if valid_end_mask.any():
                 end_loss = self.end_regression_loss_fn(
                     end_logits[valid_end_mask], 
-                    labels[:, 2][valid_end_mask]
+                    labels[:, 2][valid_end_mask].float()
                 )
             else:
-                end_loss = torch.tensor(0.0, device=labels.device)
+                end_loss = torch.tensor(0.0, device=labels.device, dtype=end_logits.dtype)
         else:
-            start_loss = torch.tensor(0.0, device=labels.device)
-            end_loss = torch.tensor(0.0, device=labels.device)
+            start_loss = torch.tensor(0.0, device=labels.device, dtype=start_logits.dtype)
+            end_loss = torch.tensor(0.0, device=labels.device, dtype=end_logits.dtype)
         
         total_loss = class_loss + start_loss + end_loss
         
@@ -76,16 +93,17 @@ def extract_window_labels(
     
     Returns:
         labels: Tensor of shape [total_windows, 3]
-                labels[:, 0] = class index (-1 for no class, 0-19 for valid classes)
+                labels[:, 0] = class index (-1 for no class, 0 to num_classes-1 for valid classes)
                 labels[:, 1] = relative start position (0-1 or -1 if no transition)
                 labels[:, 2] = relative end position (0-1 or -1 if no transition)
     """
     total_windows = forward_output.class_logits.shape[0]
+    num_classes = forward_output.class_logits.shape[1]
     # [total_windows, 3] -> [batch_idx, start_frame, end_frame]
     window_metadata = forward_output.windows_positions
     device = forward_output.class_logits.device
     
-    labels = torch.full((total_windows, 3), NO_CLASS_INDEX, device=device)
+    labels = torch.full((total_windows, 3), float(NO_CLASS_INDEX), device=device, dtype=torch.float32)
     
     for window_idx in range(total_windows):
         batch_idx = window_metadata[window_idx, 0].item()
@@ -104,6 +122,10 @@ def extract_window_labels(
                 class_idx = extract_class_from_text(text)
                 
                 if class_idx != -1:
+                    # Validate class index is within expected range
+                    if not (0 <= class_idx < num_classes):
+                        continue  # Skip invalid class indices
+                        
                     for span_start, span_end in spans:
                         if (span_start <= window_end_frame and span_end >= window_start_frame):
                             overlapping_spans.append((class_idx, span_start, span_end))
@@ -125,9 +147,11 @@ def extract_window_labels(
                 rel_start = (overall_start - window_start_frame) / (window_length - 1) if window_length > 1 else 0.0
                 rel_end = (overall_end - window_start_frame) / (window_length - 1) if window_length > 1 else 0.0
                 
-                labels[window_idx, 0] = float(winning_class)
-                labels[window_idx, 1] = rel_start
-                labels[window_idx, 2] = rel_end
+                # Final validation: ensure winning_class is within valid range
+                if 0 <= winning_class < num_classes:
+                    labels[window_idx, 0] = float(winning_class)
+                    labels[window_idx, 1] = rel_start
+                    labels[window_idx, 2] = rel_end
                 
             # NOTE: if no overlapping spans with current window, labels remain -1 (no class)
     
@@ -135,13 +159,21 @@ def extract_window_labels(
 
 def extract_class_from_text(text: str) -> int:
     """
-    Extract class index from prompt text by matching with LOCATE_CLASSES.
+    Extract class index from prompt text by matching with LOCATE_CLASSES_DICT.
     """
     text_lower = text.lower().strip()
     
-    for i, class_term in enumerate(LOCATE_CLASSES):
-        if class_term.lower() in text_lower:
-            return i
+    # Get the maximum valid class index from the constants
+    max_class_idx = max(LOCATE_CLASSES_DICT.keys()) if LOCATE_CLASSES_DICT else -1
+    
+    for class_idx, class_terms in LOCATE_CLASSES_DICT.items():
+        # Ensure class_idx is within valid range
+        if not (0 <= class_idx <= max_class_idx):
+            continue
+            
+        for class_term in class_terms:
+            if class_term.lower() in text_lower:
+                return class_idx
     
     # TODO: maybe we should perform a similarity using some Bert like model to assign the closest class if above a threshold.
     return NO_CLASS_INDEX

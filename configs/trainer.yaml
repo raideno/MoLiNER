@@ -24,9 +24,9 @@ trainer:
     - ${callbacks.model_checkpoint_best}
     - ${callbacks.model_checkpoint_latest}
     # - ${callbacks.early_stopping}
-    - ${callbacks.visualization}
+    # - ${callbacks.visualization}
 
   logger:
     - ${loggers.csv}
     # - ${loggers.tensorboard}
-    # - ${loggers.wandb}
+    - ${loggers.wandb}

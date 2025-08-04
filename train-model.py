@@ -1,19 +1,19 @@
-# HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=moliner data=locate-babel
-
-import tqdm
-import hydra
-import torch
-import logging
-
+# NOTE: contain custom hydra resolvers
 import resolvers
 
+# HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=moliner data=locate-babel
+
+import hydra
+import torch
+import typing
+import logging
+import pytorch_lightning
+
+
 # # --- --- --- --- --- --- ---
-import os
 # import sys
 # sys.path.append(os.getcwd())
 # # --- --- --- --- --- --- ---
-
-import pytorch_lightning as lightning
 
 from hydra import main
 from omegaconf import DictConfig
@@ -21,6 +21,7 @@ from hydra.utils import instantiate
 
 from src.auth import login_to_huggingface
 from src.model import MoLiNER
+from src.refactor.segmentation.segmentation import StartEndSegmentationModel
 from src.config import read_config, save_config
 from src.data.utils.collator import SimpleBatchStructureCollator
 
@@ -64,7 +65,7 @@ def train_model(cfg: DictConfig):
 
     logger.info(f"[ckpt]: {ckpt}")
 
-    lightning.seed_everything(cfg.seed)
+    pytorch_lightning.seed_everything(cfg.seed)
 
     logger.info("[data]: loading the dataloaders")
     
@@ -78,38 +79,22 @@ def train_model(cfg: DictConfig):
     )
         
     logger.info("[model]: loading the model")
-    model: MoLiNER = instantiate(cfg.model)
+    model: MoLiNER | StartEndSegmentationModel = instantiate(cfg.model)
     
     train_dataloader: torch.utils.data.DataLoader = instantiate(
         cfg.dataloader,
         dataset=train_dataset,
-        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder if isinstance(model, MoLiNER) else None),
         shuffle=True,
     )
     validation_dataloader: torch.utils.data.DataLoader = instantiate(
         cfg.dataloader,
         dataset=validation_dataset,
-        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder),
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder if isinstance(model, MoLiNER) else None),
         shuffle=False,
     )
 
     trainer = instantiate(cfg.trainer)
-    
-    # NOTE: find wandb logger instance and log model configuration
-    wandb_logger = None
-    for logger_instance in trainer.loggers:
-        if hasattr(logger_instance, '__class__') and 'WandBLogger' in str(logger_instance.__class__):
-            wandb_logger = logger_instance
-            break
-    
-    if wandb_logger is not None:
-        wandb_logger.log_model_config(cfg.model)
-        
-        wandb_logger.log_hyperparams(cfg)
-        
-        wandb_logger.watch_model(model, log_freq=100)
-        
-        wandb_logger.save_config_as_json(cfg, os.path.join(cfg.run_dir, "config.json"))
     
     logger.info("[model]: loading motion encoder weights")
     
@@ -121,16 +106,6 @@ def train_model(cfg: DictConfig):
         validation_dataloader,
         ckpt_path=ckpt
     )
-    
-    # NOTE: log artifacts to WandB after training
-    if wandb_logger is not None:
-        try:
-            checkpoint_dir = os.path.join(cfg.run_dir, "checkpoints")
-            if os.path.exists(checkpoint_dir):
-                wandb_logger.log_artifacts(checkpoint_dir, "checkpoints")
-            
-        except Exception as exception:
-            logger.warning(f"Failed to log artifacts to WandB: {exception}")
     
     logger.info("[training]: completed")
 

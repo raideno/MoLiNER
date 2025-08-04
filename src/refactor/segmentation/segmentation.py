@@ -1,3 +1,4 @@
+import pdb
 import torch
 import typing
 import logging
@@ -37,6 +38,7 @@ class StartEndSegmentationModel(pytorch_lightning.LightningModule):
         optimizer: BaseOptimizer,
         loss: BaseLoss,
         window_size: int,
+        **kwargs,
     ):
         super().__init__()
 
@@ -101,8 +103,8 @@ class StartEndSegmentationModel(pytorch_lightning.LightningModule):
         
         loss = self.loss.forward(output, batch, batch_index)
         
-        class_probs = torch.softmax(output.class_logits, dim=-1)
-        class_preds = torch.argmax(class_probs, dim=-1)
+        class_probabilities = torch.softmax(output.class_logits, dim=-1)
+        class_predictions = torch.argmax(class_probabilities, dim=-1)
         
         with torch.no_grad():
             labels = extract_window_labels(batch, output)
@@ -110,7 +112,7 @@ class StartEndSegmentationModel(pytorch_lightning.LightningModule):
             
             valid_mask = gt_labels != -1
             if torch.any(valid_mask):
-                self.train_accuracy(class_preds[valid_mask], gt_labels[valid_mask])
+                self.train_accuracy(class_predictions[valid_mask], gt_labels[valid_mask])
         
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         self.log("train/accuracy", self.train_accuracy, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
@@ -129,8 +131,8 @@ class StartEndSegmentationModel(pytorch_lightning.LightningModule):
         
         loss = self.loss.forward(output, batch, batch_index)
         
-        class_probs = torch.softmax(output.class_logits, dim=-1)
-        class_preds = torch.argmax(class_probs, dim=-1)
+        class_probabilities = torch.softmax(output.class_logits, dim=-1)
+        class_predictions = torch.argmax(class_probabilities, dim=-1)
         
         with torch.no_grad():
             labels = extract_window_labels(batch, output)
@@ -138,7 +140,7 @@ class StartEndSegmentationModel(pytorch_lightning.LightningModule):
             
             valid_mask = gt_labels != -1
             if torch.any(valid_mask):
-                self.val_accuracy(class_preds[valid_mask], gt_labels[valid_mask])
+                self.val_accuracy(class_predictions[valid_mask], gt_labels[valid_mask])
         
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)
         self.log("val/accuracy", self.val_accuracy, on_step=True, on_epoch=True, prog_bar=True, batch_size=batch_size, sync_dist=True)

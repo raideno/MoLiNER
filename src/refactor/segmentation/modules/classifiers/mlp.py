@@ -8,17 +8,19 @@ class MLPClassifier(BaseClassifier):
     def __init__(
         self,
         latent_dim=256,
-        hidden_dim=128
+        hidden_dim=128,
+        num_classes=20
     ):
         super().__init__()
         
         self.latent_dim = latent_dim
         self.hidden_dim = hidden_dim
+        self.num_classes = num_classes
         
         self.classification_head = nn.Sequential(
             nn.Linear(self.latent_dim, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, 1),
+            nn.Linear(self.hidden_dim, self.num_classes),
         )
         
         self.start_regression_head = nn.Sequential(
@@ -43,7 +45,7 @@ class MLPClassifier(BaseClassifier):
         motion_masks: typing.Optional[torch.Tensor] = None,
         batch_index: typing.Optional[int] = None
     ) -> typing.Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        # NOTE: encoded_features is of shape (B, LatentDimension)
+        # NOTE: [batch, latent_dim]
         B, latent_dim = encoded_features.size()
         
         class_logits = self.classification_head(encoded_features)
