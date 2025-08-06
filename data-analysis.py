@@ -46,10 +46,15 @@ def run_notebook_for_pipeline(configuration: typing.Tuple[str, str, str, bool]):
     
     with open(output_ipynb_path) as notebook_file:
         nb_node = nbformat.read(notebook_file, as_version=4)
-        
-    (body, resources) = nbconvert.HTMLExporter().from_notebook_node(nb_node)
     
-    html_output_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, f'{dataset_name}.{pipeline_name}.analysis.html')
+    html_exporter = nbconvert.HTMLExporter()
+    html_exporter.exclude_input = True
+    html_exporter.exclude_output_prompt = True
+    html_exporter.exclude_input_prompt = True
+        
+    (body, resources) = html_exporter.from_notebook_node(nb_node)
+    
+    html_output_path = os.path.join(ANALYSIS_NOTEBOOK_DIR_PATH, f'{dataset_name}.{pipeline_name}.analysis.html.txt')
     
     with open(html_output_path, 'w', encoding='utf-8') as file:
         file.write(body)
