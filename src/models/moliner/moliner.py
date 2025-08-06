@@ -9,7 +9,7 @@ import typing_extensions
 import pytorch_lightning
 
 from src.types import (
-    RawBatch,
+    Batch,
     MolinerForwardOutput,
 )
 from src.models.modules import (
@@ -85,7 +85,7 @@ class MoLiNER(BaseModel):
         *args,
         **kwargs
     ) -> MolinerForwardOutput:
-        batch: RawBatch = args[0]
+        batch: Batch = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         # --- --- --- MOTIONS TREATMENT --- --- ---
@@ -163,7 +163,7 @@ class MoLiNER(BaseModel):
         )   
 
     def training_step(self, *args, **kwargs):
-        batch: "RawBatch" = args[0]
+        batch: "Batch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         batch_size = batch.motion_mask.size(0)
@@ -179,7 +179,7 @@ class MoLiNER(BaseModel):
         }
 
     def validation_step(self, *args, **kwargs):
-        batch: "RawBatch" = args[0]
+        batch: "Batch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
        
         batch_size = batch.motion_mask.size(0)
@@ -196,7 +196,7 @@ class MoLiNER(BaseModel):
 
     def predict(
         self,
-        batch: RawBatch,
+        batch: Batch,
         threshold: float
     ):
         self.eval()

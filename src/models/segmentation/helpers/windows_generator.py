@@ -1,12 +1,12 @@
 import torch
 import typing
 
-from src.types import RawBatch
+from src.types import Batch
 
 def create_windows(
     window_size: int,
     stride: int,
-    batch: RawBatch,
+    batch: Batch,
     use_raw_motion: bool
 ) -> typing.Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """

@@ -2,7 +2,7 @@ import torch
 import typing
 import random
 
-from src.types import RawBatch
+from src.types import Batch
 from src.models.moliner.modules import BasePromptsTokensEncoder
 
 def create_random(
@@ -12,9 +12,9 @@ def create_random(
     max_spans_per_prompt: int = 2,
     device: torch.device = torch.device('cpu'),
     encoder: typing.Optional["BasePromptsTokensEncoder"] = None
-) -> "RawBatch":
+) -> "Batch":
     """
-    Create a random RawBatch for testing purposes.
+    Create a random Batch for testing purposes.
     
     Args:
         batch_size: Number of motions in the batch
@@ -25,7 +25,7 @@ def create_random(
         encoder: Optional encoder for tokenizing prompts
         
     Returns:
-        A randomly generated RawBatch
+        A randomly generated Batch
     """
     sid = [random.randint(1000, 9999) for _ in range(batch_size)]
     dataset_name = [random.choice(['babel', 'hml3d', 'amass']) for _ in range(batch_size)]
@@ -67,7 +67,7 @@ def create_random(
         
         prompts.append(motion_prompts)
     
-    return RawBatch(
+    return Batch(
         sid=sid,
         dataset_name=dataset_name,
         amass_relative_path=amass_relative_path,

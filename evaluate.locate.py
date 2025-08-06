@@ -17,7 +17,7 @@ from src.constants import (
 
 from src.config import read_config
 from src.load import load_model_from_cfg
-from src.types import RawBatch, EvaluationResult
+from src.types import Batch, EvaluationResult
 from src.models import MoLiNER, StartEndSegmentationModel
 from src.data.utils.collator import SimpleBatchStructureCollator
 from src.metrics.locate import evaluate_interval_detection, IOU_THRESHOLDS
@@ -63,11 +63,11 @@ def evaluate_locate(cfg: omegaconf.DictConfig):
     all_evaluation_results: typing.List[EvaluationResult] = []
     all_ground_truth_batches: typing.List[typing.List[typing.List[typing.Tuple[str, typing.List[typing.Tuple[int, int]], bool]]]] = []
     
-    for index, raw_batch in tqdm.tqdm(enumerate(validation_dataloader), total=len(validation_dataloader), desc="[evaluation]"):
-        raw_batch = raw_batch.to(device)
+    for index, batch in tqdm.tqdm(enumerate(validation_dataloader), total=len(validation_dataloader), desc="[evaluation]"):
+        batch = batch.to(device)
         
         evaluation_results = model.predict(
-            batch=raw_batch,
+            batch=batch,
             threshold=score
         )
         
@@ -75,10 +75,10 @@ def evaluate_locate(cfg: omegaconf.DictConfig):
         
         # NOTE: store the ground truth batch (convert to the expected format)
         batch_ground_truth = []
-        batch_size = len(raw_batch.prompts)
+        batch_size = len(batch.prompts)
         
         for batch_idx in range(batch_size):
-            sample_targets = raw_batch.prompts[batch_idx]
+            sample_targets = batch.prompts[batch_idx]
             batch_ground_truth.append(sample_targets)
         
         all_ground_truth_batches.append(batch_ground_truth)

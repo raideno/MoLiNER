@@ -18,7 +18,7 @@ from src.constants import (
 )
 from src.config import read_config
 from src.load import load_model_from_cfg
-from src.types import RawBatch, EvaluationResult
+from src.types import Batch, EvaluationResult
 from src.models import MoLiNER, StartEndSegmentationModel
 from src.data.utils.collator import SimpleBatchStructureCollator
 from src.metrics.mlp import TALLEvaluator
@@ -68,15 +68,15 @@ def evaluate_mlp(cfg: omegaconf.DictConfig):
     results: typing.List[EvaluationResult] = []
     groundtruths = []
     
-    for index, raw_batch in tqdm.tqdm(enumerate(validation_dataloader), total=len(validation_dataloader), desc="[evaluation]"):
-        raw_batch: RawBatch = raw_batch.to(device)
+    for index, batch in tqdm.tqdm(enumerate(validation_dataloader), total=len(validation_dataloader), desc="[evaluation]"):
+        batch: Batch = batch.to(device)
         
         evaluation_results = model.predict(
-            batch=raw_batch,
+            batch=batch,
             threshold=score
         )
         
-        for element in raw_batch.prompts:
+        for element in batch.prompts:
             if element and element[0][1]:  # check both the prompt list and spans list
                 span = element[0][1][0]  # first span from the first prompt
             else:
@@ -90,7 +90,7 @@ def evaluate_mlp(cfg: omegaconf.DictConfig):
         torch.cuda.empty_cache()
         gc.collect()
     
-    validation_dataloader: typing.List[RawBatch] = validation_dataloader
+    validation_dataloader: typing.List[Batch] = validation_dataloader
     
     prompt_index = 0
     span_index = 0

@@ -3,7 +3,7 @@ import typing
 import dataclasses
 import collections
 
-from src.types import RawBatch
+from src.types import Batch
 from src.types import DatasetSample
 from src.constants import DEFAULT_FPS, DEFAULT_PADDING_VALUE
 
@@ -16,7 +16,7 @@ class SimpleBatchStructureCollator:
         self.padding_value = DEFAULT_PADDING_VALUE
         self.encoder = encoder
     
-    def __call__(self, batch: typing.List[DatasetSample]) -> "RawBatch":
+    def __call__(self, batch: typing.List[DatasetSample]) -> "Batch":
         # self._validate_batch(batch)
         
         raw_motions = [torch.tensor(s["motion"]["new_joints"], dtype=torch.float32) for s in batch]
@@ -34,7 +34,7 @@ class SimpleBatchStructureCollator:
         prompts_raw = [self._extract_prompts(s) for s in batch]
         prompt_data = self._process_prompts(prompts_raw, padded_raw_motion.device) if self.encoder else {}
         
-        return RawBatch(
+        return Batch(
             sid=sids,
             dataset_name=dataset_names,
             amass_relative_path=amass_paths,

@@ -27,7 +27,7 @@ class DatasetSample(typing.TypedDict):
     amass_file_relative_path: str
 
 @dataclasses.dataclass
-class RawBatch:
+class Batch:
     sid: typing.List[int] | typing.List[str] | typing.List[str | int]
     dataset_name: typing.List[str]
     amass_relative_path: typing.List[str]
@@ -88,8 +88,8 @@ class RawBatch:
     def motion_features(self) -> torch.Tensor:
         return self.transformed_motion
 
-    def to(self, device: torch.device) -> "RawBatch":
-        return RawBatch(
+    def to(self, device: torch.device) -> "Batch":
+        return Batch(
             sid=self.sid,
             dataset_name=self.dataset_name,
             amass_relative_path=self.amass_relative_path,

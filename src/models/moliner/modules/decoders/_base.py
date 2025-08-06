@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from src.types import (
     MolinerForwardOutput,
     EvaluationResult,
-    RawBatch,
+    Batch,
 )
 
 class BaseDecoder(torch.nn.Module, ABC):
@@ -24,7 +24,7 @@ class BaseDecoder(torch.nn.Module, ABC):
     def forward(
         self,
         forward_output: MolinerForwardOutput,
-        batch: RawBatch,
+        batch: Batch,
         score_threshold: float,
     ) -> EvaluationResult:
         """
@@ -32,7 +32,7 @@ class BaseDecoder(torch.nn.Module, ABC):
 
         Args:
             forward_output: MolinerForwardOutput
-            batch: RawBatch
+            batch: Batch
             score_threshold: float,
 
         Returns:

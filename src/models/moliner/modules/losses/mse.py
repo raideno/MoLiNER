@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from src.types import MolinerForwardOutput, RawBatch
+from src.types import MolinerForwardOutput, Batch
 
 from .helpers import (
     create_target_matrix,
@@ -31,7 +31,7 @@ class MSELoss(BaseLoss):
     def forward(
         self,
         forward_output: MolinerForwardOutput,
-        batch: RawBatch,
+        batch: Batch,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:
         if batch.target_spans is None:

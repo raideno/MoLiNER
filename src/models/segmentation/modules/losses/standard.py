@@ -1,7 +1,7 @@
 import torch
 import typing
 
-from src.types import SegmenterForwardOutput, RawBatch
+from src.types import SegmenterForwardOutput, Batch
 from src.constants import LOCATE_CLASSES_DICT
 
 from ._base import BaseLoss
@@ -19,7 +19,7 @@ class StandardLoss(BaseLoss):
     def forward(
         self,
         forward_output: SegmenterForwardOutput,
-        batch: RawBatch,
+        batch: Batch,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:
         # NOTE: (total_windows, num_classes)
@@ -69,7 +69,7 @@ class StandardLoss(BaseLoss):
         return total_loss
 
 def extract_window_labels(
-    batch: RawBatch, 
+    batch: Batch, 
     forward_output: SegmenterForwardOutput
 ) -> torch.Tensor:
     """

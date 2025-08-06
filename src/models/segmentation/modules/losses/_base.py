@@ -2,7 +2,7 @@ import abc
 import torch
 import typing
 
-from src.types import SegmenterForwardOutput, RawBatch
+from src.types import SegmenterForwardOutput, Batch
 
 class BaseLoss(torch.nn.Module, abc.ABC):
     def __init__(self):
@@ -12,7 +12,7 @@ class BaseLoss(torch.nn.Module, abc.ABC):
     def forward(
         self,
         forward_output: SegmenterForwardOutput,
-        batch: RawBatch,
+        batch: Batch,
         batch_index: typing.Optional[int] = None,
     ) -> torch.Tensor:
         """
@@ -20,7 +20,7 @@ class BaseLoss(torch.nn.Module, abc.ABC):
 
         Args:
             forward_output (SegmenterForwardOutput): Model predictions and intermediate outputs
-            batch (RawBatch): Batch containing ground truth data
+            batch (Batch): Batch containing ground truth data
             batch_index (typing.Optional[int]): Optional index of the batch in the dataset, if applicable.
 
         Returns:

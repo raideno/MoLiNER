@@ -11,7 +11,7 @@ import pytorch_lightning.loggers
 import pytorch_lightning.callbacks
 
 from src.models import MoLiNER
-from src.types import RawBatch, EvaluationResult
+from src.types import Batch, EvaluationResult
 
 from src.helpers import plot_evaluation_results
 
@@ -40,7 +40,7 @@ class VisualizationCallback(pytorch_lightning.callbacks.Callback):
         self.dirpath: str = dirpath
         self.batch_index: int = batch_index
         self.debug: bool = debug
-        self.visualization_batch: typing.Optional[RawBatch] = None
+        self.visualization_batch: typing.Optional[Batch] = None
         
         os.makedirs(self.dirpath, exist_ok=True)
 
@@ -123,7 +123,7 @@ class VisualizationCallback(pytorch_lightning.callbacks.Callback):
     def _create_sample_visualization(
         self,
         sample_idx: int,
-        batch: RawBatch,
+        batch: Batch,
         threshold_results: typing.Dict[float, typing.Any],
         epoch: int,
         epoch_dir: str,

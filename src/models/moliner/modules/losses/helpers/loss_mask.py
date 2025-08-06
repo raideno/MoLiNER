@@ -1,11 +1,11 @@
 import torch
 import typing
 
-from src.types import MolinerForwardOutput, RawBatch
+from src.types import MolinerForwardOutput, Batch
 
 def create_loss_mask(
     forward_output: MolinerForwardOutput, 
-    batch: RawBatch
+    batch: Batch
 ) -> torch.Tensor:
     """
     Creates a mask for valid (prompt, span) pairs for loss computation.

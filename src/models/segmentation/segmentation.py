@@ -8,7 +8,7 @@ import pytorch_lightning
 from src.constants import LOCATE_CLASSES_DICT
 from src.helpers.segmentation_to_evaluation_result import segmentation_predictions_to_evaluation_result
 from src.types import (
-    RawBatch,
+    Batch,
     SegmenterForwardOutput,
     EvaluationResult,
 )
@@ -66,7 +66,7 @@ class StartEndSegmentationModel(BaseModel):
         *args,
         **kwargs
     ) -> SegmenterForwardOutput:
-        batch: RawBatch = args[0]
+        batch: Batch = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         windowed_motion, window_metadata, windows_per_sample = create_windows(
@@ -103,7 +103,7 @@ class StartEndSegmentationModel(BaseModel):
         )
     
     def training_step(self, *args, **kwargs):
-        batch: "RawBatch" = args[0]
+        batch: "Batch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         batch_size = batch.motion_mask.size(0)
@@ -131,7 +131,7 @@ class StartEndSegmentationModel(BaseModel):
         }
         
     def validation_step(self, *args, **kwargs):
-        batch: "RawBatch" = args[0]
+        batch: "Batch" = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
         
         batch_size = batch.motion_mask.size(0)
@@ -160,7 +160,7 @@ class StartEndSegmentationModel(BaseModel):
         
     def predict(
         self,
-        batch: RawBatch,
+        batch: Batch,
         threshold: float
     ) -> EvaluationResult:
         self.eval()

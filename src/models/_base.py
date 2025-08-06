@@ -2,7 +2,7 @@ import abc
 import pytorch_lightning
 
 from src.types import (
-    RawBatch,
+    Batch,
     EvaluationResult,
 )
 
@@ -10,7 +10,7 @@ class BaseModel(pytorch_lightning.LightningModule, abc.ABC):
     @abc.abstractmethod
     def predict(
         self,
-        batch: RawBatch,
+        batch: Batch,
         threshold: float
     )-> EvaluationResult:
         pass
