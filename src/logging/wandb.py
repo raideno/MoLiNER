@@ -38,7 +38,6 @@ class WandbLogger(pytorch_lightning.loggers.WandbLogger):
                 config["model"]["optimizer"]["_target_"].split(".")[-1],
                 config["model"]["loss"]["_target_"].split(".")[-1],
                 f"window-size={config['model']['window_size']}",
-                f"window-size{config['model']['window_size']}",
             ]
         else:
             raise ValueError(f"Unsupported model name: {model_name}")
