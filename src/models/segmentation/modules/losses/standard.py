@@ -37,22 +37,6 @@ class StandardLoss(BaseLoss):
         
         class_targets = labels[:, 0].long()
         
-        # Debug: Check for invalid class indices
-        num_classes = class_logits.shape[1]
-        valid_class_mask = (class_targets >= 0) & (class_targets < num_classes)
-        invalid_indices = class_targets[(class_targets != NO_CLASS_INDEX) & (~valid_class_mask)]
-        
-        if len(invalid_indices) > 0:
-            print(f"WARNING: Found invalid class indices: {invalid_indices.unique()}")
-            print(f"Expected range: [0, {num_classes-1}] or {NO_CLASS_INDEX} for ignore")
-            print(f"Class logits shape: {class_logits.shape}")
-            # Clamp invalid indices to valid range or set to ignore index
-            class_targets = torch.where(
-                (class_targets >= 0) & (class_targets < num_classes),
-                class_targets,
-                torch.tensor(NO_CLASS_INDEX, device=class_targets.device, dtype=class_targets.dtype)
-            )
-        
         class_loss = self.classification_loss_fn(class_logits, class_targets)
         
         valid_windows = class_targets != -1
@@ -93,9 +77,9 @@ def extract_window_labels(
     
     Returns:
         labels: Tensor of shape [total_windows, 3]
-                labels[:, 0] = class index (-1 for no class, 0 to num_classes-1 for valid classes)
-                labels[:, 1] = relative start position (0-1 or -1 if no transition)
-                labels[:, 2] = relative end position (0-1 or -1 if no transition)
+            labels[:, 0] = class index (-1 for no class, 0 to num_classes-1 for valid classes)
+            labels[:, 1] = relative start position (0-1 or -1 if no transition)
+            labels[:, 2] = relative end position (0-1 or -1 if no transition)
     """
     total_windows = forward_output.class_logits.shape[0]
     num_classes = forward_output.class_logits.shape[1]
@@ -122,9 +106,8 @@ def extract_window_labels(
                 class_idx = extract_class_from_text(text)
                 
                 if class_idx != -1:
-                    # Validate class index is within expected range
                     if not (0 <= class_idx < num_classes):
-                        continue  # Skip invalid class indices
+                        continue
                         
                     for span_start, span_end in spans:
                         if (span_start <= window_end_frame and span_end >= window_start_frame):
@@ -147,7 +130,6 @@ def extract_window_labels(
                 rel_start = (overall_start - window_start_frame) / (window_length - 1) if window_length > 1 else 0.0
                 rel_end = (overall_end - window_start_frame) / (window_length - 1) if window_length > 1 else 0.0
                 
-                # Final validation: ensure winning_class is within valid range
                 if 0 <= winning_class < num_classes:
                     labels[window_idx, 0] = float(winning_class)
                     labels[window_idx, 1] = rel_start
@@ -163,11 +145,9 @@ def extract_class_from_text(text: str) -> int:
     """
     text_lower = text.lower().strip()
     
-    # Get the maximum valid class index from the constants
     max_class_idx = max(LOCATE_CLASSES_DICT.keys()) if LOCATE_CLASSES_DICT else -1
     
     for class_idx, class_terms in LOCATE_CLASSES_DICT.items():
-        # Ensure class_idx is within valid range
         if not (0 <= class_idx <= max_class_idx):
             continue
             

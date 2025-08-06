@@ -23,6 +23,9 @@ from .modules import (
     BaseLoss,
     BaseAggregator,
 )
+from .modules.encoders import (
+    StgcnMotionEncoder
+)
 from .helpers import (
     create_windows,
 )
@@ -65,8 +68,13 @@ class StartEndSegmentationModel(BaseModel):
     ) -> SegmenterForwardOutput:
         batch: RawBatch = args[0]
         batch_index: int = kwargs.get("batch_index", 0)
-                
-        windowed_motion, window_metadata, windows_per_sample = create_windows(self.window_size, 1, batch)
+        
+        windowed_motion, window_metadata, windows_per_sample = create_windows(
+            self.window_size,
+            1,
+            batch,
+            use_raw_motion=True if isinstance(self.motion_encoder, StgcnMotionEncoder) else False
+        )
 
         total_windows = windowed_motion.shape[0]
 
