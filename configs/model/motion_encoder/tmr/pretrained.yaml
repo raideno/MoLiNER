@@ -1,0 +1,5 @@
+_target_: src.models.segmentation.modules.encoders.tmr.TMRMotionEncoder
+weights_path: ./models/tmr_humanml3d_guoh3dfeats/last_weights/motion_encoder.pt
+frozen: false
+pretrained: true
+sample_mean: false

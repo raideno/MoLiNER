@@ -21,7 +21,6 @@ from .filtering import (
 )
 
 from .augmentation import (
-    StandardizeSpansChunking,
     StandardizeSpansSlidingWindow,
     SeparateFrameAndSequenceSpans,
 )

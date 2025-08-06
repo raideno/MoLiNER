@@ -120,6 +120,7 @@ class FilterConfig:
     max_prompts_per_sample: typing.Optional[int] = None
     
     split_max_prompts_per_sample: bool = False
+    
     prompt_text_filter_function: typing.Optional[typing.Callable[[str], bool]] = None
     
     min_span_frames: typing.Optional[int] = None

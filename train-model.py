@@ -1,27 +1,19 @@
-# HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=moliner data=locate-babel
+# NOTE: contain custom hydra resolvers
 
-import tqdm
 import hydra
 import torch
+import typing
 import logging
+import omegaconf
+import pytorch_lightning
+import pytorch_lightning.loggers
 
-import resolvers
-
-# # --- --- --- --- --- --- ---
-import os
-# import sys
-# sys.path.append(os.getcwd())
-# # --- --- --- --- --- --- ---
-
-import pytorch_lightning as lightning
-
-from hydra import main
-from omegaconf import DictConfig
-from hydra.utils import instantiate
+import src.resolvers
 
 from src.auth import login_to_huggingface
 from src.config import read_config, save_config
-
+from src.models import MoLiNER, StartEndSegmentationModel
+from src.data.utils.collator import SimpleBatchStructureCollator
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
@@ -29,22 +21,14 @@ from src.constants import (
 )
 
 # --- --- --- --- --- --- ---
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0=all, 1=info, 2=warnings, 3=errors
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module='tensorflow')
-# --- --- --- --- --- --- ---
 login_to_huggingface()
 # --- --- --- --- --- --- ---
 
 logger = logging.getLogger(__name__)
 
-@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="train-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
-def train_model(cfg: DictConfig):
-    # NOTE: uncomment when warned about "float32 matmul precision to utilize, tensor cores efficiently"
-    # torch.set_float32_matmul_precision('medium')
-    # torch.set_float32_matmul_precision('high')
-    
+# type: ignore
+@hydra.main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="train-model", version_base=DEFAULT_HYDRA_VERSION_BASE)
+def train_model(cfg: omegaconf.DictConfig):
     logger.debug(f"[cfg]: {cfg}")
     
     logger.info(f"[run_dir]: {cfg.run_dir}")
@@ -63,52 +47,36 @@ def train_model(cfg: DictConfig):
 
     logger.info(f"[ckpt]: {ckpt}")
 
-    lightning.seed_everything(cfg.seed)
+    pytorch_lightning.seed_everything(cfg.seed)
 
     logger.info("[data]: loading the dataloaders")
     
-    train_dataset = instantiate(
+    train_dataset = hydra.utils.instantiate(
         cfg.data,
         split="train"
     )
-    validation_dataset = instantiate(
+    validation_dataset = hydra.utils.instantiate(
         cfg.data,
         split="validation"
     )
+        
+    logger.info("[model]: loading the model")
+    model: MoLiNER | StartEndSegmentationModel = hydra.utils.instantiate(cfg.model)
     
-    train_dataloader: torch.utils.data.DataLoader = instantiate(
+    train_dataloader: torch.utils.data.DataLoader = hydra.utils.instantiate(
         cfg.dataloader,
         dataset=train_dataset,
-        collate_fn=train_dataset.collate_function,
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder if isinstance(model, MoLiNER) else None),
         shuffle=True,
     )
-    validation_dataloader: torch.utils.data.DataLoader = instantiate(
+    validation_dataloader: torch.utils.data.DataLoader = hydra.utils.instantiate(
         cfg.dataloader,
         dataset=validation_dataset,
-        collate_fn=validation_dataset.collate_function,
+        collate_fn=SimpleBatchStructureCollator(model.prompts_tokens_encoder if isinstance(model, MoLiNER) else None),
         shuffle=False,
     )
-    
-    logger.info("[model]: loading the model")
-    model = instantiate(cfg.model)
-    
-    trainer = instantiate(cfg.trainer)
-    
-    # NOTE: find wandb logger instance and log model configuration
-    wandb_logger = None
-    for logger_instance in trainer.loggers:
-        if hasattr(logger_instance, '__class__') and 'WandBLogger' in str(logger_instance.__class__):
-            wandb_logger = logger_instance
-            break
-    
-    if wandb_logger is not None:
-        wandb_logger.log_model_config(cfg.model)
-        
-        wandb_logger.log_hyperparams(cfg)
-        
-        wandb_logger.watch_model(model, log_freq=100)
-        
-        wandb_logger.save_config_as_json(cfg, os.path.join(cfg.run_dir, "config.json"))
+
+    trainer = hydra.utils.instantiate(cfg.trainer)
     
     logger.info("[model]: loading motion encoder weights")
     
@@ -121,22 +89,7 @@ def train_model(cfg: DictConfig):
         ckpt_path=ckpt
     )
     
-    # NOTE: log artifacts to WandB after training
-    if wandb_logger is not None:
-        try:
-            checkpoint_dir = os.path.join(cfg.run_dir, "checkpoints")
-            if os.path.exists(checkpoint_dir):
-                wandb_logger.log_artifacts(checkpoint_dir, "checkpoints")
-            
-        except Exception as exception:
-            logger.warning(f"Failed to log artifacts to WandB: {exception}")
-    
     logger.info("[training]: completed")
 
 if __name__ == "__main__":
-    # NOTE: issue was that the dataset was the one moving tensors to gpu and thus CUDA was involved before dataloader
-    # i modified it and set it to move to CPU and dataloader is the one responsible of moving to GPU, more specifically pytorch lightinig
-    # import torch.multiprocessing as mp
-    # mp.set_start_method('spawn', force=True)
-    
     train_model()

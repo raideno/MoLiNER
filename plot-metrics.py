@@ -1,12 +1,11 @@
 import os
+import hydra
 import logging
 import argparse
+import omegaconf
 
 import pandas as pd
 import matplotlib.pyplot as plt
-
-from hydra import main
-from omegaconf import DictConfig
 
 from src.constants import (
     DEFAULT_HYDRA_CONFIG_PATH,
@@ -15,8 +14,9 @@ from src.constants import (
 
 logger = logging.getLogger(__name__)
 
-@main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="plot-metrics", version_base=DEFAULT_HYDRA_VERSION_BASE)
-def plot_metrics(cfg: DictConfig):
+# type: ignore
+@hydra.main(config_path=DEFAULT_HYDRA_CONFIG_PATH, config_name="plot-metrics", version_base=DEFAULT_HYDRA_VERSION_BASE)
+def plot_metrics(cfg: omegaconf.DictConfig):
     """
     Reads metrics.csv from the specified run directory, and for each metric,
     plots its evolution over steps and epochs, saving the plots in a 'plots'

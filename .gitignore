@@ -38,7 +38,7 @@ datasets/annotations/humanml3d/token_embeddings/
 datasets/motions/
 
 multirun/
-models/
+/models/
 outputs/
 
 # Byte-compiled / optimized / DLL files

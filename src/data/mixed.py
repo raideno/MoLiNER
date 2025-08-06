@@ -1,10 +1,10 @@
 import typing
 import datasets
 
+from src.types import DatasetSample
+
 from src.data.hml3d import HML3DDataset
 from src.data.babel import BabelDataset
-
-from src.data.utils.collator import SimpleBatchStructureCollator
 
 class MixedDataset:
     def __init__(
@@ -67,15 +67,11 @@ class MixedDataset:
                 dsets=[hml3d._dataset, babel._dataset],
             )
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> DatasetSample:
         return self.dataset[idx]
 
     def __len__(self):
         return len(self.dataset)
-
-    @property
-    def collate_function(self):
-        return SimpleBatchStructureCollator()
 
     @property
     def fingerprint(self):

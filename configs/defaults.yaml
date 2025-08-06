@@ -14,7 +14,7 @@ logger_level: INFO
 
 loggers:
   csv:
-    _target_: src.logger.csv.CSVLogger
+    _target_: src.logging.csv.CSVLogger
     save_dir: ${run_dir}
     name: logs
   tensorboard:
@@ -22,22 +22,23 @@ loggers:
     save_dir: ${run_dir}
     name: logs
   wandb:
-    _target_: src.logger.wandb.WandBLogger
-    project: moliner
+    _target_: src.logging.WandbLogger
+    project: ${split-get-last:${model._target_}}
     name: ${run_dir}
     save_dir: ${run_dir}
+    log_model: all
     offline: false
-    tags:
-      - v1.0.1
-      - ${data.pipeline}
-      - ${split-get-last:${data._target_}}
-      - ${split-get-last:${model.motion_frames_encoder._target_}},pretrained=${model.motion_frames_encoder.pretrained},frozen=${model.motion_frames_encoder.frozen}
-      - ${split-get-last:${model.prompts_tokens_encoder._target_}},pretrained=${model.prompts_tokens_encoder.pretrained},frozen=${model.prompts_tokens_encoder.frozen}
-      # NOTE: oc.select documentation
-      - ${split-get-last:${model.loss._target_}},${oc.select:model.loss.reduction, unknown},${oc.select:model.loss.threshold, unknown}
-      - ${split-get-last:${model.span_representation_layer._target_}},${oc.select:model.span_representation_layer.mode}
-      - ${split-get-last:${model.spans_generator._target_}},min_width=${oc.select:model.spans_generator.min_width, unknown},max_width=${oc.select:model.spans_generator.max_width, unknown},step=${oc.select:model.spans_generator.step, unknown}
-    notes: "MoLiNER training run"
+    # TODO: define the tags at the model yaml file rather than being defined globally here
+    # tags:
+    #   - v1.0.1
+    #   - ${data.pipeline}
+    #   - ${split-get-last:${data._target_}}
+    #   - ${split-get-last:${model.motion_frames_encoder._target_}},pretrained=${model.motion_frames_encoder.pretrained},frozen=${model.motion_frames_encoder.frozen}
+    #   - ${split-get-last:${model.prompts_tokens_encoder._target_}},pretrained=${model.prompts_tokens_encoder.pretrained},frozen=${model.prompts_tokens_encoder.frozen}
+    #   # NOTE: oc.select documentation
+    #   - ${split-get-last:${model.loss._target_}},${oc.select:model.loss.reduction, unknown},${oc.select:model.loss.threshold, unknown}
+    #   - ${split-get-last:${model.span_representation_layer._target_}},${oc.select:model.span_representation_layer.mode}
+    #   - ${split-get-last:${model.spans_generator._target_}},min_width=${oc.select:model.spans_generator.min_width, unknown},max_width=${oc.select:model.spans_generator.max_width, unknown},step=${oc.select:model.spans_generator.step, unknown}
     # NOTE: set to your WandB username or team
     entity: nadirkichou-university-of-lille
 
@@ -51,6 +52,7 @@ callbacks:
     verbose: true
   model_checkpoint_best:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${run_dir}/logs/checkpoints
     filename: best-{epoch}
     monitor: val/loss
     mode: min
@@ -58,6 +60,7 @@ callbacks:
     save_last: true
   model_checkpoint_latest:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${run_dir}/logs/checkpoints
     filename: latest-{epoch}
     every_n_epochs: 1
     save_top_k: 1

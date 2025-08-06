@@ -1,1 +1,1 @@
-_target_: src.model.modules.scorers.normalized_product.NormalizedProductPairScorer
+_target_: src.models.moliner.modules.scorers.normalized_product.NormalizedProductPairScorer

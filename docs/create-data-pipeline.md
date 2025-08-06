@@ -181,7 +181,6 @@ Standardize span lengths using windowing or chunking approaches:
 ```python
 from src.data.utils.augmentation import (
     StandardizeSpansSlidingWindow,
-    StandardizeSpansChunking,
     SeparateFrameAndSequenceSpans
 )
 
@@ -190,12 +189,6 @@ window_function = StandardizeSpansSlidingWindow(
     target_span_length=16,     # Target length for all spans
     max_extend_frames=4,       # Maximum frames to extend short spans
     stride=8                   # Overlap between windows
-)
-
-# Chunking approach (non-overlapping spans)
-chunk_function = StandardizeSpansChunking(
-    target_span_length=16,     # Target length for all spans
-    max_extend_frames=4        # Maximum frames to extend short spans
 )
 
 # Separate frame and sequence spans into distinct samples

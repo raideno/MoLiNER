@@ -1,0 +1,4 @@
+_target_: src.models.segmentation.modules.encoders.stgcn.StgcnMotionEncoder
+latent_dim: 256
+frozen: false
+pretrained: false

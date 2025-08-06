@@ -1,30 +1,30 @@
 import os
 import typing
 
+LOCATE_CLASSES_DICT = {
+    0: ['walk'],
+    1: ['hit', 'punch'],
+    2: ['kick'],
+    3: ['run', 'jog'],
+    4: ['jump', 'hop', 'leap'],
+    5: ['throw'],
+    6: ['catch'],
+    7: ['step'],
+    8: ['greet'],
+    9: ['dance'],
+    10: ['stretch', 'yoga', 'exercise / training'],
+    11: ['turn', 'spin'],
+    12: ['bend'],
+    13: ['stand'],
+    14: ['sit'],
+    15: ['kneel'],
+    16: ['place something'],
+    17: ['grasp object'],
+    18: ['take/pick something up', 'lift something'],
+    19: ['scratch', 'touching face', 'touching body parts'],
+}
 def __get_locate_classes_flat_list() -> typing.List[str]:
-    locate_classes_dict = {
-        0: ['walk'],
-        1: ['hit', 'punch'],
-        2: ['kick'],
-        3: ['run', 'jog'],
-        4: ['jump', 'hop', 'leap'],
-        5: ['throw'],
-        6: ['catch'],
-        7: ['step'],
-        8: ['greet'],
-        9: ['dance'],
-        10: ['stretch', 'yoga', 'exercise / training'],
-        11: ['turn', 'spin'],
-        12: ['bend'],
-        13: ['stand'],
-        14: ['sit'],
-        15: ['kneel'],
-        16: ['place something'],
-        17: ['grasp object'],
-        18: ['take/pick something up', 'lift something'],
-        19: ['scratch', 'touching face', 'touching body parts'],
-    }
-    return [item for sublist in locate_classes_dict.values() for item in sublist]
+    return [item for sublist in LOCATE_CLASSES_DICT.values() for item in sublist]
 
 DEFAULT_STRIDE = 1
 DEFAULT_PROC_COUNT = 8

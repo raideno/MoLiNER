@@ -1,5 +1,0 @@
-_target_: src.model.modules.prompt_representation_layers.mlp.MLPPromptRepresentationLayer
-representation_dim: 256
-dropout: 0.4
-# NOTE: tmr's output dimension
-input_dim: 256

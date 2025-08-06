@@ -1,0 +1,4 @@
+_target_: src.models.segmentation.modules.encoders.mlp.MLPMotionEncoder
+num_frames: 20
+frozen: false
+pretrained: false

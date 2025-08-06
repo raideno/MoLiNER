@@ -1,4 +1,4 @@
-_target_: src.model.MoLiNER
+_target_: src.models.MoLiNER
 
 defaults:
   # tmr/scratch, tmr/pretrained, tmr/frozen
@@ -10,8 +10,8 @@ defaults:
   # static/1-16-1, static/1-32-1, static/1-48-1, static/1-64-1, 1-168-8, static/1-208-2, static/1-208-4, static/8-32-1, static/16-64-1, static/32-64-1
   - spans_generator: static/1-32
 
-  # mlp/deberta, mlp/tmr, mlp/clip
-  - prompt_representation_layer: mlp/tmr
+  # mlp
+  - prompt_representation_layer: mlp
   # endpoints
   # convolution/base/16-16-1, convolution/max/16-16-1, convolution/sum/16-16-1, convolution/mean/16-16-1
   - span_representation_layer: endpoints

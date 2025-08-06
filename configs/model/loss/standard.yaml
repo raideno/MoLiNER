@@ -1,0 +1,1 @@
+_target_: src.models.segmentation.modules.losses.standard.StandardLoss

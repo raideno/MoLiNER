@@ -1,8 +1,5 @@
-_target_: src.model.modules.motion_frames_encoders.mlp.MLPMotionFramesEncoder
-input_dim: 263
+_target_: src.models.moliner.modules.motion_frames_encoders.mlp.MLPMotionFramesEncoder
 hidden_dim: 256
-num_layers: 3
-dropout: 0.1
-activation: "relu"
+dropout: 0.4
 pretrained: false
 frozen: false

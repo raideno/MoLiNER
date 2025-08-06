@@ -1,22 +1,25 @@
 import os
+import wandb
 import torch
-import logging
 import typing
+import typing
+import logging
 import traceback
+import pytorch_lightning
 
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import Callback
+import pytorch_lightning.loggers
+import pytorch_lightning.callbacks
 
-from src.model import MoLiNER
-from src.types import RawBatch, EvaluationResult
+from src.models import MoLiNER
+from src.types import Batch, EvaluationResult
 
-from src.visualizations import plot_evaluation_results
+from src.helpers import plot_evaluation_results
 
 logger = logging.getLogger(__name__)
 
 THRESHOLDS = [0.25, 0.50, 0.75]
 
-class VisualizationCallback(Callback):
+class VisualizationCallback(pytorch_lightning.callbacks.Callback):
     """
     Simple callback to generate and log visualizations of model predictions on a fixed validation batch.
     """
@@ -37,11 +40,11 @@ class VisualizationCallback(Callback):
         self.dirpath: str = dirpath
         self.batch_index: int = batch_index
         self.debug: bool = debug
-        self.visualization_batch: typing.Optional[RawBatch] = None
+        self.visualization_batch: typing.Optional[Batch] = None
         
         os.makedirs(self.dirpath, exist_ok=True)
 
-    def on_train_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_start(self, trainer: pytorch_lightning.Trainer, pl_module: pytorch_lightning.LightningModule):
         if self.debug:
             logger.info(f"Setting up visualization: fetching validation batch index {self.batch_index}")
         
@@ -70,7 +73,7 @@ class VisualizationCallback(Callback):
                     logger.info(f"Stored validation batch {i} with {len(batch.sid)} samples")
                 break
 
-    def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_epoch_end(self, trainer: pytorch_lightning.Trainer, pl_module: pytorch_lightning.LightningModule):
         if trainer.sanity_checking or self.visualization_batch is None:
             return
             
@@ -83,7 +86,7 @@ class VisualizationCallback(Callback):
 
         self._generate_and_save_visualizations(pl_module, trainer)
 
-    def _generate_and_save_visualizations(self, model: MoLiNER, trainer: pl.Trainer):
+    def _generate_and_save_visualizations(self, model: MoLiNER, trainer: pytorch_lightning.Trainer):
         original_mode = model.training
         
         model.eval()
@@ -98,7 +101,7 @@ class VisualizationCallback(Callback):
                     return
                 
                 for threshold in THRESHOLDS:
-                    threshold_results[threshold] = model.predict(raw_batch=batch, threshold=threshold)
+                    threshold_results[threshold] = model.predict(batch=batch, threshold=threshold)
                 
                 epoch = model.current_epoch
                 epoch_dir = os.path.join(self.dirpath, f"epoch_{epoch:03d}")
@@ -120,11 +123,11 @@ class VisualizationCallback(Callback):
     def _create_sample_visualization(
         self,
         sample_idx: int,
-        batch: RawBatch,
+        batch: Batch,
         threshold_results: typing.Dict[float, typing.Any],
         epoch: int,
         epoch_dir: str,
-        trainer: pl.Trainer
+        trainer: pytorch_lightning.Trainer
     ):
         try:
             motion_length = int(batch.motion_mask[sample_idx].sum())
@@ -204,10 +207,10 @@ class VisualizationCallback(Callback):
                 wandb_logger = self._get_wandb_logger(trainer)
                 if wandb_logger:
                     try:
-                        # type: ignore
-                        wandb_logger.log_html_visualization(
-                            html_path=output_path,
-                            key=f"visualizations/epoch_{epoch:03d}/sample_{sample_idx}"
+                        wandb_logger.log_table(
+                            key="visualizations",
+                            data=[[f"epoch_{epoch:03d}/sample_{sample_idx}", wandb.Html(output_path)]],
+                            columns=["key", "visualization"]
                         )
                     except Exception as e:
                         if self.debug:
@@ -220,15 +223,17 @@ class VisualizationCallback(Callback):
             if self.debug:
                 traceback.print_exc()
 
-    def _get_wandb_logger(self, trainer: pl.Trainer):
+    def _get_wandb_logger(self, trainer: pytorch_lightning.Trainer) -> typing.Optional[pytorch_lightning.loggers.WandbLogger]:
         if trainer.logger is None:
             return None
             
         if hasattr(trainer, 'loggers') and trainer.loggers:
             for logger_instance in trainer.loggers:
-                if hasattr(logger_instance, '__class__') and 'WandBLogger' in str(logger_instance.__class__):
+                if hasattr(logger_instance, '__class__') and 'WandbLogger' in str(logger_instance.__class__):
+                    # type: ignore
                     return logger_instance
-        elif hasattr(trainer.logger, '__class__') and 'WandBLogger' in str(trainer.logger.__class__):
+        elif hasattr(trainer.logger, '__class__') and 'WandbLogger' in str(trainer.logger.__class__):
+            # type: ignore
             return trainer.logger
             
         return None

@@ -1,3 +1,4 @@
-_target_: src.model.modules.prompts_tokens_encoders.deberta.DebertaPromptsTokensEncoder
+_target_: src.models.moliner.modules.prompts_tokens_encoders.deberta.DebertaPromptsTokensEncoder
 pretrained: true
 frozen: false
+hidden_dimension: 768

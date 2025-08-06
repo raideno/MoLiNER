@@ -2,18 +2,25 @@
 
 MoLiNER for motion analysis, language-based segmentation and retrieval.
 
+## Documentation
+
+A more detailed documentation is available in the [docs](./docs/README.md) directory.
+
 ## Installation
 
 To get started with MoLiNER, you need to set up the environment and install the required dependencies.
 
-1. **Clone the repository:**
+<details>
+<summary><b>1. Clone the repository:</b></summary>
 
 ```bash
 git clone https://github.com/raideno/MoLiNER.git
 cd MoLiNER
 ```
+</details>
 
-2. **Setup Python Environment:**
+<details>
+<summary><b>2. Setup Python Environment:</b></summary>
 
 ```bash
 python -m venv .venv
@@ -24,16 +31,21 @@ source .venv/bin/activate
 # NOTE: installing the dependencies
 pip install -r requirements.txt
 ```
+</details>
 
-3. **Hugging Face Authentication (Required):**
+<details>
+<summary><b>3. Hugging Face Authentication (IMPORTANT):</b></summary>
 
 Rename the [`.env.example`](./.env.example) to `.env` and replace the `xxx` value with the appropriate values.
+</details>
 
-4. **TMR Pretrained Weights:**
+<details>
+<summary><b>4. TMR Pretrained Weights:</b></summary>
 
 ```bash
 bash scripts/download-tmr-pretrained-models.sh
 ```
+</details>
 
 ## Dataset Preparation
 
@@ -49,7 +61,7 @@ To train a new model, use the `train-model.py` script.
 
 1. **Create the Model:**
 
-Duplicate the [`configs/model/moliner.yaml`](./configs/model/moliner.yaml) file and **name it as you wish**.
+Duplicate the [`configs/model/moliner.base.yaml`](./configs/model/moliner.base.yaml) file and **name it as you wish**.
 
 2. **Specify the Modules:**
 
@@ -58,14 +70,23 @@ Replace all the `???` in the `.yaml` file with one of the possible values for ea
 3. **Start the Training:**
 
 ```bash
-HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MODEL_NAME> data=<DATASET_NAME> trainer.accelerator=cuda
+HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py \
+    model=<MODEL_NAME> \
+    data=<DATA_PIPELINE_NAME> \
+    trainer.accelerator=cuda \
+    +trainer.devices=[0]
 ```
 
 **NOTEs:**
 
 - For more control on the trainer, you can change the [configs/trainer.yaml](./configs/trainer.yaml).
 - `<MODEL_NAME>` should be set the the name of the file you just created without the `.yaml` extension.
-- `<DATASET_NAME>` possible values can be found at [`configs/data`](./configs/data/) and are also listed below.
+- `<DATA_PIPELINE_NAME>` possible values can be found at [`configs/data`](./configs/data/) and are also listed in [#data-pipelines section](#data-pipelines).
+
+
+<details>
+
+<summary><b><u>Data Pipelines</u></b></summary>
 
 ### Data Pipelines
 
@@ -81,7 +102,13 @@ HYDRA_FULL_ERROR=1 TOKENIZERS_PARALLELISM=false python train-model.py model=<MOD
 
 **`RUN_DIR`:** Once training started, a directory inside the [`out`](./out) directory will be created, model weights, logs, etc will be stored there, this directory will be referred to as `run_dir` in the rest of the documentation.
 
-## Configurations
+</details>
+
+<details>
+
+<summary><b><u>Configurations</u></b></summary>
+
+### Configurations
 
 This project uses [Hydra](https://hydra.cc/) for configuration management. This allows for a flexible and composable way to configure experiments.
 
@@ -101,6 +128,9 @@ python train-model.py data=<data-name> model=<model-name> trainer.max_epochs=100
 
 This command will train the specified model on the specified dataset for 100 epochs.
 
+Refers to [Hydra's Documentation](https://hydra.cc/) for more infos about how to use Hydra.
+</details>
+
 ## Weights Extraction
 
 Before running evaluation or inference, you might want to extract the model weights from the PyTorch Lightning checkpoint for easier loading.
@@ -113,20 +143,15 @@ This will save the model weights in the run directory.
 
 ## Evaluation
 
-### Model Testing
-
-To test a model on the test split of a dataset, use the `test-model.py` script. You need to provide the path on which the model have been "trained".
-
-```bash
-HYDRA_FULL_ERROR=1 python test-model.py run_dir=<path_to_run_dir>
-```
-
 ### Retrieval Evaluation
 
 To evaluate the model's performance on in-motion retrieval tasks:
 
 ```bash
-HYDRA_FULL_ERROR=1 python evaluate-retrieval.py run_dir=<path_to_run_dir>
+HYDRA_FULL_ERROR=1 python evaluate.mlp.py \
+    run_dir=<path_to_run_dir> \
+    device=cuda:1 \
+    score=0.5
 ```
 
 This supports HumanML3D, Babel sequence-level, and Babel frame-level datasets.
@@ -136,22 +161,11 @@ This supports HumanML3D, Babel sequence-level, and Babel frame-level datasets.
 To evaluate the model on segmentation tasks with the Babel frame-level dataset:
 
 ```bash
-HYDRA_FULL_ERROR=1 python evaluate-segmentation.py run_dir=<path_to_run_dir>
+HYDRA_FULL_ERROR=1 python evaluate.locate.py \
+    run_dir=<path_to_run_dir> \
+    device=cuda:1 \
+    score=0.5
 ```
-
-## Inference
-
-To use a trained model for inference, you can use the `interface.py` script or load the model in your own scripts using the helper functions in `src/load.py`.
-
-## Gradio Web Interface
-
-A Gradio web interface is available for interactive model evaluation and visualization. To launch it, run:
-
-```bash
-HYDRA_FULL_ERROR=1 python interface.py run_dir=<path_to_run_dir>
-```
-
-You can then access the interface in your web browser.
 
 ## Pre-trained Models
 

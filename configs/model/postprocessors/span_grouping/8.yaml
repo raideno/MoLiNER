@@ -1,2 +1,2 @@
-- _target_: src.model.modules.postprocessors.span_grouping.SpanGroupingPostprocessor
+- _target_: src.models.moliner.modules.postprocessors.span_grouping.SpanGroupingPostprocessor
   max_gap: 8

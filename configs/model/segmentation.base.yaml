@@ -1,0 +1,10 @@
+_target_: src.models.segmentation.segmentation.StartEndSegmentationModel
+
+window_size: 20
+
+defaults:
+  - motion_encoder: tmr/frozen
+  - classifier: mlp
+  - aggregator: scores
+  - optimizer: adam
+  - loss: standard

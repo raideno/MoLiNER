@@ -21,3 +21,5 @@ from src.constants import (
 def login_to_huggingface(token: typing.Optional[str] = None):
     token = token or os.getenv(__HUGGING_FACE_TOKEN_ENV_VAR)
     login(token=token)
+
+login_to_huggingface()
