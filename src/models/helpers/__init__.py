@@ -1,1 +1,2 @@
 from .actor import PositionalEncoding, ACTORStyleEncoder, ACTORStyleDecoder
+from .projection_layer import create_projection_layer

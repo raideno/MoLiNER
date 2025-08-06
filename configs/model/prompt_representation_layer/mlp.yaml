@@ -1,4 +1,4 @@
 _target_: src.models.moliner.modules.prompt_representation_layers.mlp.MLPPromptRepresentationLayer
 representation_dim: 256
 dropout: 0.4
-input_dim: ${model.prompts_token_encoder.hidden_dimension}
+input_dim: ${model.prompts_tokens_encoder.hidden_dimension}

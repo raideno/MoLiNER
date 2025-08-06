@@ -3,7 +3,7 @@ import typing
 
 from ._base import BasePromptRepresentationLayer
 
-from src.models.moliner.modules._helpers import create_projection_layer
+from src.models.helpers import create_projection_layer
 
 class MLPPromptRepresentationLayer(BasePromptRepresentationLayer):
     def __init__(self, input_dim: int, representation_dim: int, dropout: float):

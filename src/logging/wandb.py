@@ -20,14 +20,22 @@ class WandbLogger(pytorch_lightning.loggers.WandbLogger):
             tags = [
                 f"{motion_frames_encoder['_target_'].split('.')[-1]}(pretrained={motion_frames_encoder.get('pretrained', False)}, frozen={motion_frames_encoder.get('frozen', False)})",
                 f"{prompts_tokens_encoder['_target_'].split('.')[-1]}(pretrained={prompts_tokens_encoder.get('pretrained', False)}, frozen={prompts_tokens_encoder.get('frozen', False)})",
-                config["model"]["spans_generator"]["_target_"].split(".")[-1],
+                *[
+                    f"{config['model']['spans_generator']['_target_'].split('.')[-1]}(min={config['model']['spans_generator']['min_width']},max={config['model']['spans_generator']['max_width']},step={config['model']['spans_generator']['step']},stride={config['model']['spans_generator']['stride']})"
+                    if config['model']['spans_generator']['_target_'].split('.')[-1] == "standardSpansGenerator"
+                    else config['model']['spans_generator']['_target_'].split('.')[-1],
+                ],
+                *[
+                    config["model"]["span_representation_layer"]["_target_"].split(".")[-1],
+                ],
                 config["model"]["prompt_representation_layer"]["_target_"].split(".")[-1],
-                config["model"]["span_representation_layer"]["_target_"].split(".")[-1],
                 config["model"]["scorer"]["_target_"].split(".")[-1],
                 config["model"]["decoder"]["_target_"].split(".")[-1],
                 config["model"]["loss"]["_target_"].split(".")[-1],
                 config["model"]["optimizer"]["_target_"].split(".")[-1],
+                # TODO: add the post processors
                 # config["model"]["postprocessors"]["_target_"].split(".")[-1],
+                # TODO: add the dataset, pipeline and fingerprint
             ]
         elif model_name == 'StartEndSegmentationModel':
             motion_encoder = config['model']['motion_encoder']

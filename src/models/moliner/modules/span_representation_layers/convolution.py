@@ -2,7 +2,7 @@ import pdb
 import torch
 import typing
 
-from src.models.moliner.modules._helpers import create_projection_layer
+from src.models.helpers import create_projection_layer
 
 from ._base import BaseSpanRepresentationLayer
 

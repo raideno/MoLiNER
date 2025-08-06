@@ -1,1 +1,4 @@
 _target_: src.models.segmentation.modules.classifiers.mlp.MLPClassifier
+latent_dim: 256
+num_classes: 20
+dropout: 0.4

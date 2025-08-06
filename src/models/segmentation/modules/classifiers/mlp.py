@@ -1,44 +1,42 @@
 import torch
-import torch.nn as nn
 import typing
 
 from ._base import BaseClassifier
 
+from src.models.helpers import create_projection_layer
+
 class MLPClassifier(BaseClassifier):
     def __init__(
         self,
-        latent_dim=256,
-        hidden_dim=128,
-        num_classes=20
+        latent_dim: int,
+        num_classes: int,
+        dropout: float
     ):
         super().__init__()
         
         self.latent_dim = latent_dim
-        self.hidden_dim = hidden_dim
         self.num_classes = num_classes
+        self.dropout = dropout
         
-        self.classification_head = nn.Sequential(
-            nn.Linear(self.latent_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.num_classes),
+        self.classification_head = create_projection_layer(
+            hidden_size=self.latent_dim,
+            dropout=self.dropout,
+            out_dim=self.num_classes
         )
         
-        self.start_regression_head = nn.Sequential(
-            nn.Linear(self.latent_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1),
+        self.start_regression_head = create_projection_layer(
+            hidden_size=self.latent_dim,
+            dropout=self.dropout,
+            out_dim=1
         )
         
-        self.end_regression_head = nn.Sequential(
-            nn.Linear(self.latent_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.Linear(self.hidden_dim, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1),
+        
+        self.end_regression_head = create_projection_layer(
+            hidden_size=self.latent_dim,
+            dropout=self.dropout,
+            out_dim=1
         )
-
+        
     def forward(
         self,
         encoded_features: torch.Tensor,

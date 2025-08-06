@@ -13,12 +13,14 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
         self,
         frozen: bool,
         pretrained: bool,
+        dropout: float,
         weights_path: typing.Optional[str] = None,
         sample_mean: bool = False
         # --- --- ---
     ):
         super().__init__()
         
+        self.dropout = dropout
         self.frozen_ = frozen
         self.pretrained_ = pretrained
         self.weights_path = weights_path
@@ -31,7 +33,6 @@ class TMRMotionFramesEncoder(BaseMotionFramesEncoder):
         self.ff_size: int = 1024
         self.num_layers: int = 6
         self.num_heads: int = 4
-        self.dropout: float = 0.1
         self.activation: str = "gelu"
         
         self.tmr_encoder = ACTORStyleEncoder(

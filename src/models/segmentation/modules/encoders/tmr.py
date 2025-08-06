@@ -11,14 +11,16 @@ HML3D_FEATURES_SIZE = 263
 class TMRMotionEncoder(BaseMotionEncoder):
     def __init__(
         self,
-        frozen: bool = False,
-        pretrained: bool = False,
+        frozen: bool,
+        pretrained: bool,
+        dropout: float,
+        sample_mean: bool,
         weights_path: typing.Optional[str] = None,
-        sample_mean: bool = False
         # --- --- ---
     ):
         super().__init__()
         
+        self.dropout = dropout
         self.frozen_ = frozen
         self.pretrained_ = pretrained
         self.weights_path = weights_path
@@ -30,7 +32,6 @@ class TMRMotionEncoder(BaseMotionEncoder):
         self.ff_size: int = 1024
         self.num_layers: int = 6
         self.num_heads: int = 4
-        self.dropout: float = 0.1
         self.activation: str = "gelu"
         
         self.tmr_encoder = ACTORStyleEncoder(

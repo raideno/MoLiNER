@@ -18,8 +18,10 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
     ):
         super().__init__()
         
-        assert hidden_dimension == self.hidden_dimension, "Hidden dimension mismatch. Expected {}, got {}.".format(
-            self.hidden_dimension, hidden_dimension
+        self.latent_dim: int = 256
+        
+        assert hidden_dimension == self.latent_dim, "Hidden dimension mismatch. Expected {}, got {}.".format(
+            self.latent_dim, hidden_dimension
         )
         
         self.frozen_ = frozen
@@ -37,7 +39,6 @@ class TMRPromptsTokensEncoder(BasePromptsTokensEncoder):
         from src.models.helpers import ACTORStyleEncoder
         
         self.vae: bool = True
-        self.latent_dim: int = 256
         self.ff_size: int = 1024
         self.num_layers: int = 6
         self.num_heads: int = 4
