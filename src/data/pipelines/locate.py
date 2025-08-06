@@ -10,6 +10,7 @@ from src.data.utils.filtering import (
 
 from src.data.utils.augmentation import (
     StandardizeSpansSlidingWindow,
+    SeparateFrameAndSequenceSpans,
 )
 
 class FilteredLocatePipeline(BabelPipeline):
@@ -47,7 +48,7 @@ FILTER_CONFIG = FilterConfig(
     min_span_frames=1,
     # max_span_frames,
     sources=["act_cat"],
-    annotation_types=["frames"]
+    annotation_types=["frames", "sequence"]
 )
 
 class LocatePipeline(BabelPipeline):
@@ -62,6 +63,7 @@ class LocatePipeline(BabelPipeline):
         
         locate_filter_function = FilterFunction(filter_config)
         self.add_step(locate_filter_function, batched=True)
+        self.add_step(SeparateFrameAndSequenceSpans(), batched=True)
         
 class WindowingStandardizedLocatePipeline(BabelPipeline):
     """
