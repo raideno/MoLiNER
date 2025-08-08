@@ -14,7 +14,7 @@ def create_negatives_mask(
             (torch.rand_like(logits) < negatives).float(),
             torch.ones_like(logits)
         )
-    elif type == "label":
+    elif type in ("label", "labels"):
         neg_proposals = (logits.sum(dim=1) == 0).unsqueeze(1).expand_as(logits)
         mask_negatives = torch.where(
             neg_proposals,
