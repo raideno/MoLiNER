@@ -2,6 +2,8 @@
 
 MoLiNER for motion analysis, language-based segmentation and retrieval.
 
+![](./assets/model.png)
+
 ## Documentation
 
 A more detailed documentation is available in the [docs](./docs/README.md) directory.
